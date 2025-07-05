@@ -1,0 +1,15 @@
+[package]
+name = "lulu_attendance-server"
+version = "0.0.1"
+edition = "2024"
+
+[dependencies]
+actix-cors = "0.7.1"
+actix-web = "4.11.0"
+chrono = { version = "0.4.41", features = ["serde"] }
+dotenvy = "0.15.0"
+env_logger = "0.11.8"
+serde = { version = "1.0.219", features = ["derive"] }
+serde_json = "1.0.140"
+sqlx = { version = "0.8.6", features = ["runtime-async-std", "tls-native-tls", "postgres", "chrono", "uuid"] }
+uuid = { version = "1.17.0", features = ["serde", "v4"] }
