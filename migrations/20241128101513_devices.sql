@@ -7,6 +7,6 @@ CREATE TABLE devices (
     device_timezone int NOT NULL,
     device_state int NOT NULL DEFAULT 0,
     device_online TIMESTAMP NULL,
-    create_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    create_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     update_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

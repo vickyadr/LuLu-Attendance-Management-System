@@ -1,4 +1,4 @@
-use crate::handler::adms::{h_cdata::*, h_getrequest::*};
+use crate::handler::adms::{h_cdata::*, h_getrequest::*, h_devicecmd::*};
 use crate::handler::h_list::*;
 use actix_web::web;
 
@@ -10,7 +10,8 @@ pub fn config(conf: &mut web::ServiceConfig) {
     // ADMS API
     let iclock = web::scope("/iclock").service(get_cdata)
                                                     .service(post_cdata)
-                                                    .service(get_request);
+                                                    .service(get_request)
+                                                    .service(post_device_cmd);
 
     conf.service(scope).service(iclock);
 }

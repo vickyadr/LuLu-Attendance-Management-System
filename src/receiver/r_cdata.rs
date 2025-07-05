@@ -16,4 +16,6 @@ pub struct ReceiverCData {
     pub table: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none", rename = "Stamp")]
     pub stamp: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none", rename = "OpStamp")]
+    pub op_stamp: Option<String>,
 }
