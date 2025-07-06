@@ -7,11 +7,11 @@ Current Support List:
 <br><hr>
 FAQ : <br>
 
-  Q: What is it?
-  A: This is part of LuLu Universal Attendance Management, imangine there was a worker on backstage the people you wont see and the frontstage the people that probably you want to see. this is the backstage worker
+  Q: What is it?<br>
+  A: This is part of LuLu Universal Attendance Management, imangine there was a worker on backstage the people you wont see and the frontstage the people that probably you want to see. this is the backstage worker<br><br>
 
-  Q: Where is the other part?
-  A: At my repo OFC, the other part name is "LuLu Attendance Management - frontend"
+  Q: Where is the other part?<br>
+  A: At my repo OFC, the other part name is "LuLu Attendance Management - frontend"<br><br>
 
   Q: Why lulu?<br>
   A: Why not. its sounds cute, simple and easy to remember. right?<br><br>
