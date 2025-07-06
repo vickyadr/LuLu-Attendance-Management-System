@@ -26,7 +26,6 @@ pub async fn get_request(data: web::Query<GetCData>, pool: web::Data<AppState>) 
 
         for cmd in query {
             commands.push_str(&format!("C:{}:{}\n", cmd.command_id, cmd.command_params));
-            //C:112:DATA QUERY USERINFO PIN=99999
         }
 
         return HttpResponse::Ok().content_type("text/plain").body(commands);

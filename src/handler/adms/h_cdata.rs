@@ -1,10 +1,11 @@
 use crate::{
     receiver::r_cdata::*,
-    utility::stor::{AppState, GenericResponse, KeyValResponse},
+    utility::stor::{AppState, GenericResponse, KeyValResponse, WildData},
 };
 use actix_web::{get, post, web::{self, Bytes}, HttpResponse, Responder};
-use chrono::{DateTime, NaiveDateTime, Utc};
+use chrono::{NaiveDateTime, Utc};
 use std::{collections::HashMap};
+
 
 #[get("/cdata")]
 pub async fn get_cdata(data: web::Query<GetCData>) -> impl Responder {
@@ -51,30 +52,40 @@ pub async fn post_cdata(pool: web::Data<AppState>, get: web::Query<ReceiverCData
     }
 
     if get.table.as_ref().unwrap() == "OPERLOG" {
+        let body_text = data_operlog(pool, get, data_body).await;
+        
+        if body_text.wild == false {
+            return HttpResponse::BadRequest().content_type("text/plain")
+                .body("");
+        }
 
         return HttpResponse::Ok().content_type("text/plain")
-            .body(data_operlog(pool, get, data_body).await);
+            .body(body_text.value);
 
     }else if get.table.as_ref().unwrap() == "ATTLOG" {
 
+        let body_text = data_attlog(pool, get, data_body).await;
+        
+        if body_text.wild == false {
+            return HttpResponse::BadRequest().content_type("text/plain")
+                .body("");
+        }
 
         return HttpResponse::Ok().content_type("text/plain")
-            .body(data_attlog(pool, get, data_body).await);
+            .body(body_text.value);
     }
-
-    let dt: DateTime<Utc> = Utc::now();
 
     return HttpResponse::InternalServerError().json(GenericResponse::<i8>::new(
         Vec::new(),
-        dt.to_string(),//"Internal Error".to_string(),
+        Utc::now().to_string(),//"Internal Error".to_string(),
     ));
 }
 
-async fn data_attlog(pool: web::Data<AppState>, get: web::Query<ReceiverCData>, data_body: String) -> String {
+async fn data_attlog(pool: web::Data<AppState>, get: web::Query<ReceiverCData>, data_body: String) -> WildData<bool, String> {
 
     let log_data = data_body.lines();
-    println!("POST CDATA: {:?}", log_data);
     let mut log_recorded: i32 = 0;
+
     for logs in log_data {
 
         if logs.is_empty() {
@@ -130,13 +141,24 @@ async fn data_attlog(pool: web::Data<AppState>, get: web::Query<ReceiverCData>, 
         }
     }
 
-    return format!("OK {}", log_recorded);
+    if log_recorded == 0 {
+        return WildData {
+            wild: false,
+            value: format!(""),
+        };
+    }
+
+    return WildData {
+        wild: true,
+        value: format!("OK {}", log_recorded)
+    };
 }
 
-async fn data_operlog(pool: web::Data<AppState>, get: web::Query<ReceiverCData>, data_body: String) -> String {
+async fn data_operlog(pool: web::Data<AppState>, get: web::Query<ReceiverCData>, data_body: String) -> WildData<bool, String> {
 
     let log_data = data_body.lines();
     let mut log_recorded: i32 = 0;
+
     for logs in log_data {
 
         if logs.is_empty() {
@@ -301,8 +323,14 @@ async fn data_operlog(pool: web::Data<AppState>, get: web::Query<ReceiverCData>,
     }
 
     if log_recorded == 0 {
-        return format!("");
+        return WildData {
+            wild: false,
+            value: format!(""),
+        };
     }
     
-    return format!("OK {}", log_recorded);
+    return WildData {
+            wild: false,
+            value: format!("OK {}", log_recorded),
+        };
 }

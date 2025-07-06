@@ -24,6 +24,12 @@ pub struct KeyValResponse<K, V> {
     pub data: HashMap<K, V>,
 }
 
+#[derive(Serialize)]
+pub struct WildData<K, V> {
+    pub wild : K,
+    pub value : V,
+}
+
 impl NoDataResponse {
     pub fn new(msg: String) -> NoDataResponse {
         NoDataResponse {
