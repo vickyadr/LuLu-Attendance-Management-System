@@ -2,7 +2,7 @@ LuLu Universal Attendance Management System - BACKEND<br>
 
 Current Support List:
 1. ZKTeco (ADMS V2.1 and below)
-2. Solution (Almost All, but face enroll not work)<br>
+2. Solution (Almost All)<br>
 
 <br><hr>
 FAQ : <br>

@@ -1,6 +1,6 @@
 use actix_cors::Cors;
 use actix_web::http::header;
-use actix_web::{middleware, web, App, HttpServer};
+use actix_web::{middleware, web, App, HttpServer, HttpRequest};
 use lulu_attendance_server::utility::router;
 use lulu_attendance_server::utility::{db, stor::AppState};
 
@@ -38,6 +38,8 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(AppState { db: pool.clone() }))
             // add request logger middleware
             .wrap(middleware::Logger::default())
+            // add authentication middleware
+            //.wrap(auth)
             // add route handlers
             .wrap(cors)
             .configure(router::config)

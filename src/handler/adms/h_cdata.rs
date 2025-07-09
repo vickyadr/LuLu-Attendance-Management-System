@@ -1,7 +1,8 @@
 use crate::{
     receiver::r_cdata::*,
-    utility::stor::{AppState, GenericResponse, KeyValResponse, WildData},
+    utility::stor::{AppState, GenericResponse, KeyValResponse},//, WildData},
 };
+use anyhow::{Result, bail};
 use actix_web::{get, post, web::{self, Bytes}, HttpResponse, Responder};
 use chrono::{NaiveDateTime, Utc};
 use std::{collections::HashMap};
@@ -52,27 +53,29 @@ pub async fn post_cdata(pool: web::Data<AppState>, get: web::Query<ReceiverCData
     }
 
     if get.table.as_ref().unwrap() == "OPERLOG" {
-        let body_text = data_operlog(pool, get, data_body).await;
-        
-        if body_text.wild == false {
-            return HttpResponse::BadRequest().content_type("text/plain")
-                .body("");
-        }
-
-        return HttpResponse::Ok().content_type("text/plain")
-            .body(body_text.value);
+        let _ = data_operlog(pool, get, data_body)
+        .await
+        .map(|text| {
+            HttpResponse::Ok().content_type("text/plain").body(text)
+        })
+        .map_err(|e| {
+             println!("Error processing OPERLOG: {}", e);
+            HttpResponse::BadRequest().content_type("text/plain").body("")
+        });
 
     }else if get.table.as_ref().unwrap() == "ATTLOG" {
-
-        let body_text = data_attlog(pool, get, data_body).await;
+        let res = data_attlog(pool, get, data_body)
+        .await
+        .map(|text| {
+            HttpResponse::Ok().content_type("text/plain").body(text)
+        })
+        .map_err(|_| {
+            HttpResponse::BadRequest().content_type("text/plain").body("")
+        });
         
-        if body_text.wild == false {
-            return HttpResponse::BadRequest().content_type("text/plain")
-                .body("");
+        if res.is_ok() {
+            return res.expect("REASON");
         }
-
-        return HttpResponse::Ok().content_type("text/plain")
-            .body(body_text.value);
     }
 
     return HttpResponse::InternalServerError().json(GenericResponse::<i8>::new(
@@ -81,7 +84,7 @@ pub async fn post_cdata(pool: web::Data<AppState>, get: web::Query<ReceiverCData
     ));
 }
 
-async fn data_attlog(pool: web::Data<AppState>, get: web::Query<ReceiverCData>, data_body: String) -> WildData<bool, String> {
+async fn data_attlog(pool: web::Data<AppState>, get: web::Query<ReceiverCData>, data_body: String) -> Result<String> {
 
     let log_data = data_body.lines();
     let mut log_recorded: i32 = 0;
@@ -100,16 +103,14 @@ async fn data_attlog(pool: web::Data<AppState>, get: web::Query<ReceiverCData>, 
 
         let enroll_type:i32;
 
-        if log[2] == "1" {
+        if log[3] == "1" {
             enroll_type = 1; // Fingerprint
-        } else if log[3] == "1" {
+        } else if log[3] == "2" {
             enroll_type = 2; // Password
-        } else if log[4] == "1" {
+        } else if log[3] == "3" {
             enroll_type = 3; // Card
-        } else if log[5] == "1" {
-            //enroll_type = 0;
-            // Reseved
-            continue; // Skip unsupported enroll types
+        } else if log[3] == "15" {
+            enroll_type = 4; // Face
         } else {
             continue; // Skip unsupported enroll types
         }
@@ -118,44 +119,44 @@ async fn data_attlog(pool: web::Data<AppState>, get: web::Query<ReceiverCData>, 
             NaiveDateTime::default()
         );
 
-        let query =
+        let _query =
             sqlx::query(r#"INSERT INTO enrolls (enroll_device_sn, enroll_employee_id, enroll_type, enroll_time) VALUES ($1, $2, $3, $4)"#)
                 .bind(get.sn.as_ref().unwrap().to_string())
-                .bind(log[0].to_string())
+                .bind(log[0].parse::<i32>().unwrap())
                 .bind(enroll_type)
                 .bind(dt)
                 .execute(&pool.db)
                 .await
-                .map_err(|e: sqlx::Error| e.to_string());
+                .map_err(|e: sqlx::Error| {
+                    //println!("Error inserting log: {}", e);
+                    if e.to_string().contains("duplicate key value violates unique constraint") {
+                        log_recorded += 1 ;
+                    }
+                })
+                .map(|_| { log_recorded += 1 ;});
         
-        if query.is_ok() {
+        //if query.is_ok() {
             // Increment the log_recorded counter
-            log_recorded += 1;
-        }
+        //    log_recorded += 1;
+        //}
 
-        if let Err(_e) = query {
+        //if let Err(_e) = query {
             //if e.contains("Duplicate entry") {
             //    return HttpResponse::BadRequest();
             //}
-            println!("Error inserting log: {}", _e);
-        }
+        //    println!("Error inserting log: {}", _e);
+        //}
     }
 
     if log_recorded == 0 {
-        return WildData {
-            wild: false,
-            value: format!(""),
-        };
+        bail!("Some data error: {}", log_recorded);
     }
 
-    return WildData {
-        wild: true,
-        value: format!("OK {}", log_recorded)
-    };
+    return Ok(format!("OK {}", log_recorded));
 }
 
-async fn data_operlog(pool: web::Data<AppState>, get: web::Query<ReceiverCData>, data_body: String) -> WildData<bool, String> {
-
+async fn data_operlog(pool: web::Data<AppState>, get: web::Query<ReceiverCData>, data_body: String) -> Result<String> {
+    
     let log_data = data_body.lines();
     let mut log_recorded: i32 = 0;
 
@@ -205,7 +206,7 @@ async fn data_operlog(pool: web::Data<AppState>, get: web::Query<ReceiverCData>,
                     //if e.contains("Duplicate entry") {
                     //    return HttpResponse::BadRequest();
                     //}
-                    println!("Error inserting log: {}", _e);
+                    //event::trace!("Error inserting log: {}", _e);
                 }
             },
             "USER" => {
@@ -268,7 +269,7 @@ async fn data_operlog(pool: web::Data<AppState>, get: web::Query<ReceiverCData>,
                     .expect("Failed to check if finger exists");
 
                 if check {
-                    let query =
+                    let _ =
                     sqlx::query(r#"UPDATE fingers SET finger_code=$1, update_at=$2 WHERE finger_employee_id=$3 AND finger_id=$4"#)
                         .bind(&log[4][4..])    
                         .bind(Utc::now())
@@ -277,40 +278,45 @@ async fn data_operlog(pool: web::Data<AppState>, get: web::Query<ReceiverCData>,
                         
                         .execute(&pool.db)
                         .await
-                        .map_err(|e: sqlx::Error| e.to_string());
+                        .map(|_| {
+                            log_recorded += 1;
+                        })?;
                     
-                    if query.is_ok() {
+                    //if query.is_ok() {
                         // Increment the log_recorded counter
-                        log_recorded += 1;
-                    }
+                    //    log_recorded += 1;
+                    //}
 
-                    if let Err(_e) = query {
+                    //if let Err(_e) = query {
                         //if e.contains("Duplicate entry") {
                         //    return HttpResponse::BadRequest();
                         //}
-                        println!("Error update log: {}", _e);
-                    }
+                    //    println!("Error update log: {}", _e);
+                    //}
                 }else{
-                    let query =
+                    let _ =
                     sqlx::query(r#"INSERT INTO fingers (finger_employee_id, finger_code, finger_id) VALUES ($2, $3, $1)"#)
                         .bind(log[1].split("=").last().unwrap_or(""))
                         .bind(user_id)
                         .bind(&log[4][4..])
                         .execute(&pool.db)
                         .await
-                        .map_err(|e: sqlx::Error| e.to_string());
+                        .map(|_| {
+                            log_recorded += 1;
+                        })?;
+                        //.map_err(|e: sqlx::Error| e.to_string());
                     
-                    if query.is_ok() {
+                    //if query.is_ok() {
                         // Increment the log_recorded counter
-                        log_recorded += 1;
-                    }
+                    //    log_recorded += 1;
+                    //}
 
-                    if let Err(_e) = query {
+                    //if let Err(_e) = query {
                         //if e.contains("Duplicate entry") {
                         //    return HttpResponse::BadRequest();
                         //}
-                        println!("Error inserting log: {}", _e);
-                    }
+                    //    println!("Error inserting log: {}", _e);
+                    //}
                 }
 
             },
@@ -323,14 +329,9 @@ async fn data_operlog(pool: web::Data<AppState>, get: web::Query<ReceiverCData>,
     }
 
     if log_recorded == 0 {
-        return WildData {
-            wild: false,
-            value: format!(""),
-        };
+        // Error message yet to be defined
+        // Err("No logs recorded".to_string());
     }
-    
-    return WildData {
-            wild: false,
-            value: format!("OK {}", log_recorded),
-        };
+    // Return success message with the number of logs recorded
+    return Ok(format!("OK {}", log_recorded));
 }
