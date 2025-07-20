@@ -41,4 +41,6 @@ FAQ : <br>
   A: Fix your brain please<br>
 <br><hr>
 Support me on: <br>
-- ETH : 0x56AC2134df9357aaD3FF2C6d9B42Cb930708372E
+- ETH     : 0x56AC2134df9357aaD3FF2C6d9B42Cb930708372E
+- Patreon : <a href="https://patreon.com/16PxLabs">patreon.com/16PxLabs</a>
+- QRIS    : Soon--> 
