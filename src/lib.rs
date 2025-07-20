@@ -22,4 +22,5 @@ pub mod utility {
     pub mod db;
     pub mod router;
     pub mod stor;
+    pub mod hash;
 }

@@ -1,6 +1,6 @@
 use crate::{
     receiver::r_cdata::*,
-    utility::stor::{AppState, GenericResponse, KeyValResponse},//, WildData},
+    utility::stor::{AppState, KeyValResponse, NoDataResponse},//, WildData},
 };
 use anyhow::{Result, bail};
 use actix_web::{get, post, web::{self, Bytes}, HttpResponse, Responder};
@@ -46,9 +46,10 @@ pub async fn post_cdata(pool: web::Data<AppState>, get: web::Query<ReceiverCData
     }
 
     if data.len() > 0 {
-        return HttpResponse::BadRequest().json(KeyValResponse::<String, String>::new(
+        return HttpResponse::Ok().json(KeyValResponse::<String, String>::new(
             data,
-            "Post Error".to_string(),
+            format!("Post Error"),
+            400
         ));
     }
 
@@ -78,9 +79,10 @@ pub async fn post_cdata(pool: web::Data<AppState>, get: web::Query<ReceiverCData
         }
     }
 
-    return HttpResponse::InternalServerError().json(GenericResponse::<i8>::new(
-        Vec::new(),
-        Utc::now().to_string(),//"Internal Error".to_string(),
+    return HttpResponse::InternalServerError().json(NoDataResponse::new(
+        format!("{}", Utc::now()),
+        //"Internal Error",
+        500
     ));
 }
 

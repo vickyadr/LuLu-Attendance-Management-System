@@ -1,14 +1,17 @@
 use actix_cors::Cors;
-use actix_web::http::header;
-use actix_web::{middleware, web, App, HttpServer, HttpRequest};
+use actix_web::{error::Error, http::header, middleware, web, App, HttpServer};
+use actix_web_httpauth::extractors::bearer;
+
 use lulu_attendance_server::utility::router;
 use lulu_attendance_server::utility::{db, stor::AppState};
+
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     dotenvy::dotenv().ok();
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
 
+    let addr = std::env::var("ALLOW_REMOTE_ADDR").expect("ALLOW_REMOTE_ADDR should be set").to_owned();
     let pool = match db::initialize_db_pool().await {
         Ok(pool) => {
             println!("✅ Connection to database success!");
@@ -24,8 +27,7 @@ async fn main() -> std::io::Result<()> {
 
     HttpServer::new(move || {
         let cors = Cors::default()
-            .allowed_origin("http://localhost:8080")
-            //.allowed_origin("*")
+            .allowed_origin(&addr[..])
             .allowed_methods(vec!["GET", "POST", "PATCH", "DELETE"])
             .allowed_headers(vec![
                 header::CONTENT_TYPE,
@@ -33,9 +35,15 @@ async fn main() -> std::io::Result<()> {
                 header::ACCEPT,
             ])
             .supports_credentials();
+
         App::new()
             // add DB pool handle to app data; enables use of `web::Data<DbPool>` extractor
             .app_data(web::Data::new(AppState { db: pool.clone() }))
+            .app_data(
+                bearer::Config::default()
+                .realm("restricted area")
+                .scope("login user")
+            )
             // add request logger middleware
             .wrap(middleware::Logger::default())
             // add authentication middleware

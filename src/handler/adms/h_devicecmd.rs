@@ -20,7 +20,8 @@ pub async fn post_device_cmd(pool: web::Data<AppState>, get: web::Query<Receiver
     if data.len() > 0 {
         return HttpResponse::BadRequest().json(KeyValResponse::<String, String>::new(
             data,
-            "Post Error".to_string(),
+            format!("Post Error"),
+            400
         ));
     }
 
