@@ -8,5 +8,6 @@ CREATE TABLE schedules (
     schedule_shift_id SERIAL NOT NULL,
     schedule_passmonth int NOT NULL DEFAULT 0,
     schedule_use_week int NOT NULL DEFAULT 0,
-    create_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    create_at BIGINT NOT NULL DEFAULT DATE_PART('epoch'::text, CURRENT_TIMESTAMP)::integer,
+    update_at BIGINT NOT NULL DEFAULT DATE_PART('epoch'::text, CURRENT_TIMESTAMP)::integer
 );

@@ -4,5 +4,5 @@ CREATE TABLE commands (
     command_name varchar(50) NULL,
     command_destination varchar(50) NULL,
     command_params TEXT NOT NULL,
-    create_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    create_at BIGINT NOT NULL DEFAULT DATE_PART('epoch'::text, CURRENT_TIMESTAMP)::integer
 );

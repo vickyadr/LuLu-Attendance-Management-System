@@ -1,7 +1,7 @@
 use crate::handler::{
     adms::{h_cdata::*, h_getrequest::*, h_devicecmd::*},
-    h_login::*
-    };
+    { h_login::*, h_transaction::*, h_device::* }
+};
 use actix_web::{
     web,
     error::Error,
@@ -26,8 +26,12 @@ pub fn config(conf: &mut web::ServiceConfig) {
     let auth = HttpAuthentication::bearer(validate);
 
     // Frontend API
-    let scope = web::scope("/api").service(login_act)
-                                    .service(login_check).wrap(auth.clone());
+    let frontend = web::scope("/api").service(login_check)
+                                        .service(logout_act)
+                                        .service(transaction_live)
+                                        .wrap(auth.clone())
+                                        .service(login_act)
+                                        .service(device_list);
 
     // ADMS API
     let iclock = web::scope("/iclock").service(get_cdata)
@@ -35,5 +39,5 @@ pub fn config(conf: &mut web::ServiceConfig) {
                                       .service(get_request)
                                       .service(post_device_cmd);
 
-    conf.service(scope).service(iclock);
+    conf.service(frontend).service(iclock);
 }

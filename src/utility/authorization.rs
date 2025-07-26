@@ -1,21 +1,18 @@
-use actix_web_httpauth::extractors::bearer::{BearerAuth, Config};
-use actix_web_httpauth::extractors::AuthenticationError;
-use actix_web_httpauth::middleware::HttpAuthentication;
+use crate::models::m_login::UserData;
+use sqlx::PgPool;
 
-async fn validator(req: ServiceRequest, credentials: BearerAuth) -> Result<ServiceRequest, Error> {
+pub async fn is_login(pool: PgPool, bearer: String) -> Option<i32> {
+    
+    match sqlx::query_as::<_, UserData>(r#"SELECT users.user_fname, users.user_lname, users.user_level FROM users INNER JOIN sessions ON sessions.session_user_id = users.user_id WHERE sessions.session_token = $1"#)
+    .bind(&bearer)
+    .fetch_one(&pool)
+    .await
+    {
+        Ok(data) => {
+            return Some(data.user_level);
+        },
+        Err(_) => ()
+    }
 
-}
-
-pub fn validate_token(token: &str) -> Result<bool, ServiceError> {
-    /*let authority = std::env::var("AUTHORITY").expect("AUTHORITY must be set");
-    let jwks = fetch_jwks(&format!("{}{}", authority.as_str(), ".well-known/jwks.json"))
-        .expect("failed to fetch jwks");
-    let validations = vec![Validation::Issuer(authority), Validation::SubjectPresent];
-    let kid = match token_kid(&token) {
-        Ok(res) => res.expect("failed to decode kid"),
-        Err(_) => return Err(ServiceError::JWKSFetchError),
-    };
-    let jwk = jwks.find(&kid).expect("Specified key not found in set");
-    let res = validate(token, jwk, validations);
-    Ok(res.is_ok())*/
+    None
 }

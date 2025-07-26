@@ -20,7 +20,7 @@ pub async fn get_cdata(data: web::Query<GetCData>) -> impl Responder {
                         TransTimes=00:00;14:05\r\n\
                         TransInterval=1\r\n\
                         TransFlag=1000000000\r\n\
-                        TimeZone=7\r\n\
+                        TimeZone=0\r\n\
                         Realtime=1\r\n\
                         Encrypt=0");
     return HttpResponse::Ok().content_type("text/plain").body(text);
@@ -117,9 +117,20 @@ async fn data_attlog(pool: web::Data<AppState>, get: web::Query<ReceiverCData>, 
             continue; // Skip unsupported enroll types
         }
 
-        let dt: NaiveDateTime = NaiveDateTime::parse_from_str(log[1], "%Y-%m-%d %H:%M:%S").unwrap_or(
+        let mut dt: i64 = NaiveDateTime::parse_from_str(log[1], "%Y-%m-%d %H:%M:%S").unwrap_or(
             NaiveDateTime::default()
-        );
+        ).and_utc().timestamp();
+
+        match sqlx::query_scalar::<_, i32>(r#"SELECT device_timezone FROM devices WHERE devices_sn = $1"#)
+                    .bind(get.sn.as_ref().unwrap().to_string())
+                    .fetch_one(&pool.db.clone())
+                    .await
+                    {
+                        Ok(device_timezone) => {
+                            dt = dt - (3600 * device_timezone) as i64;
+                        },
+                        Err(_) => ()
+                    };
 
         let _query =
             sqlx::query(r#"INSERT INTO enrolls (enroll_device_sn, enroll_employee_id, enroll_type, enroll_time) VALUES ($1, $2, $3, $4)"#)

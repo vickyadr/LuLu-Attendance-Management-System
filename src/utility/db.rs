@@ -9,3 +9,17 @@ pub async fn initialize_db_pool() -> Result<Pool<Postgres>, Error> {
         .connect(&conn_spec)
         .await
 }
+
+pub fn as_epoch(col: &str)-> String {
+    let mut col_as = col;
+
+    match col_as.find('.') {
+        Some(_)=>{
+            let split : Vec<&str> = col_as.split(".").collect();
+            col_as = split[split.len()-1];
+        },
+        None =>()
+    }
+
+    format!("((EXTRACT(EPOCH FROM {0})::INTEGER) AS `{1}`)", col, col_as)
+}

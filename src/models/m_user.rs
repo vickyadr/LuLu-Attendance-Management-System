@@ -8,6 +8,4 @@ pub struct User {
     pub user_lname: String,
     pub user_level: i32,
     pub user_password: String,
-    pub update_at: String,
-    pub create_at: String,
 }
