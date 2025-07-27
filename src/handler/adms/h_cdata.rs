@@ -9,9 +9,24 @@ use std::{collections::HashMap};
 
 
 #[get("/cdata")]
-pub async fn get_cdata(data: web::Query<GetCData>) -> impl Responder {
-    let mut text: String = "GET OPTION FROM: ".to_owned();
+pub async fn get_cdata(pool: web::Data<AppState>, data: web::Query<GetCData>) -> impl Responder {
     println!("CDATA: {:?}", data.sn.as_deref().unwrap_or("No SN"));
+
+    let tz = match sqlx::query_scalar::<_, i32>(r#"SELECT device_timezone FROM devices WHERE device_sn = $1"#)
+            .bind(data.sn.as_deref().unwrap_or(""))
+            .fetch_one(&pool.db.clone())
+            .await
+            {
+                Ok(device_timezone) => {
+                    //dt = dt - (3600 * device_timezone) as i64;
+                    device_timezone
+                },
+                Err(_) => {
+                    0
+                }
+            };
+    
+    let mut text: String = "GET OPTION FROM: ".to_owned();
     text.push_str(data.sn.as_deref().unwrap_or(""));
     text.push_str("\r\nStamp=0\r\n\
                         OpStamp=0\r\n\
@@ -20,9 +35,11 @@ pub async fn get_cdata(data: web::Query<GetCData>) -> impl Responder {
                         TransTimes=00:00;14:05\r\n\
                         TransInterval=1\r\n\
                         TransFlag=1000000000\r\n\
-                        TimeZone=0\r\n\
-                        Realtime=1\r\n\
+                        TimeZone=");
+    text.push_str(tz.to_string().leak());
+    text.push_str("\r\nRealtime=1\r\n\
                         Encrypt=0");
+
     return HttpResponse::Ok().content_type("text/plain").body(text);
 }
 
@@ -116,12 +133,12 @@ async fn data_attlog(pool: web::Data<AppState>, get: web::Query<ReceiverCData>, 
         } else {
             continue; // Skip unsupported enroll types
         }
-
+        //2025-07-19 07:55:48
         let mut dt: i64 = NaiveDateTime::parse_from_str(log[1], "%Y-%m-%d %H:%M:%S").unwrap_or(
             NaiveDateTime::default()
         ).and_utc().timestamp();
 
-        match sqlx::query_scalar::<_, i32>(r#"SELECT device_timezone FROM devices WHERE devices_sn = $1"#)
+        match sqlx::query_scalar::<_, i32>(r#"SELECT device_timezone FROM devices WHERE device_sn = $1"#)
                     .bind(get.sn.as_ref().unwrap().to_string())
                     .fetch_one(&pool.db.clone())
                     .await
@@ -133,11 +150,12 @@ async fn data_attlog(pool: web::Data<AppState>, get: web::Query<ReceiverCData>, 
                     };
 
         let _query =
-            sqlx::query(r#"INSERT INTO enrolls (enroll_device_sn, enroll_employee_id, enroll_type, enroll_time) VALUES ($1, $2, $3, $4)"#)
+            sqlx::query(r#"INSERT INTO enrolls (enroll_device_sn, enroll_employee_id, enroll_type, enroll_time, enroll_status) VALUES ($1, $2, $3, $4, $5)"#)
                 .bind(get.sn.as_ref().unwrap().to_string())
                 .bind(log[0].parse::<i32>().unwrap())
                 .bind(enroll_type)
                 .bind(dt)
+                .bind(1)
                 .execute(&pool.db)
                 .await
                 .map_err(|e: sqlx::Error| {
