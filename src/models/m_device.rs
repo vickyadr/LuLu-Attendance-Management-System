@@ -2,10 +2,14 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize, sqlx::FromRow)]
 pub struct Devices {
+    #[serde(rename = "id")]
+    pub device_id: i32,
     #[serde(rename = "name")]
     pub device_name: String,
     #[serde(rename = "sn")]
     pub device_sn: String,
+    #[serde(rename = "h_id")]
+    pub device_handler_id: i32,
     #[serde(rename = "handler")]
     pub handler_name: String,
     #[serde(rename = "location")]

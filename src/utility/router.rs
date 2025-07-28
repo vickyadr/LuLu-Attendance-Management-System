@@ -1,5 +1,5 @@
 use crate::handler::{
-    adms::{h_cdata::*, h_devicecmd::*, h_getrequest::*}, h_device::*, h_login::*, h_shift::{shift_add, shift_list}, h_transaction::*
+    adms::{h_cdata::*, h_devicecmd::*, h_getrequest::*}, h_device::*, h_login::*, h_shift::{shift_add, shift_delete, shift_edit, shift_list}, h_transaction::*
 };
 use actix_web::{
     web,
@@ -28,10 +28,14 @@ pub fn config(conf: &mut web::ServiceConfig) {
     let frontend = web::scope("/api").service(login_check)
                                         .service(logout_act)
                                         .service(transaction_live)
+                                        .service(device_add)
+                                        .service(device_delete)
+                                        .service(device_edit)
                                         .service(device_list)
                                         .service(shift_add)
+                                        .service(shift_delete)
+                                        .service(shift_edit)
                                         .service(shift_list)
-                                        .service(device_add)
                                         .wrap(auth.clone())
                                         .service(login_act);
 
