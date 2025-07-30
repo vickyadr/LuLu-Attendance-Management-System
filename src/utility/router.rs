@@ -1,5 +1,5 @@
 use crate::handler::{
-    adms::{h_cdata::*, h_devicecmd::*, h_getrequest::*}, h_device::*, h_login::*, h_shift::{shift_add, shift_delete, shift_edit, shift_list}, h_transaction::*
+    adms::{h_cdata::*, h_devicecmd::*, h_getrequest::*}, h_device::*, h_login::*, h_shift::*, h_transaction::*
 };
 use actix_web::{
     web,

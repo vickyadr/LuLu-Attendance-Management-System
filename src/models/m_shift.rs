@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize, sqlx::FromRow)]
-pub struct Shifts {
+pub struct WorkTime {
     #[serde(rename = "id")]
     pub shift_id: Option<i32>,
     #[serde(rename = "name")]
