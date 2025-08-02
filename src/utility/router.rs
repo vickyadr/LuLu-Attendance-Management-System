@@ -1,5 +1,5 @@
 use crate::handler::{
-    adms::{h_cdata::*, h_devicecmd::*, h_getrequest::*}, h_device::*, h_login::*, h_shift::*, h_transaction::*
+    adms::{h_cdata::*, h_devicecmd::*, h_getrequest::*}, h_device::*, h_login::*, h_report::report_today, h_schedule::*, h_shift::*, h_transaction::*
 };
 use actix_web::{
     web,
@@ -32,10 +32,15 @@ pub fn config(conf: &mut web::ServiceConfig) {
                                         .service(device_delete)
                                         .service(device_edit)
                                         .service(device_list)
+                                        .service(schedule_add)
+                                        .service(schedule_delete)
+                                        .service(schedule_edit)
+                                        .service(schedule_list)
                                         .service(shift_add)
                                         .service(shift_delete)
                                         .service(shift_edit)
                                         .service(shift_list)
+                                        .service(report_today)
                                         .wrap(auth.clone())
                                         .service(login_act);
 

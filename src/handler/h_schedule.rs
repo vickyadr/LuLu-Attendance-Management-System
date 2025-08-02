@@ -1,11 +1,11 @@
 use crate::{
-    models::m_shift::*, receiver::r_shift::*, utility::{authorization::is_login, stor::{AppState, GenericResponse, KeyValResponse, NoDataResponse}}
+    models::m_schedule::*, receiver::r_schedule::*, utility::{authorization::is_login, stor::{AppState, GenericResponse, KeyValResponse, NoDataResponse}}
 };
 use actix_web::{get, post, web::{self, ReqData}, HttpResponse, Responder};
 use std::collections::HashMap;
 
-#[get("/shift/list")]
-pub async fn shift_list(pool: web::Data<AppState>, bearer: Option<ReqData<String>>) -> impl Responder {
+#[get("/schedule/list")]
+pub async fn schedule_list(pool: web::Data<AppState>, bearer: Option<ReqData<String>>) -> impl Responder {
 
     match is_login(pool.db.clone(), bearer).await {
         Some(level) =>{
@@ -22,23 +22,27 @@ pub async fn shift_list(pool: web::Data<AppState>, bearer: Option<ReqData<String
                 ))
     }
 
-    match sqlx::query_as::<_, Shifts>(r#"SELECT * FROM shifts ORDER BY shift_name"#)
+    match sqlx::query_as::<_, Schedules>(r#"SELECT * FROM schedules INNER JOIN shifts ON shifts.shift_id = schedules.schedule_shift_id ORDER BY schedule_parrent"#)
     .fetch_all(&pool.db)
     .await
     {
-        Ok(data) => return HttpResponse::Ok().json(GenericResponse::<Shifts>::ok(
+        Ok(data) => return HttpResponse::Ok().json(GenericResponse::<Schedules>::ok(
                                 data,
                                 format!("OK")
                             )),
-        Err(_) => return HttpResponse::Ok().json(NoDataResponse::ok (
-                                format!("No list"),
+        Err(e) =>
+        {
+            println!("E: {:?}", e);
+            return HttpResponse::Ok().json(NoDataResponse::ok (
+                                format!("Internal server error"),
                             ))
+        }
     }
         
 }
 
-#[get("/shift/delete/{id}")]
-pub async fn shift_delete(path: web::Path<i32>, pool: web::Data<AppState>, bearer: Option<ReqData<String>>) -> impl Responder {
+#[get("/schedule/delete/{id}")]
+pub async fn schedule_delete(path: web::Path<i32>, pool: web::Data<AppState>, bearer: Option<ReqData<String>>) -> impl Responder {
     let id = path.into_inner();
     
     match is_login(pool.db.clone(), bearer).await {
@@ -56,24 +60,24 @@ pub async fn shift_delete(path: web::Path<i32>, pool: web::Data<AppState>, beare
                 ))
     }
 
-    match sqlx::query(r#"DELETE FROM shifts WHERE shift_id=$1"#)
+    match sqlx::query(r#"DELETE FROM schedules WHERE schedule_parrent=$1"#)
     .bind(id)
     .execute(&pool.db)
     .await
     {
         Ok(_) => return HttpResponse::Ok().json(NoDataResponse::ok (
-                                format!("Shift deleted !!!")
+                                format!("Schedule deleted !!!")
                             )),
         Err(_) => return HttpResponse::Ok().json(NoDataResponse::new (
-                                format!("Shift not found"),
+                                format!("Schedule not found"),
                                 404
                             ))
     }
         
 }
 
-#[post("/shift/add")]
-pub async fn shift_add(pool: web::Data<AppState>, body: web::Json<ReceiverShift>, bearer: Option<ReqData<String>>) -> impl Responder {
+#[post("/schedule/add")]
+pub async fn schedule_add(pool: web::Data<AppState>, body: web::Json<ReceiverSchedule>, bearer: Option<ReqData<String>>) -> impl Responder {
     let mut data: HashMap<&str, String> = HashMap::new();
     
     match is_login(pool.db.clone(), bearer).await {
@@ -102,78 +106,84 @@ pub async fn shift_add(pool: web::Data<AppState>, body: web::Json<ReceiverShift>
         }
     }
 
-    match body.start_time.clone() {
+    match body.shift_id.clone() {
         Some(o) => {
-            if o.gt(&86400) {
-                data.insert("start_time", format!("Use 00:xx instead"));
+            if o.len().lt(&1) {
+                data.insert("shift", format!("Please select"));
             }
         },
         None => {
-            data.insert("start_time", format!("Field required"));
+            data.insert("name", format!("Field required"));
         }
     }
-
-    match body.end_time.clone() {
-        Some(o) => {
-            if o.gt(&86400) {
-                data.insert("end_time", format!("Use 00:xx instead"));
-            }
-        },
+    
+    match body.pattern.clone() {
+        Some(_) => (),
         None => {
-            data.insert("end_time", format!("Field required"));
-        }
-    }
-
-    match body.start_enroll.clone() {
-        Some(o) => {
-            if o.gt(&86400) {
-                data.insert("start_enroll", format!("Use 00:xx instead"));
-            }
-        },
-        None => {
-            data.insert("start_enroll", format!("Field required"));
-        }
-    }
-
-    match body.end_enroll.clone() {
-        Some(o) => {
-            if o.gt(&86400) {
-                data.insert("end_enroll", format!("Use 00:xx instead"));
-            }
-        },
-        None => {
-            data.insert("end_enroll", format!("Field required"));
+            data.insert("name", format!("Field required"));
         }
     }
 
     if data.len() > 0 {
         return HttpResponse::Ok().json(KeyValResponse::<&str, String>::new(
             data,
-            format!("There's was error while adding shift"),
+            format!("There's was error while adding schedules"),
             403
         ));
     }
-    
-    let start_enroll = body.start_time.unwrap() - body.start_enroll.unwrap();
-    let end_enroll = body.end_time.unwrap() + body.end_enroll.unwrap();
 
-    let passday = if body.start_time > body.end_time || end_enroll > 86400 { 1 }else{ 0 };
+    println!("SHIFT : {:?}", body.shift_id.clone().unwrap());
 
-
-    match sqlx::query_as::<_, Shifts>(r#"INSERT INTO shifts (shift_name, shift_start_time, shift_end_time, shift_start_enroll, shift_end_enroll, shift_passday) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *"#)
+    match sqlx::query_scalar::<_, i32>(r#"INSERT INTO schedules (schedule_name, schedule_shift_id, schedule_dom, schedule_parrent) VALUES ($1, $2, $3, $4) RETURNING schedule_id"#)
                 .bind(body.name.clone())
-                .bind(body.start_time)
-                .bind(body.end_time)
-                .bind(start_enroll)
-                .bind(end_enroll)
-                .bind(passday)
+                .bind(body.shift_id.clone().unwrap().get(0).unwrap())
+                .bind(1)
+                .bind(0)
                 .fetch_one(&pool.db)
                 .await
         {
-            Ok(data) => return HttpResponse::Ok().json(GenericResponse::<Shifts>::single(
+            //) UPDATE schedules SET schedules.parrent = query WHERE schedules.schedule_id = query RETUNING *
+            Ok(parrent_id) => {
+                    println!("PARRENT : {:?}", parrent_id);
+                match sqlx::query("UPDATE schedules SET schedule_parrent = $1 WHERE schedule_id = $1")
+                    .bind(parrent_id)
+                    .execute(&pool.db)
+                    .await{
+                        Ok(_)=>(),
+                        Err(e)=> println!("ERROR : {:?}", e)
+                    }
+                
+                let mut i = 0;
+                for shift_id in body.shift_id.clone().unwrap()
+                {
+                    if i == 0 {
+                        i += 1;
+                        continue;
+                    }
+
+                    match sqlx::query("INSERT INTO schedules (schedule_name, schedule_shift_id, schedule_dom, schedule_parrent) VALUES ($1, $2, $3, $4)")
+                    .bind(body.name.clone())
+                    .bind(shift_id)
+                    .bind(1)
+                    .bind(parrent_id)
+                    .execute(&pool.db)
+                    .await{
+                        Ok(_)=>(),
+                        Err(_)=>()
+                    }
+
+                    i += 1;
+                }
+                
+                return HttpResponse::Ok().json(NoDataResponse::ok(
+                    format!("Schedule added !!!")
+                ));
+
+                /*return HttpResponse::Ok().json(GenericResponse::<Schedules>::single(
                                                 data,
-                                                format!("Shift added !!!")
-                                            )),
+                                                format!("Schedule added !!!")
+                                            ))*/
+            },
             Err(e) => {
                 println!("{}", e);
                 let code =  e.as_database_error().unwrap().message();
@@ -191,8 +201,8 @@ pub async fn shift_add(pool: web::Data<AppState>, body: web::Json<ReceiverShift>
         }
 }
 
-#[post("/shift/edit")]
-pub async fn shift_edit(pool: web::Data<AppState>, body: web::Json<ReceiverShift>, bearer: Option<ReqData<String>>) -> impl Responder {
+#[post("/schedule/edit")]
+pub async fn schedule_edit(pool: web::Data<AppState>, body: web::Json<ReceiverSchedule>, bearer: Option<ReqData<String>>) -> impl Responder {
     let mut data: HashMap<&str, String> = HashMap::new();
     
     match is_login(pool.db.clone(), bearer).await {
@@ -232,50 +242,6 @@ pub async fn shift_edit(pool: web::Data<AppState>, body: web::Json<ReceiverShift
         }
     }
 
-    match body.start_time.clone() {
-        Some(o) => {
-            if o.gt(&86400) {
-                data.insert("start_time", format!("Use 00:xx instead"));
-            }
-        },
-        None => {
-            data.insert("start_time", format!("Field required"));
-        }
-    }
-
-    match body.end_time.clone() {
-        Some(o) => {
-            if o.gt(&86400) {
-                data.insert("end_time", format!("Use 00:xx instead"));
-            }
-        },
-        None => {
-            data.insert("end_time", format!("Field required"));
-        }
-    }
-
-    match body.start_enroll.clone() {
-        Some(o) => {
-            if o.gt(&86400) {
-                data.insert("start_enroll", format!("Use 00:xx instead"));
-            }
-        },
-        None => {
-            data.insert("start_enroll", format!("Field required"));
-        }
-    }
-
-    match body.end_enroll.clone() {
-        Some(o) => {
-            if o.gt(&86400) {
-                data.insert("end_enroll", format!("Use 00:xx instead"));
-            }
-        },
-        None => {
-            data.insert("end_enroll", format!("Field required"));
-        }
-    }
-
     if data.len() > 0 {
         return HttpResponse::Ok().json(KeyValResponse::<&str, String>::new(
             data,
@@ -283,25 +249,16 @@ pub async fn shift_edit(pool: web::Data<AppState>, body: web::Json<ReceiverShift
             403
         ));
     }
-    
-    let start_enroll = body.start_time.unwrap() - body.start_enroll.unwrap();
-    let end_enroll = body.end_time.unwrap() + body.end_enroll.unwrap();
-    let prevday = if start_enroll < 0 { 1 }else { 0 };
-    let passday = if end_enroll > 86400 { 1 }else{ 0 };
 
-    match sqlx::query_as::<_, Shifts>(r#"UPDATE shifts SET shift_name=$1, shift_start_time=$2, shift_end_time=$3, shift_start_enroll=$4, shift_end_enroll=$5, shift_passday=$6, shift_prevday=$7 WHERE shift_id=$8 RETURNING *"#)
+
+    match sqlx::query_as::<_, Schedules>(r#"UPDATE schedules SET shift_name=$1, shift_start_time=$2, shift_end_time=$3, shift_start_enroll=$4, shift_end_enroll=$5, shift_passday=$6 WHERE shift_id=$7 RETURNING *"#)
                 .bind(body.name.clone())
-                .bind(body.start_time)
-                .bind(body.end_time)
-                .bind(start_enroll)
-                .bind(end_enroll)
-                .bind(passday)
-                .bind(prevday)
-                .bind(body.id)
+                .bind(body.pattern)
+                //.bind(body.shift_id)
                 .fetch_one(&pool.db)
                 .await
         {
-            Ok(data) => return HttpResponse::Ok().json(GenericResponse::<Shifts>::single(
+            Ok(data) => return HttpResponse::Ok().json(GenericResponse::<Schedules>::single(
                                     data,
                                     format!("Data shift has been update !")
                                 )),

@@ -49,7 +49,13 @@ pub async fn logout_act(pool: web::Data<AppState>, bearer: Option<ReqData<String
                 .execute(&pool.db)
                 .await
                 {
-                    Ok(_affected) => {
+                    Ok(affected) => {
+                        if affected.rows_affected() < 1 {
+                            return HttpResponse::Ok().json(NoDataResponse::new(
+                                format!("invalid session"),
+                                400
+                            ));
+                        }
                         return HttpResponse::Ok().json(NoDataResponse::new(
                             format!("OK"),
                             200

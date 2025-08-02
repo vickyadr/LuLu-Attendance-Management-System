@@ -120,32 +120,21 @@ pub async fn device_add(pool: web::Data<AppState>, body: web::Json<ReceiverDevic
             403
         ));
     }
-
-    match sqlx::query(r#"INSERT INTO devices (device_name, device_sn, device_handler_id, device_location, device_timezone, device_state) VALUES ($1, $2, $3, $4, $5, $6)"#)
+    //match sqlx::query_as::<_, Devices>(r#"SELECT devices.device_handler_id, devices.device_id, devices.device_name, devices.device_sn, devices.device_location, devices.device_timezone, devices.device_state, devices.device_online, handlers.handler_name FROM ( devices INNER JOIN handlers ON handlers.handler_id = devices.device_handler_id) ORDER BY devices.create_at DESC"#)
+    match sqlx::query_as::<_, Devices>(r#"WITH query AS (INSERT INTO devices (device_name, device_sn, device_handler_id, device_location, device_timezone, device_state) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *) SELECT device_handler_id, device_id, device_name, device_sn, device_location, device_timezone, device_state, device_online, handlers.handler_name FROM query INNER JOIN handlers ON handlers.handler_id = device_handler_id"#)
                 .bind(body.name.clone())
                 .bind(body.sn.clone())
                 .bind(body.handler)
                 .bind(body.location.clone())
                 .bind(body.timezone)
                 .bind(2)
-                .execute(&pool.db)
+                .fetch_one(&pool.db)
                 .await
         {
-            Ok(_data)=>{
-                match sqlx::query_as::<_, Devices>(r#"SELECT devices.device_handler_id, devices.device_id, devices.device_name, devices.device_sn, devices.device_location, devices.device_timezone, devices.device_state, devices.device_online, handlers.handler_name FROM ( devices INNER JOIN handlers ON handlers.handler_id = devices.device_handler_id) ORDER BY devices.create_at DESC"#)
-                    .fetch_one(&pool.db)
-                    .await
-                    {
-                        Ok(data) => return HttpResponse::Ok().json(GenericResponse::<Devices>::single(
-                                                data,
-                                                format!("Devices added !!!")
-                                            )),
-                        Err(_) => return HttpResponse::Ok().json(NoDataResponse::new (
-                                                format!("Error, please refreh the page"),
-                                                500
-                                            ))
-                    }
-            },
+            Ok(data) => return HttpResponse::Ok().json(GenericResponse::<Devices>::single(
+                                    data,
+                                    format!("New devices added !!!")
+                                )),
             Err(e) => {
                 println!("{}", e);
                 let code =  e.as_database_error().unwrap().message();
@@ -190,8 +179,9 @@ pub async fn device_delete(path: web::Path<i32>, pool: web::Data<AppState>, bear
         Ok(_) => return HttpResponse::Ok().json(NoDataResponse::ok(
                                 format!("Device deleted")
                             )),
-        Err(_) => return HttpResponse::Ok().json(NoDataResponse::ok (
+        Err(_) => return HttpResponse::Ok().json(NoDataResponse::new(
                                 format!("Device not found"),
+                                404
                             ))
     }
         
@@ -263,32 +253,20 @@ pub async fn device_edit(pool: web::Data<AppState>, body: web::Json<ReceiverDevi
             403
         ));
     }
-
-    match sqlx::query(r#"UPDATE devices SET device_name=$1, device_handler_id=$3, device_location=$4, device_timezone=$5 WHERE device_id=$2"#)
+    //match sqlx::query_as::<_, Devices>(r#"SELECT devices.device_handler_id, devices.device_id, devices.device_name, devices.device_sn, devices.device_location, devices.device_timezone, devices.device_state, devices.device_online, handlers.handler_name FROM ( devices INNER JOIN handlers ON handlers.handler_id = devices.device_handler_id) WHERE devices.device_id=$1"#)
+    match sqlx::query_as::<_, Devices>(r#"UPDATE devices SET device_name=$1, device_handler_id=$3, device_location=$4, device_timezone=$5 FROM handlers WHERE devices.device_handler_id = handlers.handler_id AND device_id=$2 RETURNING *"#)
                 .bind(body.name.clone())
                 .bind(body.id.clone())
                 .bind(body.handler)
                 .bind(body.location.clone())
                 .bind(body.timezone)
-                .execute(&pool.db)
+                .fetch_one(&pool.db)
                 .await
         {
-            Ok(_data)=>{
-                match sqlx::query_as::<_, Devices>(r#"SELECT devices.device_handler_id, devices.device_id, devices.device_name, devices.device_sn, devices.device_location, devices.device_timezone, devices.device_state, devices.device_online, handlers.handler_name FROM ( devices INNER JOIN handlers ON handlers.handler_id = devices.device_handler_id) WHERE devices.device_id=$1"#)
-                    .bind(body.id.clone())
-                    .fetch_one(&pool.db)
-                    .await
-                    {
-                        Ok(data) => return HttpResponse::Ok().json(GenericResponse::<Devices>::single(
-                                                data,
-                                                format!("Device data updated !!!")
-                                            )),
-                        Err(_) => return HttpResponse::Ok().json(NoDataResponse::new (
-                                                format!("Error, please refreh the page"),
-                                                500
-                                            ))
-                    }
-            },
+            Ok(data) => return HttpResponse::Ok().json(GenericResponse::<Devices>::single(
+                                    data,
+                                    format!("Device data updated !!!")
+                                )),
             Err(e) => {
                 println!("{}", e);
                 let code =  e.as_database_error().unwrap().message();

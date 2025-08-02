@@ -5,6 +5,8 @@ pub mod models {
     pub mod m_transaction;
     pub mod m_device;
     pub mod m_shift;
+    pub mod m_schedule;
+    pub mod m_report;
 }
 
 pub mod handler {
@@ -17,6 +19,8 @@ pub mod handler {
     pub mod h_transaction;
     pub mod h_device;
     pub mod h_shift;
+    pub mod h_schedule;
+    pub mod h_report;
 }
 
 pub mod receiver {
@@ -25,6 +29,7 @@ pub mod receiver {
     pub mod r_transaction;
     pub mod r_shift;
     pub mod r_device;
+    pub mod r_schedule;
 }
 
 pub mod utility {

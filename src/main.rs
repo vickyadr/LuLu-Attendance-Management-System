@@ -66,8 +66,8 @@ async fn main() -> std::io::Result<()> {
             .wrap(cors)
             .configure(router::config)
     })
-    .bind(("10.55.54.145", 8080))?
-    //.bind(("0.0.0.0", 8080))?
+    //.bind(("10.55.54.145", 8080))?
+    .bind(("0.0.0.0", 8080))?
     .run()
     .await
 }

@@ -16,7 +16,7 @@ FAQ : <br>
   Q: Why lulu?<br>
   A: Why not. its sounds cute, simple and easy to remember. right?<br><br>
 
-  Q: Will (A) get support later?<br>
+  Q: Will (A) supported later?<br>
   A: If it have network log feature then the answer is maybe<br><br>
 
   Q: You said maybe, what do you mean?<br>
@@ -29,7 +29,7 @@ FAQ : <br>
   A: LuLu attendance management system will always free and opensource<br><br>
   
   Q: How i can support this project?<br>
-  A: You can contribute the project source or... give me some snacks i need it to make my brain work last longer, ps: i dont like coffee but the decaf one seems ok to me<br><br>
+  A: You can contribute the project source or... give me some snacks i need it to make my brain work last longer<br><br>
 
   Q: How can i contact you in person?<br>
   A: Check my profile page there was an Email, anything else i cant tell on public<br><br>
