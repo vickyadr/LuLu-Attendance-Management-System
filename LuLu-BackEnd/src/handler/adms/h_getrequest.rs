@@ -9,7 +9,7 @@ use chrono::Utc;
 #[get("/getrequest")]
 pub async fn get_request(data: web::Query<GetCData>, pool: web::Data<AppState>) -> impl Responder {
     // Update online status
-    match sqlx::query(r#"UPDATE devices SET device_online = $1, device_status=$2 WHERE device_sn = $3"#)
+    match sqlx::query(r#"UPDATE devices SET device_online = $1, device_state=$2 WHERE device_sn = $3"#)
         .bind(Utc::now().timestamp())
         .bind(1)
         .bind(data.sn.as_deref().unwrap_or(""))
@@ -28,8 +28,11 @@ pub async fn get_request(data: web::Query<GetCData>, pool: web::Data<AppState>) 
     .await
     {
         Ok(query)=>{
-            let mut commands: String = "".to_owned();
+            if query.len() < 1 {
+                return HttpResponse::Ok().content_type("text/plain").body("OK");
+            }
 
+            let mut commands: String = "".to_owned();
             for cmd in query {
                 commands.push_str(&format!("C:{}:{}\n", cmd.command_id, cmd.command_params));
             }

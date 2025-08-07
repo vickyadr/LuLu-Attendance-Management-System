@@ -12,8 +12,8 @@ export const useFormater = () => {
             return odd
     }
 
-    function stamp_to_full(date, haveMillis, optTZ){        
-        if (check.isNull(haveMillis))
+    function stamp_to_full(date, haveMillis = false, optTZ = 0){        
+        if (check.isNull(haveMillis) || haveMillis == false)
             date = date * 1000;
 
         if (!check.isNull(optTZ))
@@ -22,8 +22,8 @@ export const useFormater = () => {
         return new Date(date);
     }
 
-    function stamp_to_naive(date, haveMillis, optTZ){
-        if (check.isNull(haveMillis))
+    function stamp_to_naive(date, haveMillis = false, optTZ = 0){
+        if (check.isNull(haveMillis) || haveMillis == false)
             date = date * 1000;
 
         if (!check.isNull(optTZ))
@@ -41,8 +41,8 @@ export const useFormater = () => {
         return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
     }
 
-    function stamp_to_naive_time(date, haveMillis, optTZ){
-        if (check.isNull(haveMillis))
+    function stamp_to_naive_time(date, haveMillis = false, optTZ = 0){
+        if (check.isNull(haveMillis) || haveMillis == false)
             date = date * 1000;
 
         if (!check.isNull(optTZ))
@@ -57,8 +57,8 @@ export const useFormater = () => {
         return `${hours}:${minutes}:${seconds}`;
     }
 
-    function stamp_to_naive_date(date, haveMillis, optTZ){
-        if (check.isNull(haveMillis))
+    function stamp_to_naive_date(date, haveMillis = false, optTZ = 0){
+        if (check.isNull(haveMillis) || haveMillis == false)
             date = date * 1000;
 
         if (!check.isNull(optTZ))
@@ -73,8 +73,8 @@ export const useFormater = () => {
         return `${year}-${month}-${day}`;
     }
 
-    function stamp_to_weekday(date, haveMillis, isFull, optTZ){
-        if (check.isNull(haveMillis))
+    function stamp_to_weekday(date, haveMillis = false, isFull = false, optTZ = 0){
+        if (check.isNull(haveMillis) || haveMillis == false)
             date = date * 1000;
 
         if (!check.isNull(optTZ))
@@ -117,6 +117,11 @@ export const useFormater = () => {
         return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}${(nextday >= 0 )?' (+1)':''}${(input < 0 )?' (-1)':''}`;
     }
 
+    function define_timestamp(year = 0, month = 1, date = 1, hours = 0, minutes= 0, seconds= 0, ms = 0){
+        const d = new Date(year, month -1, date, hours, minutes, seconds, ms);
+        return Math.floor(d.getTime()/1000);
+    }
+
     function dow(input, isFull) {
         switch (input) {
             case 1: return (isFull) ? "Sunday" : "Sun"
@@ -132,6 +137,7 @@ export const useFormater = () => {
 
     return {
         stripes,
+        define_timestamp,
         stamp_to_full,
         stamp_to_naive,
         stamp_to_naive_date,

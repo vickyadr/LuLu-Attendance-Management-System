@@ -64,7 +64,7 @@ function showModal(data){
 <template>
         <div class="h-[90lvh] grid grid-rows-5 grid-cols-2 gap-2">
         
-            <div class="row-span-5 rounded-2xl py-1 border-2 border-purple-100 shadow-sm text-sm text-center">
+            <div class="row-span-5 rounded-2xl py-1 border-2 border-purple-100 shadow-sm text-sm">
                 <ListSchedule/>
             </div>
 

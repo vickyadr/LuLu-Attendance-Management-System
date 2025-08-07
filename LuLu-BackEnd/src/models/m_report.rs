@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 pub struct Reports {
     #[serde(rename = "id")]
     pub employee_id: i32,
-    #[serde(rename = "fist_name")]
+    #[serde(rename = "first_name")]
     pub employee_fname: Option<String>,
     #[serde(rename = "last_name")]
     pub employee_lname: Option<String>,

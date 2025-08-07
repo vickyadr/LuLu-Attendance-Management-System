@@ -4,29 +4,32 @@ import { useChecker } from "~/utils/checker";
 // Im lazy, its just a copy paste from device.js with no changes
 export const useReportStore = defineStore("report", () => {
     const contents = ref([]),
-        check = useChecker();
+        check = useChecker(),
+        data_def = {
+            id: 0,
+            first_name: null,
+            last_name: null,
+            departement: null,
+            enroll_dow: 0,
+            date: 0,
+            tz: 0,
+            enroll_device: null,
+            enroll_location: null,
+            shift_start: null,
+            shift_end: null,
+            shift_name: null,
+            schedule_name: null,
+            start: null,
+            end: null,
+            working_time: null,
+            late_time: null
+    };
 
-    async function addList(data = {
-        id:0,
-        name: '',
-        sn: '',
-        h_id:0,
-        location:'',
-        handler: 0,
-        timezone: 0,
-    }) {
+    async function addList(data = data_def) {
         contents.value.push(data);
     }
 
-    async function updateList(data = {
-        id:0,
-        name: '',
-        sn: '',
-        h_id:0,
-        location:'',
-        handler: 0,
-        timezone: 0,
-    }) {
+    async function updateList(data = data_def) {
         if (check.isNull(data.id))
             return;
 

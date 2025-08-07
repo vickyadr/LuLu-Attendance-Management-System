@@ -1,10 +1,86 @@
-<script setup lang="ts">
+<script setup>
+import { useReportStore } from '~/store/report';
+import { useAuthStore } from '~/store/auth';
+import { useChecker, useFormater } from '#imports';
+
+const 
+    auth = useAuthStore(),
+    config = useRuntimeConfig(),
+    list = useReportStore(),
+    check = useChecker(),
+    format = useFormater(),
+    filter = ref(""),
+    range = reactive({
+        start: {
+            day: null,
+            month: null,
+            year: null
+        },
+        end: {
+            day: null,
+            month: null,
+            year: null
+        },
+    }),
+    old_range = ref(null);
+
+async function getDataReport(){
+    if (!check.inRange(range.start.day, 1, 31))
+        return;
+    if (!check.inRange(range.start.month, 1, 12))
+        return;
+    if (range.start.year < 1970)
+        return;
+    
+    if (!check.inRange(range.end.day, 1, 31))
+        return;
+    if (!check.inRange(range.end.month, 1, 12))
+        return;
+    if (range.end.year < 1970)
+        return;
+
+    const tz = new Date().getTimezoneOffset()* 60 * -1
+    const start = format.define_timestamp(range.start.year, range.start.month, range.start.day) + tz
+    const end = format.define_timestamp(range.end.year, range.end.month, range.end.day) + tz
+    const new_range = start.toString() +  end.toString()
+    
+    if (new_range == old_range.value)
+        return;
+
+    await $fetch(`${config.public.apiBase}/report/range/${start}/${end}`,
+    {
+        method: "GET",
+        headers: auth.confHeaders(),
+    }).then(async (response) => {
+        if (response.code == 200) {
+            list.set(response.data)
+            old_range.value = start.toString() +  end.toString()
+        }
+    });
+}
+
+function dateKey(ev){
+    if (ev.key == "ArrowLeft"){
+
+    }
+    
+    if (ev.key == "ArrowRight"){
+        
+    }
+
+    if (ev.key == "Enter"){
+        getDataReport()
+    }
+}
 
 definePageMeta({
     middleware: ["get-auth"],
     layout: 'default',
 });
 
+onMounted(()=> {
+
+})
 </script>
 
 <template>
@@ -15,24 +91,25 @@ definePageMeta({
                 <div class="flex justify-between text-nowrap text-gray-700">
                     <span>Period :</span>
                     <div class="flex justify-center px-2 mx-2 border-2 border-purple-100 hover:border-purple-200 rounded-lg">
-                        <input class="outline-transparent scale-90 w-7" placeholder="DD" maxlength="2"/>
+                        <input v-model.number="range.start.day" v-on:keydown="dateKey" v-on:blur="getDataReport" inputmode="numeric" class="outline-transparent scale-90 w-7" placeholder="DD" maxlength="2"/>
                         <span>/</span>
-                        <input class="outline-transparent scale-90 w-7" placeholder="MM" maxlength="2"/>
+                        <input v-model.number="range.start.month" v-on:keydown="dateKey" v-on:blur="getDataReport" inputmode="numeric" class="outline-transparent scale-90 w-7" placeholder="MM" maxlength="2"/>
                         <span>/</span>
-                        <input class="outline-transparent scale-90 w-10" placeholder="YYYY" maxlength="4"/>
+                        <input v-model.number="range.start.year" v-on:keydown="dateKey" v-on:blur="getDataReport" inputmode="numeric" class="outline-transparent scale-90 w-10" placeholder="YYYY" maxlength="4"/>
                     </div>
                     <span>to</span> 
                     <div class="flex justify-center px-2 mx-2 border-2 border-purple-100 hover:border-purple-200 rounded-lg">
-                        <input class="outline-transparent scale-90 w-7" placeholder="DD" maxlength="2"/>
+                        <input v-model="range.end.day" v-on:keydown="dateKey" v-on:blur="getDataReport" inputmode="numeric" class="outline-transparent scale-90 w-7" placeholder="DD" maxlength="2"/>
                         <span>/</span>
-                        <input class="outline-transparent scale-90 w-7" placeholder="MM" maxlength="2"/>
+                        <input v-model="range.end.month" v-on:keydown="dateKey" v-on:blur="getDataReport" inputmode="numeric" class="outline-transparent scale-90 w-7" placeholder="MM" maxlength="2"/>
                         <span>/</span>
-                        <input class="outline-transparent scale-90 w-10" placeholder="YYYY" maxlength="4"/>
+                        <input v-model="range.end.year" v-on:keydown="dateKey" v-on:blur="getDataReport" inputmode="numeric" class="outline-transparent scale-90 w-10" placeholder="YYYY" maxlength="4"/>
                     </div>         
                 </div>
 
                 <div class="relative max-w-[48lvh]">
                     <input
+                        v-model="filter"
                         type="text"
                         id="Search"
                         placeholder="Search"
@@ -65,6 +142,6 @@ definePageMeta({
             </div>
         </div>
 
-        <ListReport/>
+        <ListReport :filter="filter"/>
     </div>
 </template>

@@ -99,11 +99,13 @@ function clickCancel() {
 function clickOk() {
     emit('ok')
 }
+
+function a(){window.alert('a')}
 </script>
 
 <template>
   <div
-    class="fixed inset-0 z-50 grid place-content-center bg-black/50 p-4 block">
+    class="fixed inset-0 z-50 grid place-content-center bg-black/50 p-4 block" @click.self="clickCancel">
     <div class="w-full min-w-[50lvh] rounded-lg bg-white p-6 shadow-lg">
       <h2 id="modalTitle" class="text-xl font-bold text-gray-900 sm:text-2xl underline">{{props.options.title}}</h2>
   

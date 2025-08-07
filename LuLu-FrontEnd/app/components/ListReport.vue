@@ -10,9 +10,14 @@ const
     check = useChecker(),
     format = useFormater(),
     emit = defineEmits(['delete', 'edit']),
+    props = defineProps({
+        filter: {type: String, required: true},
+    }),
     contents = computed(()=>{
-        //let x = list.contents.filter(item => item.enroll_type == 1)
-        return list.contents//x
+        if (check.isNull(props.filter) || check.isNull(list.contents))
+            return list.contents
+
+        return list.contents.filter(item => (item.first_name +" "+ item.last_name).toLowerCase().includes(props.filter.toLowerCase()))
 
     });
 
@@ -72,7 +77,7 @@ onMounted(()=>{
 
             <tbody v-if="contents.length > 0">
                 <tr v-for="(data, index) in contents" class="*:py-1 *:text-xs *:text-center *:items-center">
-                    <td v-bind:class="format.stripes(index, '', 'bg-slate-50')" class="border-r border-gray-100 whitespace-nowrap">{{ data.fist_name }} {{ data.last_name }}</td>
+                    <td v-bind:class="format.stripes(index, '', 'bg-slate-50')" class="border-r border-gray-100 whitespace-nowrap">{{ data.first_name }} {{ data.last_name }}</td>
                     <td v-bind:class="format.stripes(index, '', 'bg-slate-50')" class="border-r border-gray-100 whitespace-nowrap">{{ data.departement }}</td>
                     <td v-bind:class="format.stripes(index, '', 'bg-slate-50')" class="border-r border-gray-100 whitespace-nowrap">{{ format.stamp_to_naive_date(data.date) }}</td>
                     <td v-bind:class="format.stripes(index, '', 'bg-slate-50')" class="border-r border-gray-100 whitespace-nowrap">{{ format.stamp_to_weekday(data.date, null, true) }}</td>

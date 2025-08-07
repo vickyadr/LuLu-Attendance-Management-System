@@ -1,5 +1,5 @@
 use crate::handler::{
-    adms::{h_cdata::*, h_devicecmd::*, h_getrequest::*}, h_device::*, h_employee::{employee_add, employee_delete, employee_edit, employee_list}, h_login::*, h_report::report_today, h_schedule::*, h_shift::*, h_transaction::*
+    adms::{h_cdata::*, h_devicecmd::*, h_getrequest::*}, h_device::*, h_employee::*, h_login::*, h_report::*, h_schedule::*, h_shift::*, h_transaction::*
 };
 use actix_web::{
     web,
@@ -41,6 +41,7 @@ pub fn config(conf: &mut web::ServiceConfig) {
                                         .service(shift_edit)
                                         .service(shift_list)
                                         .service(report_today)
+                                        .service(report_range)
                                         .service(employee_add)
                                         .service(employee_delete)
                                         .service(employee_edit)

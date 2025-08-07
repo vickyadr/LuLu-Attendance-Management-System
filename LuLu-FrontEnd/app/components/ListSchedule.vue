@@ -1,7 +1,7 @@
 <script setup>
 import { useSchedule } from '~/store/schedule';
 import { useAuthStore } from '~/store/auth';
-import { useChecker, useFormater } from '#imports';
+import { useChecker, useFormater, useViewUtil } from '#imports';
 
 const 
     auth = useAuthStore(),
@@ -9,6 +9,14 @@ const
     list = useSchedule(),
     check = useChecker(),
     format = useFormater(),
+    view = useViewUtil(),
+    collapse = ref({
+      main:[],
+      w1: [],
+      w2: [],
+      w3: [],
+      w4: [],
+    }),
     /*contents = computed(()=>{
         if (props.id > 0){
           let x = list.contents.filter(item => item.parrent == props.id)
@@ -19,7 +27,8 @@ const
     }),*/
     props = defineProps({
         id: { type: Number, required: false, default:0 },
-    });
+    }),
+    isOpen = ref([]);
 
 async function initSchedule() {
     await $fetch(`${config.public.apiBase}/schedule/list`,
@@ -32,7 +41,6 @@ async function initSchedule() {
             list.set(response.data);
         }
     });
-
 };
 
 onMounted(()=>{
@@ -81,52 +89,78 @@ onMounted(()=>{
         Schedule
       </div>
 
-      <div class="border-2 border-gray-100 px-4 py-2 ">
-        <div class="overflow-auto max-h-[76lvh]">
-          <div v-if="list.contents.length > 0" class="w-full min-w-[37lvh]">
-            <div v-for="(sch, index) in list.contents.filter(item => item.parrent == item.id)">
+      <div class="border-2 border-gray-100 px-4 py-2 h-[76lvh]">
+        <div class="overflow-auto h-[74lvh]">
+          <div v-if="list.contents.length > 0" class="w-full min-w-[30lvh]">
+            <div v-for="(sch, index) in list.contents.filter(item => item.parrent == item.id)" class="mb-1">
               
-              <div class="flex">
-                - {{ sch.name }}
-              </div>
+              <button class="flex items-center" v-on:click="collapse.main[index] = !collapse.main[index]">
+                <hr class="w-1 border mr-1"/> {{ sch.name }}
+              </button>
 
-              <div class="flex ml-4" v-if="sch.type == 1">
-                - FLAT [ {{ format.sec_to_naive(sch.start) }} => {{ format.sec_to_naive(sch.end) }} ]
-              </div>
-
-              <div v-if="sch.type >= 7">
-                <div class="flex ml-4">
-                  - WEEK 1
-                </div>
-                <div class="flex ml-8" v-for="(sft, index) in list.contents.filter(item => item.parrent == sch.id && item.dom <= 7).sort((a, b) => a.dom - b.dom)">
-                  - {{ format.dow(index+1) }} : [ {{ format.sec_to_naive(sft.start) }} => {{ format.sec_to_naive(sft.end) }} ]
+              <div :class="collapse.main[index] === true ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'" class="grid overflow-hidden transition-all duration-300 ease-in-out" v-if="sch.type == 1">
+                <div class="overflow-hidden flex items-center">
+                  <hr class="w-4 border mr-1"/> <span class="w-14">FLAT</span> [ <span class="w-9 ml-1">{{ format.sec_to_naive(sch.start) }}</span> => <span class="w-9 ml-0.5">{{ format.sec_to_naive(sch.end) }}</span> ]
                 </div>
               </div>
 
-              <div v-if="sch.type >= 14">
-                <div class="flex ml-4">
-                  - WEEK 2
-                </div>
-                <div class="flex ml-8" v-for="(sft, index) in list.contents.filter(item => item.parrent == sch.id && item.dom > 7 && item.dom <= 14).sort((a, b) => a.dom - b.dom)">
-                  - {{ format.dow(index+1) }} : [ {{ format.sec_to_naive(sft.start) }} => {{ format.sec_to_naive(sft.end) }} ]
-                </div>
-              </div>
-
-              <div v-if="sch.type >= 21">
-                <div class="flex ml-4">
-                  - WEEK 3
-                </div>
-                <div class="flex ml-8" v-for="(sft, index) in list.contents.filter(item => item.parrent == sch.id && item.dom > 14 && item.dom <= 21).sort((a, b) => a.dom - b.dom)">
-                  - {{ format.dow(index+1) }} : [ {{ format.sec_to_naive(sft.start) }} => {{ format.sec_to_naive(sft.end) }} ]
+              <div :class="collapse.main[index] === true ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'" class="grid overflow-hidden transition-all duration-300 ease-in-out" v-if="sch.type >= 7">
+                <div class="overflow-hidden">
+                  <button class="flex items-center" v-on:click="collapse.w1[index] = !collapse.w1[index]">
+                    <hr class="w-4 border mr-1"/> WEEK 1
+                  </button>
+                  <div :class="collapse.w1[index] === true ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'" class="grid overflow-hidden transition-all duration-300 ease-in-out">
+                    <div class="overflow-hidden">
+                      <div class="flex items-center" v-for="(sft, index) in list.contents.filter(item => item.parrent == sch.id && item.dom <= 7).sort((a, b) => a.dom - b.dom)">
+                        <hr class="w-8 border mr-1"/> <span class="w-8">{{ format.dow(index+1) }}</span> : [ <span class="w-9 ml-1">{{ format.sec_to_naive(sft.start) }}</span> => <span class="w-9 ml-0.5">{{ format.sec_to_naive(sft.end) }}</span> ]
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              <div v-if="sch.type == 28">
-                <div class="flex ml-4">
-                  - WEEK 4
+              <div :class="collapse.main[index] === true ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'" class="grid overflow-hidden transition-all duration-300 ease-in-out" v-if="sch.type >= 14">
+                <div class="overflow-hidden">
+                  <button class="flex items-center" v-on:click="collapse.w2[index] = !collapse.w2[index]">
+                    <hr class="w-4 border mr-1"/> WEEK 2
+                  </button>
+                  <div :class="collapse.w2[index] === true ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'" class="grid overflow-hidden transition-all duration-300 ease-in-out">
+                    <div class="overflow-hidden">
+                      <div class="flex items-center" v-for="(sft, index) in list.contents.filter(item => item.parrent == sch.id && item.dom > 7 && item.dom <= 14).sort((a, b) => a.dom - b.dom)">
+                        <hr class="w-8 border mr-1"/> <span class="w-8">{{ format.dow(index+1) }}</span> : [ <span class="w-9 ml-1">{{ format.sec_to_naive(sft.start) }}</span> => <span class="w-9 ml-0.5">{{ format.sec_to_naive(sft.end) }}</span> ]
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div class="flex ml-8" v-for="(sft, index) in list.contents.filter(item => item.parrent == sch.id && item.dom > 21 && item.dom <= 28).sort((a, b) => a.dom - b.dom)">
-                  - {{ format.dow(index+1) }} : [ {{ format.sec_to_naive(sft.start) }} => {{ format.sec_to_naive(sft.end) }} ]
+              </div>
+
+              <div :class="collapse.main[index] === true ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'" class="grid overflow-hidden transition-all duration-300 ease-in-out" v-if="sch.type >= 21">
+                <div class="overflow-hidden">
+                  <button class="flex items-center" v-on:click="collapse.w3[index] = !collapse.w3[index]">
+                    <hr class="w-4 border mr-1"/> WEEK 3
+                  </button>
+                  <div :class="collapse.w3[index] === true ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'" class="grid overflow-hidden transition-all duration-300 ease-in-out">
+                    <div class="overflow-hidden">
+                      <div class="flex items-center" v-for="(sft, index) in list.contents.filter(item => item.parrent == sch.id && item.dom > 14 && item.dom <= 21).sort((a, b) => a.dom - b.dom)">
+                        <hr class="w-8 border mr-1"/> <span class="w-8">{{ format.dow(index+1) }}</span> : [ <span class="w-9 ml-1">{{ format.sec_to_naive(sft.start) }}</span> => <span class="w-9 ml-0.5">{{ format.sec_to_naive(sft.end) }}</span> ]
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div :class="collapse.main[index] === true ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'" class="grid overflow-hidden transition-all duration-300 ease-in-out" v-if="sch.type >= 28">
+                <div class="overflow-hidden">
+                  <button class="flex items-center" v-on:click="collapse.w4[index] = !collapse.w4[index]">
+                    <hr class="w-4 border mr-1"/> WEEK 4
+                  </button>
+                  <div :class="collapse.w4[index] === true ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'" class="grid overflow-hidden transition-all duration-300 ease-in-out">
+                    <div class="overflow-hidden">
+                      <div class="flex items-center" v-for="(sft, index) in list.contents.filter(item => item.parrent == sch.id && item.dom > 21 && item.dom <= 28).sort((a, b) => a.dom - b.dom)">
+                        <hr class="w-8 border mr-1"/> <span class="w-8">{{ format.dow(index+1) }}</span> : [ <span class="w-9 ml-1">{{ format.sec_to_naive(sft.start) }}</span> => <span class="w-9 ml-0.5">{{ format.sec_to_naive(sft.end) }}</span> ]
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 

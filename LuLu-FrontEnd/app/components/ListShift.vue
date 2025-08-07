@@ -55,7 +55,7 @@ onMounted(()=>{
 </script>
 
 <template>
-    <div class="max-h-[40lvh] overflow-auto">
+    <div class="h-[28.5lvh] overflow-auto">
         <table class="w-full min-w-[70lvh]">
             
             <thead class="items-center items-stretch sticky top-0">

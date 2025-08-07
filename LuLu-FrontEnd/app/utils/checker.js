@@ -14,6 +14,32 @@ export const useChecker = () => {
         return false
     }
 
+    function isNotMinus(n){
+        if (isNull(n))
+            return false
+
+        if (n > 0)
+            return true
+
+        return false
+    }
+
+    function inRange(n, low, high, equalLow = true, equalHigh = true){
+        if (isNull(n))
+            return false
+
+        if (n > low && n < high)
+            return true
+
+        if (n == low && equalLow)
+            return true
+
+        if (n == high && equalHigh)
+            return true
+
+        return false
+    }
+
     function isEven(n) {
         return n % 2 == 0;
     }
@@ -41,5 +67,7 @@ export const useChecker = () => {
         isOdd,
         isNull,
         inSwitch,
+        inRange,
+        isNotMinus,
     };
 };
