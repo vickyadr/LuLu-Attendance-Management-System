@@ -1,4 +1,4 @@
-LuLu Universal Attendance Management System - BACKEND<br>
+LuLu Universal Attendance Management System<br>
 
 Current Support List:
 1. ZKTeco (ADMS V2.1 and below)
