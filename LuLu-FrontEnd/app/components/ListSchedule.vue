@@ -1,7 +1,8 @@
 <script setup>
 import { useSchedule } from '~/store/schedule';
 import { useAuthStore } from '~/store/auth';
-import { useChecker, useFormater, useViewUtil } from '#imports';
+import { useChecker, useFormater} from '#imports';
+import { faMinus, faPlus } from '@fortawesome/free-solid-svg-icons';
 
 const 
     auth = useAuthStore(),
@@ -9,7 +10,6 @@ const
     list = useSchedule(),
     check = useChecker(),
     format = useFormater(),
-    view = useViewUtil(),
     collapse = ref({
       main:[],
       w1: [],
@@ -91,28 +91,49 @@ onMounted(()=>{
 
       <div class="border-2 border-gray-100 px-4 py-2 h-[76lvh]">
         <div class="overflow-auto h-[74lvh]">
-          <div v-if="list.contents.length > 0" class="w-full min-w-[30lvh]">
+          <div v-if="list.contents.length > 0" class="w-full min-w-[28lvh]">
             <div v-for="(sch, index) in list.contents.filter(item => item.parrent == item.id)" class="mb-1">
               
               <button class="flex items-center" v-on:click="collapse.main[index] = !collapse.main[index]">
-                <hr class="w-1 border mr-1"/> {{ sch.name }}
+                <font-awesome :icon="faMinus" class="scale-75 text-gray-400" v-if="collapse.main[index] === true"/>
+                <font-awesome :icon="faPlus" class="scale-75 text-gray-400" v-else/>
+                <span>{{ sch.name }}</span>
               </button>
 
               <div :class="collapse.main[index] === true ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'" class="grid overflow-hidden transition-all duration-300 ease-in-out" v-if="sch.type == 1">
-                <div class="overflow-hidden flex items-center">
-                  <hr class="w-4 border mr-1"/> <span class="w-14">FLAT</span> [ <span class="w-9 ml-1">{{ format.sec_to_naive(sch.start) }}</span> => <span class="w-9 ml-0.5">{{ format.sec_to_naive(sch.end) }}</span> ]
+                <div class="overflow-hidden flex items-start ml-2">
+                  <svg height="20" width="20" xmlns="http://www.w3.org/2000/svg">
+                    <line x1="0" y1="0" x2="0" y2="10" class="stroke-gray-400 stroke-2" />
+                    <line x1="0" y1="10" x2="20" y2="10" class="stroke-gray-400" />
+                  </svg>
+                  <span class="w-16 mx-1">FLAT</span> [ <span class="w-9 ml-1">{{ format.sec_to_naive(sch.start) }}</span> => <span class="w-9 ml-0.5">{{ format.sec_to_naive(sch.end) }}</span> ]
                 </div>
               </div>
 
               <div :class="collapse.main[index] === true ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'" class="grid overflow-hidden transition-all duration-300 ease-in-out" v-if="sch.type >= 7">
-                <div class="overflow-hidden">
+                <div class="overflow-hidden ml-2">
                   <button class="flex items-center" v-on:click="collapse.w1[index] = !collapse.w1[index]">
-                    <hr class="w-4 border mr-1"/> WEEK 1
+                    <svg class="size-5" xmlns="http://www.w3.org/2000/svg">
+                      <line x1="0" y1="0" x2="0" y2="20" class="stroke-gray-400 stroke-2" v-if="sch.type > 7"/>
+                      <line x1="0" y1="0" x2="0" y2="10" class="stroke-gray-400 stroke-2" v-else/>
+                      <line x1="0" y1="10" x2="20" y2="10" class="stroke-gray-400" />
+                    </svg>
+                    <font-awesome :icon="faMinus" class="scale-75 text-gray-400" v-if="collapse.w1[index] === true"/>
+                    <font-awesome :icon="faPlus" class="scale-75 text-gray-400" v-else/>
+                    <span class="w-14">WEEK 1</span>
                   </button>
                   <div :class="collapse.w1[index] === true ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'" class="grid overflow-hidden transition-all duration-300 ease-in-out">
                     <div class="overflow-hidden">
-                      <div class="flex items-center" v-for="(sft, index) in list.contents.filter(item => item.parrent == sch.id && item.dom <= 7).sort((a, b) => a.dom - b.dom)">
-                        <hr class="w-8 border mr-1"/> <span class="w-8">{{ format.dow(index+1) }}</span> : [ <span class="w-9 ml-1">{{ format.sec_to_naive(sft.start) }}</span> => <span class="w-9 ml-0.5">{{ format.sec_to_naive(sft.end) }}</span> ]
+                      <div class="flex items-start" v-for="(sft, index) in list.contents.filter(item => item.parrent == sch.id && item.dom <= 7).sort((a, b) => a.dom - b.dom)">
+                        <svg class="size-5" xmlns="http://www.w3.org/2000/svg">
+                          <line x1="0" y1="0" x2="0" y2="20" class="stroke-gray-400 stroke-2" v-if="sch.type > 7"/>
+                        </svg>
+                        <svg class="size-5 ml-2" xmlns="http://www.w3.org/2000/svg">
+                          <line x1="0" y1="0" x2="0" y2="20" class="stroke-gray-400 stroke-2" v-if="index < 6"/>
+                          <line x1="0" y1="0" x2="0" y2="10" class="stroke-gray-400 stroke-2" v-else/>
+                          <line x1="0" y1="10" x2="20" y2="10" class="stroke-gray-400" />
+                        </svg>
+                        <span class="w-8 ml-1">{{ format.dow(index+1) }}</span> : [ <span class="w-9 ml-1">{{ format.sec_to_naive(sft.start) }}</span> => <span class="w-9 ml-0.5">{{ format.sec_to_naive(sft.end) }}</span> ]
                       </div>
                     </div>
                   </div>
@@ -120,14 +141,29 @@ onMounted(()=>{
               </div>
 
               <div :class="collapse.main[index] === true ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'" class="grid overflow-hidden transition-all duration-300 ease-in-out" v-if="sch.type >= 14">
-                <div class="overflow-hidden">
+                <div class="overflow-hidden ml-2">
                   <button class="flex items-center" v-on:click="collapse.w2[index] = !collapse.w2[index]">
-                    <hr class="w-4 border mr-1"/> WEEK 2
+                    <svg class="size-5" xmlns="http://www.w3.org/2000/svg">
+                      <line x1="0" y1="0" x2="0" y2="20" class="stroke-gray-400 stroke-2" v-if="sch.type > 14"/>
+                      <line x1="0" y1="0" x2="0" y2="10" class="stroke-gray-400 stroke-2" v-else/>
+                      <line x1="0" y1="10" x2="20" y2="10" class="stroke-gray-400" />
+                    </svg>
+                    <font-awesome :icon="faMinus" class="scale-75 text-gray-400" v-if="collapse.w2[index] === true"/>
+                    <font-awesome :icon="faPlus" class="scale-75 text-gray-400" v-else/>
+                    <span class="w-14">WEEK 2</span>
                   </button>
                   <div :class="collapse.w2[index] === true ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'" class="grid overflow-hidden transition-all duration-300 ease-in-out">
                     <div class="overflow-hidden">
                       <div class="flex items-center" v-for="(sft, index) in list.contents.filter(item => item.parrent == sch.id && item.dom > 7 && item.dom <= 14).sort((a, b) => a.dom - b.dom)">
-                        <hr class="w-8 border mr-1"/> <span class="w-8">{{ format.dow(index+1) }}</span> : [ <span class="w-9 ml-1">{{ format.sec_to_naive(sft.start) }}</span> => <span class="w-9 ml-0.5">{{ format.sec_to_naive(sft.end) }}</span> ]
+                        <svg class="size-5" xmlns="http://www.w3.org/2000/svg">
+                          <line x1="0" y1="0" x2="0" y2="20" class="stroke-gray-400 stroke-2" v-if="sch.type > 14"/>
+                        </svg>
+                        <svg class="size-5 ml-2" xmlns="http://www.w3.org/2000/svg">
+                          <line x1="0" y1="0" x2="0" y2="20" class="stroke-gray-400 stroke-2" v-if="index < 6"/>
+                          <line x1="0" y1="0" x2="0" y2="10" class="stroke-gray-400 stroke-2" v-else/>
+                          <line x1="0" y1="10" x2="20" y2="10" class="stroke-gray-400" />
+                        </svg>
+                        <span class="w-8 ml-1">{{ format.dow(index+1) }}</span> : [ <span class="w-9 ml-1">{{ format.sec_to_naive(sft.start) }}</span> => <span class="w-9 ml-0.5">{{ format.sec_to_naive(sft.end) }}</span> ]
                       </div>
                     </div>
                   </div>
@@ -135,14 +171,29 @@ onMounted(()=>{
               </div>
 
               <div :class="collapse.main[index] === true ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'" class="grid overflow-hidden transition-all duration-300 ease-in-out" v-if="sch.type >= 21">
-                <div class="overflow-hidden">
+                <div class="overflow-hidden ml-2">
                   <button class="flex items-center" v-on:click="collapse.w3[index] = !collapse.w3[index]">
-                    <hr class="w-4 border mr-1"/> WEEK 3
+                    <svg class="size-5" xmlns="http://www.w3.org/2000/svg">
+                      <line x1="0" y1="0" x2="0" y2="20" class="stroke-gray-400 stroke-2" v-if="sch.type > 21"/>
+                      <line x1="0" y1="0" x2="0" y2="10" class="stroke-gray-400 stroke-2" v-else/>
+                      <line x1="0" y1="10" x2="20" y2="10" class="stroke-gray-400" />
+                    </svg>
+                    <font-awesome :icon="faMinus" class="scale-75 text-gray-400" v-if="collapse.w3[index] === true"/>
+                    <font-awesome :icon="faPlus" class="scale-75 text-gray-400" v-else/>
+                    <span class="w-14">WEEK 3</span>
                   </button>
                   <div :class="collapse.w3[index] === true ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'" class="grid overflow-hidden transition-all duration-300 ease-in-out">
                     <div class="overflow-hidden">
                       <div class="flex items-center" v-for="(sft, index) in list.contents.filter(item => item.parrent == sch.id && item.dom > 14 && item.dom <= 21).sort((a, b) => a.dom - b.dom)">
-                        <hr class="w-8 border mr-1"/> <span class="w-8">{{ format.dow(index+1) }}</span> : [ <span class="w-9 ml-1">{{ format.sec_to_naive(sft.start) }}</span> => <span class="w-9 ml-0.5">{{ format.sec_to_naive(sft.end) }}</span> ]
+                        <svg class="size-5" xmlns="http://www.w3.org/2000/svg">
+                          <line x1="0" y1="0" x2="0" y2="20" class="stroke-gray-400 stroke-2" v-if="sch.type > 21"/>
+                        </svg>
+                        <svg class="size-5 ml-2" xmlns="http://www.w3.org/2000/svg">
+                          <line x1="0" y1="0" x2="0" y2="20" class="stroke-gray-400 stroke-2" v-if="index < 6"/>
+                          <line x1="0" y1="0" x2="0" y2="10" class="stroke-gray-400 stroke-2" v-else/>
+                          <line x1="0" y1="10" x2="20" y2="10" class="stroke-gray-400" />
+                        </svg>
+                        <span class="w-8 ml-1">{{ format.dow(index+1) }}</span> : [ <span class="w-9 ml-1">{{ format.sec_to_naive(sft.start) }}</span> => <span class="w-9 ml-0.5">{{ format.sec_to_naive(sft.end) }}</span> ]
                       </div>
                     </div>
                   </div>
@@ -150,14 +201,29 @@ onMounted(()=>{
               </div>
 
               <div :class="collapse.main[index] === true ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'" class="grid overflow-hidden transition-all duration-300 ease-in-out" v-if="sch.type >= 28">
-                <div class="overflow-hidden">
+                <div class="overflow-hidden ml-2">
                   <button class="flex items-center" v-on:click="collapse.w4[index] = !collapse.w4[index]">
-                    <hr class="w-4 border mr-1"/> WEEK 4
+                    <svg class="size-5" xmlns="http://www.w3.org/2000/svg">
+                      <line x1="0" y1="0" x2="0" y2="20" class="stroke-gray-400 stroke-2" v-if="sch.type > 28"/>
+                      <line x1="0" y1="0" x2="0" y2="10" class="stroke-gray-400 stroke-2" v-else/>
+                      <line x1="0" y1="10" x2="20" y2="10" class="stroke-gray-400" />
+                    </svg>
+                    <font-awesome :icon="faMinus" class="scale-75 text-gray-400" v-if="collapse.w4[index] === true"/>
+                    <font-awesome :icon="faPlus" class="scale-75 text-gray-400" v-else/>
+                    <span class="w-14">WEEK 4</span>
                   </button>
                   <div :class="collapse.w4[index] === true ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'" class="grid overflow-hidden transition-all duration-300 ease-in-out">
                     <div class="overflow-hidden">
                       <div class="flex items-center" v-for="(sft, index) in list.contents.filter(item => item.parrent == sch.id && item.dom > 21 && item.dom <= 28).sort((a, b) => a.dom - b.dom)">
-                        <hr class="w-8 border mr-1"/> <span class="w-8">{{ format.dow(index+1) }}</span> : [ <span class="w-9 ml-1">{{ format.sec_to_naive(sft.start) }}</span> => <span class="w-9 ml-0.5">{{ format.sec_to_naive(sft.end) }}</span> ]
+                        <svg class="size-5" xmlns="http://www.w3.org/2000/svg">
+                          <line x1="0" y1="0" x2="0" y2="20" class="stroke-gray-400 stroke-2" v-if="sch.type > 28"/>
+                        </svg>
+                        <svg class="size-5 ml-2" xmlns="http://www.w3.org/2000/svg">
+                          <line x1="0" y1="0" x2="0" y2="20" class="stroke-gray-400 stroke-2" v-if="index < 6"/>
+                          <line x1="0" y1="0" x2="0" y2="10" class="stroke-gray-400 stroke-2" v-else/>
+                          <line x1="0" y1="10" x2="20" y2="10" class="stroke-gray-400" />
+                        </svg>
+                        <span class="w-8 ml-1">{{ format.dow(index+1) }}</span> : [ <span class="w-9 ml-1">{{ format.sec_to_naive(sft.start) }}</span> => <span class="w-9 ml-0.5">{{ format.sec_to_naive(sft.end) }}</span> ]
                       </div>
                     </div>
                   </div>

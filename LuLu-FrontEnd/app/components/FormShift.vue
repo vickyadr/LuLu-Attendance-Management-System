@@ -170,7 +170,7 @@ defineExpose({
             </div>
 
             <div class="relative">
-                <select v-model="shift.start_h" class="text-gray-700 mt-1 block w-full px-3 py-2 border-2 duration-500 focus:border-purple-500 border-purple-200 hover:border-purple-300 rounded-md text-sm shadow-sm bg-slate-50 peer" id="device_name">
+                <select v-model="shift.start_h" class="text-gray-700 mt-1 block w-full px-3 py-2 border-2 duration-500 focus:border-purple-500 border-purple-200 hover:border-purple-300 rounded-md text-sm shadow-sm bg-slate-50 peer" id="start_h">
                     <option value="0">00</option>
                     <option value="1">01</option>
                     <option value="2">02</option>
@@ -197,14 +197,14 @@ defineExpose({
                     <option value="23">23</option>
                     <option value="24">24</option>
                 </select>
-                <label for="device_name" class="rounded-2xl absolute text-lg scale-90 text-slate-700 transform -translate-y-6 left-1 top-2 z-10 origin-[0] bg-slate-50 px-2 text-nowrap">Start shift : </label>
+                <label for="start_h" class="rounded-2xl absolute text-lg scale-90 text-slate-700 transform -translate-y-6 left-1 top-2 z-10 origin-[0] bg-slate-50 px-2 text-nowrap">Start shift : </label>
                 <p class="text-xs text-red-600 dark:text-red-400">
                     <span class="font-medium">{{ validator.start_time }}</span>
                 </p>                        
             </div>
 
             <div class="relative">
-                <select v-model="shift.start_m" class="text-gray-700 mt-1 block w-full px-3 py-2 border-2 duration-500 focus:border-purple-500 border-purple-200 hover:border-purple-300 rounded-md text-sm shadow-sm bg-slate-50 peer" id="device_name">
+                <select v-model="shift.start_m" class="text-gray-700 mt-1 block w-full px-3 py-2 border-2 duration-500 focus:border-purple-500 border-purple-200 hover:border-purple-300 rounded-md text-sm shadow-sm bg-slate-50 peer" id="start_m">
                     <option value="0">00</option>
                     <option value="5">05</option>
                     <option value="10">10</option>
@@ -221,7 +221,7 @@ defineExpose({
             </div>
 
             <div class="relative">
-                <select v-model="shift.end_h" class="text-gray-700 mt-1 block w-full px-3 py-2 border-2 duration-500 focus:border-purple-500 border-purple-200 hover:border-purple-300 rounded-md text-sm shadow-sm bg-slate-50 peer" id="device_name">
+                <select v-model="shift.end_h" class="text-gray-700 mt-1 block w-full px-3 py-2 border-2 duration-500 focus:border-purple-500 border-purple-200 hover:border-purple-300 rounded-md text-sm shadow-sm bg-slate-50 peer" id="end_h">
                     <option value="0">00</option>
                     <option value="1">01</option>
                     <option value="2">02</option>
@@ -248,14 +248,14 @@ defineExpose({
                     <option value="23">23</option>
                     <option value="24">24</option>
                 </select>
-                <label for="device_name" class="rounded-2xl absolute text-lg scale-90 text-slate-700 transform -translate-y-6 left-1 top-2 z-10 origin-[0] bg-slate-50 px-2 text-nowrap">End shift : </label>
+                <label for="end_h" class="rounded-2xl absolute text-lg scale-90 text-slate-700 transform -translate-y-6 left-1 top-2 z-10 origin-[0] bg-slate-50 px-2 text-nowrap">End shift : </label>
                 <p class="text-xs text-red-600 dark:text-red-400">
                     <span class="font-medium">{{ validator.end_time }}</span>
                 </p>                        
             </div>
 
             <div class="relative">
-                <select v-model="shift.end_m" class="text-gray-700 mt-1 block w-full px-3 py-2 border-2 duration-500 focus:border-purple-500 border-purple-200 hover:border-purple-300 rounded-md text-sm shadow-sm bg-slate-50 peer" id="device_name">
+                <select v-model="shift.end_m" class="text-gray-700 mt-1 block w-full px-3 py-2 border-2 duration-500 focus:border-purple-500 border-purple-200 hover:border-purple-300 rounded-md text-sm shadow-sm bg-slate-50 peer" id="end_m">
                     <option value="0">00</option>
                     <option value="5">05</option>
                     <option value="10">10</option>
@@ -272,7 +272,7 @@ defineExpose({
             </div>
 
             <div class="relative">
-                <select v-model="shift.start_enroll_h" class="text-gray-700 mt-1 block w-full px-3 py-2 border-2 duration-500 focus:border-purple-500 border-purple-200 hover:border-purple-300 rounded-md text-sm shadow-sm bg-slate-50 peer" id="device_name">
+                <select v-model="shift.start_enroll_h" class="text-gray-700 mt-1 block w-full px-3 py-2 border-2 duration-500 focus:border-purple-500 border-purple-200 hover:border-purple-300 rounded-md text-sm shadow-sm bg-slate-50 peer" id="start_enroll_h">
                     <option value="0">-0</option>
                     <option value="1">-1</option>
                     <option value="2">-2</option>
@@ -290,14 +290,14 @@ defineExpose({
                     <option value="14">-14</option>
                     <option value="15">-15</option>
                 </select>
-                <label for="device_name" class="rounded-2xl absolute text-lg scale-90 text-slate-700 transform -translate-y-6 left-1 top-2 z-10 origin-[0] bg-slate-50 px-2 text-nowrap">Start enroll : </label>
+                <label for="start_enroll_h" class="rounded-2xl absolute text-lg scale-90 text-slate-700 transform -translate-y-6 left-1 top-2 z-10 origin-[0] bg-slate-50 px-2 text-nowrap">Start enroll : </label>
                 <p class="text-xs text-red-600 dark:text-red-400">
                     <span class="font-medium">{{ validator.start_enroll }}</span>
                 </p>
             </div>
 
             <div class="relative">
-                <select v-model="shift.start_enroll_m" class="text-gray-700 mt-1 block w-full px-3 py-2 border-2 duration-500 focus:border-purple-500 border-purple-200 hover:border-purple-300 rounded-md text-sm shadow-sm bg-slate-50 peer" id="device_name">
+                <select v-model="shift.start_enroll_m" class="text-gray-700 mt-1 block w-full px-3 py-2 border-2 duration-500 focus:border-purple-500 border-purple-200 hover:border-purple-300 rounded-md text-sm shadow-sm bg-slate-50 peer" id="start_enroll_m">
                     <option value="0">00</option>
                     <option value="5">05</option>
                     <option value="10">10</option>
@@ -314,7 +314,7 @@ defineExpose({
             </div>
             
             <div class="relative">
-                <select v-model="shift.end_enroll_h" class="text-gray-700 mt-1 block w-full px-3 py-2 border-2 duration-500 focus:border-purple-500 border-purple-200 hover:border-purple-300 rounded-md text-sm shadow-sm bg-slate-50 peer" id="device_name">
+                <select v-model="shift.end_enroll_h" class="text-gray-700 mt-1 block w-full px-3 py-2 border-2 duration-500 focus:border-purple-500 border-purple-200 hover:border-purple-300 rounded-md text-sm shadow-sm bg-slate-50 peer" id="end_enroll_h">
                     <option value="0">+0</option>
                     <option value="1">+1</option>
                     <option value="2">+2</option>
@@ -332,14 +332,14 @@ defineExpose({
                     <option value="14">+14</option>
                     <option value="15">+15</option>
                 </select>
-                <label for="device_name" class="rounded-2xl absolute text-lg scale-90 text-slate-700 transform -translate-y-6 left-1 top-2 z-10 origin-[0] bg-slate-50 px-2 text-nowrap">End enroll : </label>
+                <label for="end_enroll_h" class="rounded-2xl absolute text-lg scale-90 text-slate-700 transform -translate-y-6 left-1 top-2 z-10 origin-[0] bg-slate-50 px-2 text-nowrap">End enroll : </label>
                 <p class="text-xs text-red-600 dark:text-red-400">
                     <span class="font-medium">{{ validator.end_enroll }}</span>
                 </p>
             </div>
 
             <div class="relative">
-                <select v-model="shift.end_enroll_m" class="text-gray-700 mt-1 block w-full px-3 py-2 border-2 duration-500 focus:border-purple-500 border-purple-200 hover:border-purple-300 rounded-md text-sm shadow-sm bg-slate-50 peer" id="device_name">
+                <select v-model="shift.end_enroll_m" class="text-gray-700 mt-1 block w-full px-3 py-2 border-2 duration-500 focus:border-purple-500 border-purple-200 hover:border-purple-300 rounded-md text-sm shadow-sm bg-slate-50 peer" id="end_enroll_m">
                     <option value="0">00</option>
                     <option value="5">05</option>
                     <option value="10">10</option>

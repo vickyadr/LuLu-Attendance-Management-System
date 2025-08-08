@@ -62,8 +62,8 @@ const add_schedule = async () =>{
             <div class="flex my-5">
 
                 <div class="relative">
-                    <input v-model="form_data.name" class="mt-1 text-gray-700 block w-full px-3 py-2 border-2 duration-500 focus:border-purple-500 border-purple-200 hover:border-purple-300 rounded-md text-sm shadow-sm bg-slate-50 peer" type="text" required placeholder=" " id="shift_name">
-                    <label for="shift_name" class="rounded-2xl absolute text-lg scale-90 text-slate-700 transform -translate-y-6 left-1 top-2 z-10 origin-[0] bg-slate-50 px-2">Schedule name : </label>
+                    <input v-model="form_data.name" class="mt-1 text-gray-700 block w-full px-3 py-2 border-2 duration-500 focus:border-purple-500 border-purple-200 hover:border-purple-300 rounded-md text-sm shadow-sm bg-slate-50 peer" type="text" required placeholder=" " id="schedule_name">
+                    <label for="schedule_name" class="rounded-2xl absolute text-lg scale-90 text-slate-700 transform -translate-y-6 left-1 top-2 z-10 origin-[0] bg-slate-50 px-2">Schedule name : </label>
                 </div>
                 <p class="text-xs text-red-600 dark:text-red-400">
                     <span class="font-medium"></span>
@@ -74,14 +74,14 @@ const add_schedule = async () =>{
             <div class="flex my-5">
 
                 <div class="relative">
-                    <select v-model="form_data.pattern" class="mt-1 text-gray-700 block w-full px-3 py-2 border-2 duration-500 focus:border-purple-500 border-purple-200 hover:border-purple-300 rounded-md text-sm shadow-sm bg-slate-50 peer" id="shift_pattern">
+                    <select v-model="form_data.pattern" class="mt-1 text-gray-700 block w-full px-3 py-2 border-2 duration-500 focus:border-purple-500 border-purple-200 hover:border-purple-300 rounded-md text-sm shadow-sm bg-slate-50 peer" id="schedule_pattern">
                         <option value="0" default>Flat</option>
                         <option value="1">Weekly (un-implemented)</option>
                         <option value="2">2 Week (un-implemented)</option>
                         <option value="3">3 Week (un-implemented)</option>
                         <option value="4">Monthly (un-implemented)</option>
                     </select>
-                    <label for="shift_name" class="rounded-2xl absolute text-lg scale-90 text-slate-700 transform -translate-y-6 left-1 top-2 z-10 origin-[0] bg-slate-50 px-2">Pattern : </label>
+                    <label for="schedule_pattern" class="rounded-2xl absolute text-lg scale-90 text-slate-700 transform -translate-y-6 left-1 top-2 z-10 origin-[0] bg-slate-50 px-2">Pattern : </label>
                 </div>
                 <p class="text-xs text-red-600 dark:text-red-400">
                     <span class="font-medium"></span>
@@ -92,10 +92,10 @@ const add_schedule = async () =>{
             <div class="flex my-5" v-if="form_data.pattern == 0">
 
                 <div class="relative">
-                    <select v-model="form_data.shift[0]" class="mt-1 text-gray-700 block w-full px-3 py-2 border-2 duration-500 focus:border-purple-500 border-purple-200 hover:border-purple-300 rounded-md text-sm shadow-sm bg-slate-50 peer" id="shift_name">
+                    <select v-model="form_data.shift[0]" class="mt-1 text-gray-700 block w-full px-3 py-2 border-2 duration-500 focus:border-purple-500 border-purple-200 hover:border-purple-300 rounded-md text-sm shadow-sm bg-slate-50 peer" id="shift_id">
                         <option v-for="d in shift.contents" :value="d.id">{{ d.name }}</option>
                     </select>
-                    <label for="shift_name" class="rounded-2xl absolute text-lg scale-90 text-slate-700 transform -translate-y-6 left-1 top-2 z-10 origin-[0] bg-slate-50 px-2">Shift : </label>
+                    <label for="shift_id" class="rounded-2xl absolute text-lg scale-90 text-slate-700 transform -translate-y-6 left-1 top-2 z-10 origin-[0] bg-slate-50 px-2">Shift : </label>
                 </div>
                 <p class="text-xs text-red-600 dark:text-red-400">
                     <span class="font-medium"></span>

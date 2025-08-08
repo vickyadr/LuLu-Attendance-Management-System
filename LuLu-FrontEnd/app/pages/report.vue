@@ -1,7 +1,7 @@
 <script setup>
 import { useReportStore } from '~/store/report';
 import { useAuthStore } from '~/store/auth';
-import { useChecker, useFormater } from '#imports';
+import { useChecker, useFormater, useViewUtils } from '#imports';
 
 const 
     auth = useAuthStore(),
@@ -10,6 +10,7 @@ const
     check = useChecker(),
     format = useFormater(),
     filter = ref(""),
+    view = useViewUtils(),
     range = reactive({
         start: {
             day: null,
@@ -91,19 +92,19 @@ onMounted(()=> {
                 <div class="flex justify-between text-nowrap text-gray-700">
                     <span>Period :</span>
                     <div class="flex justify-center px-2 mx-2 border-2 border-purple-100 hover:border-purple-200 rounded-lg">
-                        <input v-model.number="range.start.day" v-on:keydown="dateKey" v-on:blur="getDataReport" inputmode="numeric" class="outline-transparent scale-90 w-7" placeholder="DD" maxlength="2"/>
+                        <input id="start_day" v-model.number="range.start.day" v-on:keydown="dateKey" v-on:blur="getDataReport" inputmode="numeric" class="outline-transparent scale-90 w-7" placeholder="DD" maxlength="2"/>
                         <span>/</span>
-                        <input v-model.number="range.start.month" v-on:keydown="dateKey" v-on:blur="getDataReport" inputmode="numeric" class="outline-transparent scale-90 w-7" placeholder="MM" maxlength="2"/>
+                        <input id="start_month" v-model.number="range.start.month" v-on:keydown="dateKey" v-on:blur="getDataReport" inputmode="numeric" class="outline-transparent scale-90 w-7" placeholder="MM" maxlength="2"/>
                         <span>/</span>
-                        <input v-model.number="range.start.year" v-on:keydown="dateKey" v-on:blur="getDataReport" inputmode="numeric" class="outline-transparent scale-90 w-10" placeholder="YYYY" maxlength="4"/>
+                        <input id="start_year" v-model.number="range.start.year" v-on:keydown="dateKey" v-on:blur="getDataReport" inputmode="numeric" class="outline-transparent scale-90 w-10" placeholder="YYYY" maxlength="4"/>
                     </div>
                     <span>to</span> 
                     <div class="flex justify-center px-2 mx-2 border-2 border-purple-100 hover:border-purple-200 rounded-lg">
-                        <input v-model="range.end.day" v-on:keydown="dateKey" v-on:blur="getDataReport" inputmode="numeric" class="outline-transparent scale-90 w-7" placeholder="DD" maxlength="2"/>
+                        <input id="end_day" v-model="range.end.day" v-on:keydown="dateKey" v-on:blur="getDataReport" inputmode="numeric" class="outline-transparent scale-90 w-7" placeholder="DD" maxlength="2"/>
                         <span>/</span>
-                        <input v-model="range.end.month" v-on:keydown="dateKey" v-on:blur="getDataReport" inputmode="numeric" class="outline-transparent scale-90 w-7" placeholder="MM" maxlength="2"/>
+                        <input id="end_month" v-model="range.end.month" v-on:keydown="dateKey" v-on:blur="getDataReport" inputmode="numeric" class="outline-transparent scale-90 w-7" placeholder="MM" maxlength="2"/>
                         <span>/</span>
-                        <input v-model="range.end.year" v-on:keydown="dateKey" v-on:blur="getDataReport" inputmode="numeric" class="outline-transparent scale-90 w-10" placeholder="YYYY" maxlength="4"/>
+                        <input id="end_year" v-model="range.end.year" v-on:keydown="dateKey" v-on:blur="getDataReport" inputmode="numeric" class="outline-transparent scale-90 w-10" placeholder="YYYY" maxlength="4"/>
                     </div>         
                 </div>
 

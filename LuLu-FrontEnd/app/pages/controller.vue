@@ -1,7 +1,7 @@
 <script setup>
 import ListController from '~/components/ListController.vue';
 import SimpleModal from '~/components/SimpleModal.vue';
-import { useChecker } from '#imports';
+import { useChecker, useViewUtils } from '#imports';
 import { useAuthStore } from '~/store/auth';
 import { useDeviceStore } from '~/store/devices';
 import { SMData } from '~/components/SimpleModal.vue';
@@ -10,6 +10,7 @@ const
     config = useRuntimeConfig(),
     check = useChecker(),
     auth = useAuthStore(),
+    view = useViewUtils(),
     device_store = useDeviceStore(),
     device = reactive({
         id:0,
@@ -182,7 +183,7 @@ const device_action = async () =>{
                         
                         <div class="my-5">
                             <div class="relative">
-                                <input v-model="device.name" class="text-gray-700 mt-1 block w-full px-3 py-2 border-2 duration-500 focus:border-purple-500 border-purple-200 hover:border-purple-300 rounded-md text-sm shadow-sm bg-slate-50 peer" type="text" required="" placeholder=" " id="device_name">
+                                <input v-model="device.name" class="outline-purple-400 text-gray-700 mt-1 block w-full px-3 py-2 border-2 duration-500 focus:border-purple-500 border-purple-200 hover:border-purple-300 rounded-md text-sm shadow-sm bg-slate-50 peer" type="text" required="" placeholder=" " id="device_name">
                                 <label for="device_name" class="rounded-2xl absolute text-lg scale-90 text-slate-700 transform -translate-y-6 left-1 top-2 z-10 origin-[0] bg-slate-50 px-2">Name : </label>
                             </div>
 
@@ -193,7 +194,7 @@ const device_action = async () =>{
 
                         <div class="my-5">
                             <div class="relative">
-                                <input v-model="device.sn" :disabled="isEdit" class="text-gray-700 mt-1 block w-full px-3 py-2 border-2 duration-500 focus:border-purple-500 border-purple-200 hover:border-purple-300 rounded-md text-sm shadow-sm bg-slate-50 peer" type="text" required="" placeholder=" " id="serial_number">
+                                <input v-model="device.sn" :disabled="isEdit" class="outline-purple-400 text-gray-700 mt-1 block w-full px-3 py-2 border-2 duration-500 focus:border-purple-500 border-purple-200 hover:border-purple-300 rounded-md text-sm shadow-sm bg-slate-50 peer disabled:border-red-400 disabled:text-gray-400" type="text" required="" placeholder=" " id="serial_number">
                                 <label for="serial_number" class="rounded-2xl absolute text-lg scale-90 text-slate-700 transform -translate-y-6 left-1 top-2 z-10 origin-[0] bg-slate-50 px-2">Serial Number : </label>
                             </div>
 
@@ -204,7 +205,7 @@ const device_action = async () =>{
 
                         <div class="my-5">
                             <div class="relative">
-                                <textarea v-model="device.location" class="text-gray-700 mt-1 block w-full px-3 py-2 border-2 duration-500 focus:border-purple-500 border-purple-200 hover:border-purple-300 rounded-md text-sm shadow-sm bg-slate-50 peer resize-none" type="text" placeholder=" " id="location"/>
+                                <textarea v-model="device.location" class="outline-purple-400 text-gray-700 mt-1 block w-full px-3 py-2 border-2 duration-500 focus:border-purple-500 border-purple-200 hover:border-purple-300 rounded-md text-sm shadow-sm bg-slate-50 peer resize-none" type="text" placeholder=" " id="location"/>
                                 <label for="location" class="rounded-2xl absolute text-lg scale-90 text-slate-700 transform -translate-y-6 left-1 top-2 z-10 origin-[0] bg-slate-50 px-2">Location : </label>
                             </div>
 
@@ -230,7 +231,12 @@ const device_action = async () =>{
                         
                         <div class="my-5">
                             <div class="relative">
-                                <input v-model="device.timezone" class="text-gray-700 mt-1 block w-full px-3 py-2 border-2 duration-500 focus:border-purple-500 border-purple-200 hover:border-purple-300 rounded-md text-sm shadow-sm bg-slate-50 peer" type="text" required="" placeholder=" " id="tz">
+                                <div class="flex justify-between divide-purple-200 divide-solid outline-purple-400 text-gray-700 block w-full border-2 duration-500 focus:border-purple-500 border-purple-200 hover:border-purple-300 rounded-md text-sm shadow-sm bg-slate-50 peer">
+                                    <button type="button" class="px-4 border-r-2 font-medium" v-on:click="() => {(check.inRange(device.timezone, -22, 23)) ? device.timezone -= 1 : device.timezone = 23; view.changeFocus('tz'); }">-</button>
+                                    <input v-model="device.timezone" class="outline-transparent text-center my-2 size-6" type="text" maxlength="3" required="" placeholder=" " id="tz"/>
+                                    <button type="button" class="px-4 border-l-2 font-medium" v-on:click="() => {(check.inRange(device.timezone, -23, 22)) ? device.timezone += 1 : device.timezone = -23; view.changeFocus('tz');}">+</button>
+                                </div>
+                                <!--<input v-model="device.timezone" class="outline-purple-400 text-gray-700 mt-1 block w-full px-3 py-2 border-2 duration-500 focus:border-purple-500 border-purple-200 hover:border-purple-300 rounded-md text-sm shadow-sm bg-slate-50 peer" type="number" maxlength="2" required="" placeholder=" " id="tz">-->
                                 <label for="tz" class="rounded-2xl absolute text-lg scale-90 text-slate-700 transform -translate-y-6 left-1 top-2 z-10 origin-[0] bg-slate-50 px-2">Timezone : </label>
                             </div>
 
@@ -241,7 +247,7 @@ const device_action = async () =>{
 
                         <div class="my-5">
                             <div class="relative">
-                                <select v-model="device.handler" class="text-gray-700 mt-1 block w-full px-3 py-2 border-2 duration-500 focus:border-purple-500 border-purple-200 hover:border-purple-300 rounded-md text-sm shadow-sm bg-slate-50 peer" id="handler">
+                                <select v-model="device.handler" class="outline-purple-400 text-gray-700 mt-1 block w-full px-3 py-2 border-2 duration-500 focus:border-purple-500 border-purple-200 hover:border-purple-300 rounded-md text-sm shadow-sm bg-slate-50 peer" id="handler">
                                     <option value="4">iClock/ADMS</option>
                                     <option value="5">ZKNET (un-implemented)</option>
                                 </select>
