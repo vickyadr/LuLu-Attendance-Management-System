@@ -4,6 +4,10 @@ Current Support List:
 1. ZKTeco (ADMS V2.1 and below)
 2. Solution (Almost All)<br>
 
+<br><hr><br/>
+Demo : <a href="https://lulu-demo.16pxlabs.com">lulu-demo.16pxlabs.com</a>
+
+To access demo page please "allow insecure content" to <a href="https://lulu-demo.16pxlabs.com">lulu-demo</a>, this error occurs cause backend server doesnt have SSL Certificate.<br/>
 <br><hr>
 FAQ : <br>
 
