@@ -8,8 +8,6 @@ Current Support List:
 Demo : <a href="https://lulu-demo.16pxlabs.com">lulu-demo.16pxlabs.com</a><br/><br/>
 User: demo<br/>
 Password: demo12345
-
-To access demo page please "allow insecure content" to <a href="https://lulu-demo.16pxlabs.com">lulu-demo</a>, this error occurs cause backend server doesn't have SSL Certificate<br/>
 <br><hr>
 FAQ : <br>
 
