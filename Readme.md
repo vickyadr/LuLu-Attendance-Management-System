@@ -4,6 +4,10 @@ Current Support List:
 1. ZKTeco (ADMS V2.1 and below)
 2. Solution (Almost All)<br>
 
+<br><hr><br/>
+Demo : <a href="https://lulu-demo.16pxlabs.com">lulu-demo.16pxlabs.com</a><br/><br/>
+User: demo<br/>
+Password: demo12345
 <br><hr>
 FAQ : <br>
 
