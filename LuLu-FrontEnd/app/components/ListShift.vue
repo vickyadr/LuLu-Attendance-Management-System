@@ -56,10 +56,10 @@ onMounted(()=>{
 
 <template>
     <div class="h-[28.5lvh] overflow-auto">
-        <table class="w-full min-w-[70lvh]">
+        <table class="w-full min-w-fit">
             
             <thead class="items-center items-stretch sticky top-0">
-                <tr class="*:py-1.5 *:bg-teal-600 *:text-xs *:font-bold *:text-slate-100 *:text-center *:items-center">   
+                <tr class="*:py-1.5 *:bg-teal-600 *:text-xs *:font-bold *:text-slate-100 *:text-center *:items-center *:px-4">   
                     <td class="border-r border-gray-200 whitespace-nowrap">Shift name</td>
                     <td class="border-r border-gray-200 whitespace-nowrap">Start enroll</td>
                     <td class="border-r border-gray-200 whitespace-nowrap">Work time</td>
@@ -69,7 +69,7 @@ onMounted(()=>{
             </thead>
 
             <tbody v-if="contents.length > 0">
-                <tr v-for="(shift, index) in contents" class="*:py-1 *:text-xs *:text-center *:items-center">
+                <tr v-for="(shift, index) in contents" class="*:py-1 *:text-xs *:text-center *:items-center *:px-2">
                     <td v-bind:class="format.stripes(index, '', 'bg-slate-50')" class="border-r border-gray-100 whitespace-nowrap">{{ shift.name}}</td>
                     <td v-bind:class="format.stripes(index, '', 'bg-slate-50')" class="border-r border-gray-100 whitespace-nowrap">{{ parseSeconds(shift.start_enroll) }} {{ (shift.prevday == 1) ? "(prevday)":"" }}</td>
                     <td v-bind:class="format.stripes(index, '', 'bg-slate-50')" class="border-r border-gray-100 whitespace-nowrap">{{ parseSeconds(shift.start_time) }} >> {{ parseSeconds(shift.end_time) }}</td>

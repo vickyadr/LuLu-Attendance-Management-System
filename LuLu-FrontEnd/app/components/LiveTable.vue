@@ -43,23 +43,23 @@ onMounted(()=>{
 
 <template>
     <div class="max-h-[46lvh] overflow-auto">
-        <table class="w-full min-w-[75lvh]">
+        <table class="w-full min-w-fit">
             
             <thead class="items-center items-stretch mb-1 sticky top-0">
-                <tr class="*:py-1.5 *:bg-teal-600 *:text-xs *:font-bold *:text-slate-100 *:text-center *:items-center">   
-                    <td class="border-r border-gray-200 whitespace-nowrap w-[15%]">Date & Time</td>
-                    <td class="border-r border-gray-200 whitespace-nowrap w-[35%]">Employee Name</td>
-                    <td class="border-r border-gray-200 whitespace-nowrap w-[20%]">Enroll Type</td>
-                    <td class="whitespace-nowrap w-[30%]">Location</td>
+                <tr class="*:py-1.5 *:bg-teal-600 *:text-xs *:font-bold *:text-slate-100 *:text-center *:items-center *:border-gray-200 *:whitespace-nowrap">   
+                    <td class="border-r w-[15%]">Date & Time</td>
+                    <td class="border-r w-[35%]">Employee Name</td>
+                    <td class="border-r w-[20%]">Enroll Type</td>
+                    <td class="w-[30%]">Location</td>
                 </tr>
             </thead>
 
             <tbody v-if="contents.length > 0">
-                <tr v-for="(enroll, index) in contents" class="*:py-1 *:text-xs *:text-center *:items-center">
-                    <td v-bind:class="format.stripes(index, '', 'bg-slate-50')" class="border-r border-gray-100 whitespace-nowrap">{{ format.stamp_to_naive(enroll.date_time).replace(" ", " | ") }}</td>
-                    <td v-bind:class="format.stripes(index, '', 'bg-slate-50')" class="border-r border-gray-100 whitespace-nowrap">{{ enroll.first_name }} {{ enroll.last_name }}</td>
-                    <td v-bind:class="format.stripes(index, '', 'bg-slate-50')" class="border-r border-gray-100 whitespace-nowrap">{{ parseEnrollType(enroll.enroll_type) }}</td>
-                    <td v-bind:class="format.stripes(index, '', 'bg-slate-50')" class="whitespace-nowrap">{{ enroll.location }}</td>
+                <tr v-for="(enroll, index) in contents" class="*:py-1 *:text-xs *:text-center *:items-center odd:bg-slate-50 *:border-gray-100 *:whitespace-nowrap">
+                    <td class="border-r">{{ format.stamp_to_naive(enroll.date_time).replace(" ", " | ") }}</td>
+                    <td class="border-r">{{ enroll.first_name }} {{ enroll.last_name }}</td>
+                    <td class="border-r">{{ parseEnrollType(enroll.enroll_type) }}</td>
+                    <td >{{ enroll.location }}</td>
                 </tr>
             </tbody>
 

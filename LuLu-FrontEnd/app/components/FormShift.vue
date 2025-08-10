@@ -1,5 +1,6 @@
 <script setup>
-import { useChecker, useFormater } from '#imports';
+import { useChecker, useFormater, useViewUtils } from '#imports';
+import { faMinus, faPlus } from '@fortawesome/free-solid-svg-icons';
 import { useAuthStore } from '~/store/auth';
 import { useShiftStore } from '~/store/shift';
 
@@ -9,6 +10,7 @@ const
     config = useRuntimeConfig(),
     format = useFormater(),
     check = useChecker(),
+    view = useViewUtils(),
     shift = reactive({
         id: 0,
         name: '',
@@ -155,9 +157,9 @@ defineExpose({
 </script>
 
 <template>
-    <form @submit.prevent="shift_action">
+    <form @submit.prevent="shift_action" class="overflow-auto">
 
-        <div class="grid grid-cols-4 gap-x-8 gap-y-6 mt-5 mx-6">
+        <div class="grid grid-cols-4 gap-x-8 gap-y-6 mt-5 mx-6 min-w-[520px]">
         
             <div class="col-span-4 flex">
                 <div class="relative">
@@ -169,190 +171,104 @@ defineExpose({
                 </p>
             </div>
 
-            <div class="relative">
-                <select v-model="shift.start_h" class="text-gray-700 mt-1 block w-full px-3 py-2 border-2 duration-500 focus:border-purple-500 border-purple-200 hover:border-purple-300 rounded-md text-sm shadow-sm bg-slate-50 peer" id="start_h">
-                    <option value="0">00</option>
-                    <option value="1">01</option>
-                    <option value="2">02</option>
-                    <option value="3">03</option>
-                    <option value="4">04</option>
-                    <option value="5">05</option>
-                    <option value="6">06</option>
-                    <option value="7">07</option>
-                    <option value="8">08</option>
-                    <option value="9">09</option>
-                    <option value="10">10</option>
-                    <option value="11">11</option>
-                    <option value="12">12</option>
-                    <option value="13">13</option>
-                    <option value="14">14</option>
-                    <option value="15">15</option>
-                    <option value="16">16</option>
-                    <option value="17">17</option>
-                    <option value="18">18</option>
-                    <option value="19">19</option>
-                    <option value="20">20</option>
-                    <option value="21">21</option>
-                    <option value="22">22</option>
-                    <option value="23">23</option>
-                    <option value="24">24</option>
-                </select>
-                <label for="start_h" class="rounded-2xl absolute text-lg scale-90 text-slate-700 transform -translate-y-6 left-1 top-2 z-10 origin-[0] bg-slate-50 px-2 text-nowrap">Start shift : </label>
-                <p class="text-xs text-red-600 dark:text-red-400">
+            <div class="mt-1">
+                <div class="relative">
+                    <div class="flex justify-between divide-purple-200 divide-solid outline-purple-400 text-gray-700 block w-full border-2 duration-500 focus:border-purple-500 border-purple-200 hover:border-purple-300 rounded-md text-sm shadow-sm bg-slate-50 peer">
+                        <button type="button" class="flex items-center px-2 rounded-2xl border-r-2 font-medium duration-500 hover:border-purple-300 hover:text-teal-700 hover:bg-teal-50" v-on:click="() => {(check.inRange(shift.start_h, 1, 23)) ? shift.start_h -= 1 : shift.start_h = 23; view.setFocusId('shift_h');}"><FontAwesome :icon="faMinus" class="h-2"/></button>
+                        <input v-model="shift.start_h" class="outline-transparent text-center my-2 w-6" type="text" maxlength="2" required="" placeholder=" " id="shift_h"/>
+                        <button type="button" class="flex items-center px-2 rounded-2xl border-l-2 font-medium duration-500 hover:border-purple-300 hover:text-teal-700 hover:bg-teal-50" v-on:click="() => {(check.inRange(shift.start_h, 0, 22)) ? shift.start_h += 1 : shift.start_h = 0; view.setFocusId('shift_h');}"><FontAwesome :icon="faPlus" class="h-2"/></button>
+                    </div>
+                    <label for="shift_h" class="rounded-2xl absolute text-lg scale-90 text-slate-700 transform -translate-y-6 left-1 top-2 z-10 origin-[0] bg-slate-50 px-2">Start shift : </label>
+                </div>
+
+                <p class="m-2 text-xs text-red-600 dark:text-red-400">
                     <span class="font-medium">{{ validator.start_time }}</span>
-                </p>                        
+                </p>
             </div>
 
-            <div class="relative">
-                <select v-model="shift.start_m" class="text-gray-700 mt-1 block w-full px-3 py-2 border-2 duration-500 focus:border-purple-500 border-purple-200 hover:border-purple-300 rounded-md text-sm shadow-sm bg-slate-50 peer" id="start_m">
-                    <option value="0">00</option>
-                    <option value="5">05</option>
-                    <option value="10">10</option>
-                    <option value="15">15</option>
-                    <option value="20">20</option>
-                    <option value="25">25</option>
-                    <option value="30">30</option>
-                    <option value="35">35</option>
-                    <option value="40">40</option>
-                    <option value="45">45</option>
-                    <option value="50">50</option>
-                    <option value="55">55</option>
-                </select>
+            <div class="mt-1">
+                <div class="relative">
+                    <div class="flex justify-between divide-purple-200 divide-solid outline-purple-400 text-gray-700 block w-full border-2 duration-500 focus:border-purple-500 border-purple-200 hover:border-purple-300 rounded-md text-sm shadow-sm bg-slate-50 peer">
+                        <button type="button" class="flex items-center px-2 rounded-2xl border-r-2 font-medium duration-500 hover:border-purple-300 hover:text-teal-700 hover:bg-teal-50" v-on:click="() => {(check.inRange(shift.start_m, 1, 59)) ? shift.start_m -= 1 : shift.start_m = 59; view.setFocusId('shift_m');}"><FontAwesome :icon="faMinus" class="h-2"/></button>
+                        <input v-model="shift.start_m" class="outline-transparent text-center my-2 w-6" type="text" maxlength="2" required="" placeholder=" " id="shift_m"/>
+                        <button type="button" class="flex items-center px-2 rounded-2xl border-l-2 font-medium duration-500 hover:border-purple-300 hover:text-teal-700 hover:bg-teal-50" v-on:click="() => {(check.inRange(shift.start_m, 0, 58)) ? shift.start_m += 1 : shift.start_m = 0; view.setFocusId('shift_m');}"><FontAwesome :icon="faPlus" class="h-2"/></button>
+                    </div>
+                </div>
             </div>
 
-            <div class="relative">
-                <select v-model="shift.end_h" class="text-gray-700 mt-1 block w-full px-3 py-2 border-2 duration-500 focus:border-purple-500 border-purple-200 hover:border-purple-300 rounded-md text-sm shadow-sm bg-slate-50 peer" id="end_h">
-                    <option value="0">00</option>
-                    <option value="1">01</option>
-                    <option value="2">02</option>
-                    <option value="3">03</option>
-                    <option value="4">04</option>
-                    <option value="5">05</option>
-                    <option value="6">06</option>
-                    <option value="7">07</option>
-                    <option value="8">08</option>
-                    <option value="9">09</option>
-                    <option value="10">10</option>
-                    <option value="11">11</option>
-                    <option value="12">12</option>
-                    <option value="13">13</option>
-                    <option value="14">14</option>
-                    <option value="15">15</option>
-                    <option value="16">16</option>
-                    <option value="17">17</option>
-                    <option value="18">18</option>
-                    <option value="19">19</option>
-                    <option value="20">20</option>
-                    <option value="21">21</option>
-                    <option value="22">22</option>
-                    <option value="23">23</option>
-                    <option value="24">24</option>
-                </select>
-                <label for="end_h" class="rounded-2xl absolute text-lg scale-90 text-slate-700 transform -translate-y-6 left-1 top-2 z-10 origin-[0] bg-slate-50 px-2 text-nowrap">End shift : </label>
-                <p class="text-xs text-red-600 dark:text-red-400">
+            <div class="mt-1">
+                <div class="relative">
+                    <div class="flex justify-between divide-purple-200 divide-solid outline-purple-400 text-gray-700 block w-full border-2 duration-500 focus:border-purple-500 border-purple-200 hover:border-purple-300 rounded-md text-sm shadow-sm bg-slate-50 peer">
+                        <button type="button" class="flex items-center px-2 rounded-2xl border-r-2 font-medium duration-500 hover:border-purple-300 hover:text-teal-700 hover:bg-teal-50" v-on:click="() => {(check.inRange(shift.end_h, 1, 23)) ? shift.end_h -= 1 : shift.end_h = 23; view.setFocusId('end_h');}"><FontAwesome :icon="faMinus" class="h-2"/></button>
+                        <input v-model="shift.end_h" class="outline-transparent text-center my-2 w-6" type="text" maxlength="2" required="" placeholder=" " id="end_h"/>
+                        <button type="button" class="flex items-center px-2 rounded-2xl border-l-2 font-medium duration-500 hover:border-purple-300 hover:text-teal-700 hover:bg-teal-50" v-on:click="() => {(check.inRange(shift.end_h, 0, 22)) ? shift.end_h += 1 : shift.end_h = 0; view.setFocusId('end_h');}"><FontAwesome :icon="faPlus" class="h-2"/></button>
+                    </div>
+                    <label for="end_h" class="rounded-2xl absolute text-lg scale-90 text-slate-700 transform -translate-y-6 left-1 top-2 z-10 origin-[0] bg-slate-50 px-2">End shift : </label>
+                </div>
+
+                <p class="m-2 text-xs text-red-600 dark:text-red-400">
                     <span class="font-medium">{{ validator.end_time }}</span>
-                </p>                        
+                </p>
             </div>
 
-            <div class="relative">
-                <select v-model="shift.end_m" class="text-gray-700 mt-1 block w-full px-3 py-2 border-2 duration-500 focus:border-purple-500 border-purple-200 hover:border-purple-300 rounded-md text-sm shadow-sm bg-slate-50 peer" id="end_m">
-                    <option value="0">00</option>
-                    <option value="5">05</option>
-                    <option value="10">10</option>
-                    <option value="15">15</option>
-                    <option value="20">20</option>
-                    <option value="25">25</option>
-                    <option value="30">30</option>
-                    <option value="35">35</option>
-                    <option value="40">40</option>
-                    <option value="45">45</option>
-                    <option value="50">50</option>
-                    <option value="55">55</option>
-                </select>
+            <div class="mt-1">
+                <div class="relative">
+                    <div class="flex justify-between divide-purple-200 divide-solid outline-purple-400 text-gray-700 block w-full border-2 duration-500 focus:border-purple-500 border-purple-200 hover:border-purple-300 rounded-md text-sm shadow-sm bg-slate-50 peer">
+                        <button type="button" class="flex items-center px-2 rounded-2xl border-r-2 font-medium duration-500 hover:border-purple-300 hover:text-teal-700 hover:bg-teal-50" v-on:click="() => {(check.inRange(shift.end_m, 1, 59)) ? shift.end_m -= 1 : shift.end_m = 59; view.setFocusId('end_m');}"><FontAwesome :icon="faMinus" class="h-2"/></button>
+                        <input v-model="shift.end_m" class="outline-transparent text-center my-2 w-6" type="text" maxlength="2" required="" placeholder=" " id="end_m"/>
+                        <button type="button" class="flex items-center px-2 rounded-2xl border-l-2 font-medium duration-500 hover:border-purple-300 hover:text-teal-700 hover:bg-teal-50" v-on:click="() => {(check.inRange(shift.end_m, 0, 58)) ? shift.end_m += 1 : shift.end_m = 0; view.setFocusId('end_m');}"><FontAwesome :icon="faPlus" class="h-2"/></button>
+                    </div>
+                </div>
             </div>
 
-            <div class="relative">
-                <select v-model="shift.start_enroll_h" class="text-gray-700 mt-1 block w-full px-3 py-2 border-2 duration-500 focus:border-purple-500 border-purple-200 hover:border-purple-300 rounded-md text-sm shadow-sm bg-slate-50 peer" id="start_enroll_h">
-                    <option value="0">-0</option>
-                    <option value="1">-1</option>
-                    <option value="2">-2</option>
-                    <option value="3">-3</option>
-                    <option value="4">-4</option>
-                    <option value="5">-5</option>
-                    <option value="6">-6</option>
-                    <option value="7">-7</option>
-                    <option value="8">-8</option>
-                    <option value="9">-9</option>
-                    <option value="10">-10</option>
-                    <option value="11">-11</option>
-                    <option value="12">-12</option>
-                    <option value="13">-13</option>
-                    <option value="14">-14</option>
-                    <option value="15">-15</option>
-                </select>
-                <label for="start_enroll_h" class="rounded-2xl absolute text-lg scale-90 text-slate-700 transform -translate-y-6 left-1 top-2 z-10 origin-[0] bg-slate-50 px-2 text-nowrap">Start enroll : </label>
-                <p class="text-xs text-red-600 dark:text-red-400">
+            <div class="mt-1">
+                <div class="relative">
+                    <div class="flex justify-between divide-purple-200 divide-solid outline-purple-400 text-gray-700 block w-full border-2 duration-500 focus:border-purple-500 border-purple-200 hover:border-purple-300 rounded-md text-sm shadow-sm bg-slate-50 peer">
+                        <button type="button" class="flex items-center px-2 rounded-2xl border-r-2 font-medium duration-500 hover:border-purple-300 hover:text-teal-700 hover:bg-teal-50" v-on:click="() => {(check.inRange(shift.start_enroll_h, 1, 23)) ? shift.start_enroll_h -= 1 : shift.start_enroll_h = 23; view.setFocusId('shift_enroll_h');}"><FontAwesome :icon="faMinus" class="h-2"/></button>
+                        <input v-model="shift.start_enroll_h" class="outline-transparent text-center my-2 w-6" type="text" maxlength="2" required="" placeholder=" " id="shift_enroll_h"/>
+                        <button type="button" class="flex items-center px-2 rounded-2xl border-l-2 font-medium duration-500 hover:border-purple-300 hover:text-teal-700 hover:bg-teal-50" v-on:click="() => {(check.inRange(shift.start_enroll_h, 0, 22)) ? shift.start_enroll_h += 1 : shift.start_enroll_h = 0; view.setFocusId('shift_enroll_h');}"><FontAwesome :icon="faPlus" class="h-2"/></button>
+                    </div>
+                    <label for="shift_enroll_h" class="rounded-2xl absolute text-lg scale-90 text-slate-700 transform -translate-y-6 left-1 top-2 z-10 origin-[0] bg-slate-50 px-2 whitespace-nowrap">Start enroll : </label>
+                </div>
+
+                <p class="m-2 text-xs text-red-600 dark:text-red-400">
                     <span class="font-medium">{{ validator.start_enroll }}</span>
                 </p>
             </div>
 
-            <div class="relative">
-                <select v-model="shift.start_enroll_m" class="text-gray-700 mt-1 block w-full px-3 py-2 border-2 duration-500 focus:border-purple-500 border-purple-200 hover:border-purple-300 rounded-md text-sm shadow-sm bg-slate-50 peer" id="start_enroll_m">
-                    <option value="0">00</option>
-                    <option value="5">05</option>
-                    <option value="10">10</option>
-                    <option value="15">15</option>
-                    <option value="20">20</option>
-                    <option value="25">25</option>
-                    <option value="30">30</option>
-                    <option value="35">35</option>
-                    <option value="40">40</option>
-                    <option value="45">45</option>
-                    <option value="50">50</option>
-                    <option value="55">55</option>
-                </select>
+            <div class="mt-1">
+                <div class="relative">
+                    <div class="flex justify-between divide-purple-200 divide-solid outline-purple-400 text-gray-700 block w-full border-2 duration-500 focus:border-purple-500 border-purple-200 hover:border-purple-300 rounded-md text-sm shadow-sm bg-slate-50 peer">
+                        <button type="button" class="flex items-center px-2 rounded-2xl border-r-2 font-medium duration-500 hover:border-purple-300 hover:text-teal-700 hover:bg-teal-50" v-on:click="() => {(check.inRange(shift.start_enroll_m, 1, 59)) ? shift.start_enroll_m -= 1 : shift.start_enroll_m = 59; view.setFocusId('shift_enroll_m');}"><FontAwesome :icon="faMinus" class="h-2"/></button>
+                        <input v-model="shift.start_enroll_m" class="outline-transparent text-center my-2 w-6" type="text" maxlength="2" required="" placeholder=" " id="shift_enroll_m"/>
+                        <button type="button" class="flex items-center px-2 rounded-2xl border-l-2 font-medium duration-500 hover:border-purple-300 hover:text-teal-700 hover:bg-teal-50" v-on:click="() => {(check.inRange(shift.start_enroll_m, 0, 58)) ? shift.start_enroll_m += 1 : shift.start_enroll_m = 0; view.setFocusId('shift_enroll_m');}"><FontAwesome :icon="faPlus" class="h-2"/></button>
+                    </div>
+                </div>
             </div>
             
-            <div class="relative">
-                <select v-model="shift.end_enroll_h" class="text-gray-700 mt-1 block w-full px-3 py-2 border-2 duration-500 focus:border-purple-500 border-purple-200 hover:border-purple-300 rounded-md text-sm shadow-sm bg-slate-50 peer" id="end_enroll_h">
-                    <option value="0">+0</option>
-                    <option value="1">+1</option>
-                    <option value="2">+2</option>
-                    <option value="3">+3</option>
-                    <option value="4">+4</option>
-                    <option value="5">+5</option>
-                    <option value="6">+6</option>
-                    <option value="7">+7</option>
-                    <option value="8">+8</option>
-                    <option value="9">+9</option>
-                    <option value="10">+10</option>
-                    <option value="11">+11</option>
-                    <option value="12">+12</option>
-                    <option value="13">+13</option>
-                    <option value="14">+14</option>
-                    <option value="15">+15</option>
-                </select>
-                <label for="end_enroll_h" class="rounded-2xl absolute text-lg scale-90 text-slate-700 transform -translate-y-6 left-1 top-2 z-10 origin-[0] bg-slate-50 px-2 text-nowrap">End enroll : </label>
-                <p class="text-xs text-red-600 dark:text-red-400">
+            <div class="mt-1">
+                <div class="relative">
+                    <div class="flex justify-between divide-purple-200 divide-solid outline-purple-400 text-gray-700 block w-full border-2 duration-500 focus:border-purple-500 border-purple-200 hover:border-purple-300 rounded-md text-sm shadow-sm bg-slate-50 peer">
+                        <button type="button" class="flex items-center px-2 rounded-2xl border-r-2 font-medium duration-500 hover:border-purple-300 hover:text-teal-700 hover:bg-teal-50" v-on:click="() => {(check.inRange(shift.end_enroll_h, 1, 23)) ? shift.end_enroll_h -= 1 : shift.end_enroll_h = 23; view.setFocusId('end_enroll_h');}"><FontAwesome :icon="faMinus" class="h-2"/></button>
+                        <input v-model="shift.end_enroll_h" class="outline-transparent text-center my-2 w-6" type="text" maxlength="2" required="" placeholder=" " id="end_enroll_h"/>
+                        <button type="button" class="flex items-center px-2 rounded-2xl border-l-2 font-medium duration-500 hover:border-purple-300 hover:text-teal-700 hover:bg-teal-50" v-on:click="() => {(check.inRange(shift.end_enroll_h, 0, 22)) ? shift.end_enroll_h += 1 : shift.end_enroll_h = 0; view.setFocusId('end_enroll_h');}"><FontAwesome :icon="faPlus" class="h-2"/></button>
+                    </div>
+                    <label for="end_enroll_h" class="rounded-2xl absolute text-lg scale-90 text-slate-700 transform -translate-y-6 left-1 top-2 z-10 origin-[0] bg-slate-50 px-2 whitespace-nowrap">End enroll : </label>
+                </div>
+
+                <p class="m-2 text-xs text-red-600 dark:text-red-400">
                     <span class="font-medium">{{ validator.end_enroll }}</span>
                 </p>
             </div>
 
-            <div class="relative">
-                <select v-model="shift.end_enroll_m" class="text-gray-700 mt-1 block w-full px-3 py-2 border-2 duration-500 focus:border-purple-500 border-purple-200 hover:border-purple-300 rounded-md text-sm shadow-sm bg-slate-50 peer" id="end_enroll_m">
-                    <option value="0">00</option>
-                    <option value="5">05</option>
-                    <option value="10">10</option>
-                    <option value="15">15</option>
-                    <option value="20">20</option>
-                    <option value="25">25</option>
-                    <option value="30">30</option>
-                    <option value="35">35</option>
-                    <option value="40">40</option>
-                    <option value="45">45</option>
-                    <option value="50">50</option>
-                    <option value="55">55</option>
-                </select>
+            <div class="mt-1">
+                <div class="relative">
+                    <div class="flex justify-between divide-purple-200 divide-solid outline-purple-400 text-gray-700 block w-full border-2 duration-500 focus:border-purple-500 border-purple-200 hover:border-purple-300 rounded-md text-sm shadow-sm bg-slate-50 peer">
+                        <button type="button" class="flex items-center px-2 rounded-2xl border-r-2 font-medium duration-500 hover:border-purple-300 hover:text-teal-700 hover:bg-teal-50" v-on:click="() => {(check.inRange(shift.end_enroll_m, 1, 59)) ? shift.end_enroll_m -= 1 : shift.end_enroll_m = 59; view.setFocusId('end_enroll_m');}"><FontAwesome :icon="faMinus" class="h-2"/></button>
+                        <input v-model="shift.end_enroll_m" class="outline-transparent text-center my-2 w-6" type="text" maxlength="2" required="" placeholder=" " id="end_enroll_m"/>
+                        <button type="button" class="flex items-center px-2 rounded-2xl border-l-2 font-medium duration-500 hover:border-purple-300 hover:text-teal-700 hover:bg-teal-50" v-on:click="() => {(check.inRange(shift.end_enroll_m, 0, 58)) ? shift.end_enroll_m += 1 : shift.end_enroll_m = 0; view.setFocusId('end_enroll_m');}"><FontAwesome :icon="faPlus" class="h-2"/></button>
+                    </div>
+                </div>
             </div>
 
             <div class="flex relative col-span-4 justify-start">

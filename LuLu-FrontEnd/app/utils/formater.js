@@ -12,25 +12,31 @@ export const useFormater = () => {
             return odd
     }
 
-    function stamp_to_full(date, haveMillis = false, optTZ = 0){        
+    function stamp_to_full(date = null, haveMillis = false, optTZ = 0){  
+        const orig = date;
+
         if (check.isNull(haveMillis) || haveMillis == false)
             date = date * 1000;
 
         if (!check.isNull(optTZ))
             date = date + (optTZ * 3600000);
         
-        return new Date(date);
+        const d = check.isNull(orig) ? new Date() : new Date(date);
+
+        return d;
     }
 
-    function stamp_to_naive(date, haveMillis = false, optTZ = 0){
+    function stamp_to_naive(date = null, haveMillis = false, optTZ = 0){
+        const orig = date;
+        
         if (check.isNull(haveMillis) || haveMillis == false)
             date = date * 1000;
 
         if (!check.isNull(optTZ))
             date = date + (optTZ * 3600)
 
-        const d = new Date(date);
-
+        const d = check.isNull(orig) ? new Date() : new Date(date);
+        
         const year = d.getFullYear();
         const month = (d.getMonth()+1).toString().padStart(2, '0');
         const day = d.getDate().toString().padStart(2, '0');
@@ -41,14 +47,16 @@ export const useFormater = () => {
         return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
     }
 
-    function stamp_to_naive_time(date, haveMillis = false, optTZ = 0){
+    function stamp_to_naive_time(date = null, haveMillis = false, optTZ = 0){
+        const orig = date;
+
         if (check.isNull(haveMillis) || haveMillis == false)
             date = date * 1000;
 
         if (!check.isNull(optTZ))
             date = date + (optTZ * 3600)
 
-        const d = new Date(date);
+        const d = check.isNull(orig) ? new Date() : new Date(date);
 
         const hours = d.getHours().toString().padStart(2, '0');
         const minutes = d.getMinutes().toString().padStart(2, '0');
@@ -57,15 +65,17 @@ export const useFormater = () => {
         return `${hours}:${minutes}:${seconds}`;
     }
 
-    function stamp_to_naive_date(date, haveMillis = false, optTZ = 0){
+    function stamp_to_naive_date(date = null, haveMillis = false, optTZ = 0){
+        const orig = date;
+
         if (check.isNull(haveMillis) || haveMillis == false)
             date = date * 1000;
 
         if (!check.isNull(optTZ))
             date = date + (optTZ * 3600)
-
-        const d = new Date(date);
         
+        const d = check.isNull(orig) ? new Date() : new Date(date);
+
         const year = d.getFullYear();
         const month = (d.getMonth()+1).toString().padStart(2, '0');
         const day = d.getDate().toString().padStart(2, '0');
@@ -74,13 +84,15 @@ export const useFormater = () => {
     }
 
     function stamp_to_weekday(date, haveMillis = false, isFull = false, optTZ = 0){
+        const orig = date;
+
         if (check.isNull(haveMillis) || haveMillis == false)
             date = date * 1000;
 
         if (!check.isNull(optTZ))
             date = date + (optTZ * 3600)
 
-        const d = new Date(date);
+        const d = check.isNull(orig) ? new Date() : new Date(date);
 
         return dow(d.getDay()+1, isFull);
     }

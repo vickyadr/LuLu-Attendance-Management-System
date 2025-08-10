@@ -89,31 +89,31 @@ onMounted(()=>{
     </label>
     
     <div class="max-h-[30lvh] overflow-auto">
-        <table class="w-full min-w-[100lvh]">
+        <table class="w-full min-w-fit">
             
             <thead class="items-center items-stretch mb-1 sticky top-0">
-                <tr class="*:py-1.5 *:bg-teal-600 *:text-xs *:font-bold *:text-slate-100 *:text-center *:items-center *:justify-center">   
-                    <td class="border-r border-gray-200 rounded-tl-lg">No.</td>
-                    <td class="border-r border-gray-200">Serial Number</td>
-                    <td class="border-r border-gray-200">Name</td>
-                    <td class="border-r border-gray-200">Location</td>
-                    <td class="border-r border-gray-200">Service Handler</td>
-                    <td class="border-r border-gray-200">Status</td>
-                    <td class="border-r border-gray-200">Last Sync</td>
+                <tr class="*:py-1.5 *:bg-teal-600 *:text-xs *:font-bold *:text-slate-100 *:text-center *:items-center *:justify-center *:whitespace-nowrap *:px-4 *:border-r *:border-gray-200">   
+                    <td class="rounded-tl-lg">No.</td>
+                    <td>Serial Number</td>
+                    <td>Name</td>
+                    <td>Location</td>
+                    <td>Service Handler</td>
+                    <td>Status</td>
+                    <td>Last Sync</td>
                     <td class="rounded-tr-lg">Action</td>
                 </tr>
             </thead>
         
             <tbody v-if="contents.length > 0">
-                <tr v-for="(device, index) in contents" class="*:py-1 *:text-xs *:text-center *:items-center *:justify-center">
-                    <td v-bind:class="format.stripes(index, '', 'bg-slate-50')" class="border-r border-gray-100">{{ index + 1 }}</td>
-                    <td v-bind:class="format.stripes(index, '', 'bg-slate-50')" class="border-r border-gray-100">{{ device.sn }}</td>
-                    <td v-bind:class="format.stripes(index, '', 'bg-slate-50')" class="border-r border-gray-100">{{ device.name }}</td>
-                    <td v-bind:class="format.stripes(index, '', 'bg-slate-50')" class="border-r border-gray-100">{{ device.location }}</td>
-                    <td v-bind:class="format.stripes(index, '', 'bg-slate-50')" class="border-r border-gray-100">{{ device.handler }}</td>
-                    <td v-bind:class="format.stripes(index, '', 'bg-slate-50')" class="border-r border-gray-100">{{ parseStatus(device.status) }}</td>
-                    <td v-bind:class="format.stripes(index, '', 'bg-slate-50')" class="border-r border-gray-100">{{ format.stamp_to_naive(device.last_sync) }}</td>
-                    <td v-bind:class="format.stripes(index, '', 'bg-slate-50')"><button class="hover:text-purple-700 hover:shadow-sm" v-on:click="callbackEdit(device.id)">Edit</button> / <button class="hover:text-red-700 hover:shadow-sm" v-on:click="callbackDelete(device.id)">Delete</button></td>
+                <tr v-for="(device, index) in contents" class="*:py-1 *:text-xs *:text-center *:items-center *:justify-center *:whitespace-nowrap *:px-2 odd:bg-slate-50 *:border-gray-100">
+                    <td class="border-r">{{ index + 1 }}</td>
+                    <td class="border-r">{{ device.sn }}</td>
+                    <td class="border-r">{{ device.name }}</td>
+                    <td class="border-r">{{ device.location }}</td>
+                    <td class="border-r">{{ device.handler }}</td>
+                    <td class="border-r">{{ parseStatus(device.status) }}</td>
+                    <td class="border-r">{{ format.stamp_to_naive(device.last_sync) }}</td>
+                    <td><button class="hover:text-purple-700 hover:shadow-sm" v-on:click="callbackEdit(device.id)">Edit</button> / <button class="hover:text-red-700 hover:shadow-sm" v-on:click="callbackDelete(device.id)">Delete</button></td>
                 </tr>
             </tbody>
 

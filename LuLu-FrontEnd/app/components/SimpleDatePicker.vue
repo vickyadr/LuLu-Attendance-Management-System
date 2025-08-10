@@ -1,283 +1,454 @@
-<script>
-export class SDPData {
-    data = ref({
-            isShow: false,
-            selected: {
-                value: '',
-                text: '',
-            },
-            options: [{
-                value: 0,
-                text: null,
-            }],
-        });
-
-    constructor() {
-        this.data.value = {
-            isShow: false,
-            selected: {
-                value: 0,
-                text: '',
-            },
-            options: [{
-                value: 0,
-                text: 'None',
-            }],
-        };
-    }
-
-    select(index){
-      this.data.value.selected = index
-    }
-
-    clear(){
-        this.data.value = {
-            isShow: false,
-            selected: {
-                value: '',
-                text: '',
-            },
-            options: [{
-                value: '',
-                text: '',
-            }],
-        }
-    }
-}
-</script>
-
-<script setup>
-import { faArrowLeft, faArrowRight, faCalendarDays } from '@fortawesome/free-solid-svg-icons';
-import { useChecker, useFormater } from '#imports';
-
-const
-    props = defineProps({
-        data: {type: SDPData, required: true},
-    }),
-    check = useChecker(),
-    format = useFormater(),
-    calendar = ref({
-        year: 1970,
-        month: 1,
-        date: 1,
-    }),
-    range = reactive({
-        start: {
-            year:null,
-            month:null,
-            date:null,
-            timestamp:0,
-        },
-        end: {
-            year:null,
-            month:null,
-            date:null,
-            timestamp:0,
-        }
-    }), 
-    emit = defineEmits(['change', 'click']);
-
-function setHide(){
-    props.data.data.value.isShow = false
-}
-
-function setShow(){
-    if (props.data.data.value.isShow == true)
-        return setHide()
-    
-    const d = new Date()
-    calendar.value.year = d.getFullYear()
-    calendar.value.month = d.getMonth()+1
-    calendar.value.date = d.getDate()
-    props.data.data.value.isShow = true
-}
-
-function parseDate(year, month){
-    const total = new Date(year, month, 0).getDate()
-    const parse_yymm = year +"-"+month+"-";
-    const total_prev = new Date((month > 1) ? year : year-1, (month > 1) ? month-1 : 12, 0).getDate()
-    const start_d = new Date(parse_yymm+1).getDay()
-    const end_d = new Date(parse_yymm+total).getDay()
-    const to = total + ((end_d != 6) ? 6 - end_d : 0)
-
-    let i = 1 - start_d,
-        date = [],
-        j = 0
-    while (i <= to){
-        date[j] = i
-
-        if (i < 1)
-            date[j] = total_prev + i
-
-        if (i > total)
-            date[j] = i - total
-        i++
-        j++
-    }
-
-    return date
-    
-}
-
-function selectDate(date){
-    const timestamp = format.define_timestamp(calendar.value.year, calendar.value.month, date)
-
-    if (range.start.timestamp === timestamp && range.end.timestamp === timestamp){
-        range.start.year = range.end.year = null
-        range.start.month = range.end.month = null
-        range.start.date = range.end.date = null
-        range.start.timestamp = range.end.timestamp = 0
-        return;
-    }
-
-    if (range.start.timestamp === 0 && range.end.timestamp === 0){
-        range.end.year = calendar.value.year
-        range.end.month = calendar.value.month
-        range.end.date = calendar.value.date = date
-        range.end.timestamp = timestamp
-
-        range.start.year = calendar.value.year
-        range.start.month = calendar.value.month
-        range.start.date = calendar.value.date = date
-        range.start.timestamp = timestamp
-        return;
-    }
-
-    if (range.start.timestamp > timestamp) {
-        range.start.year = calendar.value.year
-        range.start.month = calendar.value.month
-        range.start.date = calendar.value.date = date
-        range.start.timestamp = timestamp
-        return;
-    }
-    
-    if (timestamp == range.start.timestamp){
-        range.start.year = range.end.year
-        range.start.month = range.end.month
-        range.start.date = range.end.date
-        range.start.timestamp = range.end.timestamp
-        return;
-    }
-
-    if (timestamp == range.end.timestamp) {
-        range.end.year = range.start.year
-        range.end.month = range.start.month
-        range.end.date = range.start.date
-        range.end.timestamp = range.start.timestamp
-        return;
-    }
-
-    if (range.start.timestamp < timestamp) {
-        range.end.year = calendar.value.year
-        range.end.month = calendar.value.month
-        range.end.date = calendar.value.date = date
-        range.end.timestamp = timestamp
-        return;
-    }
-
-}
-
-function parseMonth(month){
-    switch (month) {
-        case 1:
-            return "January"
-        case 2:
-            return "February"
-        case 3:
-            return "March"
-        case 4:
-            return "April"
-        case 5:
-            return "May"
-        case 6:
-            return "June"
-        case 7:
-            return "July"
-        case 8:
-            return "August"
-        case 9:
-            return "September"
-        case 10:
-            return "October"
-        case 11:
-            return "November"
-        case 12:
-            return "December"
-        default:
-            return "Unknown"
-    }
-}
-
-function isInRange(date, index){
-    
-    if (date > index + 1 || index - date > 25)
-        return false;
-
-    if (check.isNull(range.start.date) || check.isNull(range.end.date))
-        return false;
-
-    if (!(calendar.value.year >= range.start.year && calendar.value.year <= range.end.year))
-        return false;
-
-    if (!(calendar.value.month >= range.start.month && calendar.value.month <= range.end.month))
-        return false;
- 
-    if (!(date >= range.start.date && date <= range.end.date))
-        return false;
-
-    return true;
-}
-</script>
-
 <template>
-
   <div class="relative inline-flex">
-    <span
-      class="inline-flex divide-x divide-gray-300 overflow-hidden rounded border border-gray-300 bg-white shadow-sm"
-    >
-      <input type="date"/>
-  
-      <button
-        v-on:click="setShow()"
-        type="button"
-        class="px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 hover:text-gray-900 focus:relative"
-      >
+    <div class="flex pl-3 justify-center px-2 border-y-2 border-l-2 border-purple-100 rounded-l-lg items-center whitespace-nowrap">
+        Date :
+    </div>
+    <div class="flex justify-center border-2 border-purple-100 hover:border-purple-200 items-center">
+        <input v-model="inputStartDate" v-on:blur="emitDateRange" v-on:keydown="keyPressed" class="outline-transparent m-1 w-28 text-center" placeholder="YYYY-MM-DD" maxlength="10" type="text"/>
+        <FontAwesome :icon="faArrowRight" class="mr-1 h-3"/>
+        <input v-model="inputEndDate" v-on:blur="emitDateRange" v-on:keydown="keyPressed" class="outline-transparent m-1 w-28 text-center" placeholder="YYYY-MM-DD" maxlength="10" type="text"/>
+    </div>
+    <button v-on:click="toggleShow" type="button" class="border-y-2 border-r-2 rounded-r-lg px-2 border-purple-100 hover:border-purple-200">
         <FontAwesome :icon="faCalendarDays"/>
-      </button>
-    </span>
+    </button>
+
   
-    <div
-      v-show="data.data.value.isShow"
-      class="rounded-lg p-2 absolute start-0 top-12 z-auto w-[30lvh] overflow-hidden rounded border border-purple-200 bg-white shadow-sm"
-    >
-      <div>
-        <div class="flex justify-between" id="head">
-            <button type="button" v-on:click="()=>{if (calendar.month > 1) { calendar.month -- }else{ calendar.month = 12; calendar.year --; }}">
-                <FontAwesome :icon="faArrowLeft" class="text-teal-600"/>
+    <div v-show="isShow" class="absolute end-0 rounded-lg p-2 absolute top-10 z-50 w-[30lvh] overflow-hidden rounded border border-purple-200 bg-white shadow-sm">
+        
+        <!-- Calendar Navigation -->
+        <div class="flex justify-between items-center mb-2 px-2">
+            <button
+                class="w-8 h-8 flex items-center justify-center bg-gray-100 hover:bg-gray-200 rounded-lg transition-all duration-200 hover:scale-105 text-gray-600"
+                @click="previousMonth"
+            >
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z" />
+                </svg>
             </button>
-            <span class="font-medium">
-                {{ parseMonth(calendar.month) }} {{ calendar.year }}
-            </span>
-            <button type="button" v-on:click="()=>{if (calendar.month < 12) { calendar.month ++ }else{ calendar.month = 1; calendar.year ++; }}">
-                <FontAwesome :icon="faArrowRight" class="text-teal-600"/>
+            <div class="text-base font-semibold text-gray-800">
+                {{ currentMonthYear }}
+            </div>
+            <button
+                class="w-8 h-8 flex items-center justify-center bg-gray-100 hover:bg-gray-200 rounded-lg transition-all duration-200 hover:scale-105 text-gray-600"
+                @click="nextMonth"
+            >
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z" />
+                </svg>
             </button>
         </div>
-        <div class="grid grid-cols-7 text-center">
-            <div class="text-gray-400 m-2">Su</div>
-            <div class="text-gray-400 m-2">Mo</div>
-            <div class="text-gray-400 m-2">Tu</div>
-            <div class="text-gray-400 m-2">We</div>
-            <div class="text-gray-400 m-2">Th</div>
-            <div class="text-gray-400 m-2">Fr</div>
-            <div class="text-gray-400 m-2">Sa</div>
 
-            <button v-for="(i, index) in parseDate(calendar.year, calendar.month)" v-on:click="selectDate(i)"
-                :class="(isInRange(i, index))? 'bg-teal-600':''" class="px-2 my-1">
-                <span :class="(i > index + 1 || index - i > 25) ? 'text-gray-300':''">{{ i }}</span>
-            </button>
+        <!-- Calendar Grid -->
+        <div class="">
+            <!-- Day Headers -->
+            <div class="grid grid-cols-7 gap-0.5 mb-1">
+                <div
+                class="text-center text-xs font-semibold text-gray-500 py-2"
+                v-for="day in dayNames"
+                :key="day"
+                >
+                {{ day }}
+                </div>
+            </div>
 
+            <!-- Calendar Days -->
+            <div class="grid grid-cols-7 gap-0.5">
+                <div
+                v-for="day in calendarDays"
+                :key="day.key"
+                :class="getDayClasses(day)"
+                @click="selectDate(day)"
+                @mouseenter="handleHoverDate(day)"
+                @mouseleave="handleClearHover"
+                >
+                <span class="relative z-10">{{ day.date }}</span>
+                </div>
+            </div>
         </div>
-      </div>
+
+        <!-- Action buttons -->
+        <div class="flex justify-center gap-16 border-t-2 pt-2">
+        <button
+            class="bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all duration-200 hover:-translate-y-0.5 disabled:hover:translate-y-0 min-w-14"
+            :disabled="!startDate || !endDate"
+            @click="applySelection"
+        >
+            Ok
+        </button>
+        <button
+            class="bg-gray-100 text-gray-700 font-semibold rounded-lg hover:bg-gray-200 border border-gray-300 transition-all duration-200 hover:-translate-y-0.5 min-w-14"
+            @click="clearSelection"
+        >
+            Reset
+        </button>
+        </div>
     </div>
   </div>
 </template>
+
+<script setup>
+import { faArrowRight, faCalendarDays } from '@fortawesome/free-solid-svg-icons';
+import { useChecker, useFormater } from '#imports';
+// Props
+const props = defineProps({
+  minDate: {
+    type: String,
+    default: '',
+  },
+  maxDate: {
+    type: String,
+    default: '',
+  },
+  initStartDate: {
+    type: String,
+    default: '',
+  },
+  initEndDate: {
+    type: String,
+    default: '',
+  }
+});
+// Imports
+const check = useChecker();
+const format = useFormater();
+
+// Emits
+const emit = defineEmits(['dateRangeSelected', 'dateRangeCleared']);
+
+// Reactive data
+const inputStartDate = ref(null);
+const inputEndDate = ref(null);
+const currentDate = ref(new Date());
+const startDate = ref(
+  props.initStartDate ? new Date(props.initStartDate) : null
+);
+const endDate = ref(
+  props.initEndDate ? new Date(props.initEndDate) : null
+);
+const hoverDate = ref(null);
+const isSelectingEnd = ref(false);
+const isShow = ref(false);
+
+// Constants
+const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const monthNames = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+];
+
+// Computed
+const currentMonthYear = computed(() => {
+  const month = monthNames[currentDate.value.getMonth()];
+  const year = currentDate.value.getFullYear();
+  return `${month} ${year}`;
+});
+
+const calendarDays = computed(() => {
+  const year = currentDate.value.getFullYear();
+  const month = currentDate.value.getMonth();
+
+  // First day of month
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+
+  // Days from previous month to fill the grid
+  const startDate = new Date(firstDay);
+  startDate.setDate(startDate.getDate() - firstDay.getDay());
+
+  // Generate calendar days
+  const days = [];
+  const currentDay = new Date(startDate);
+
+  // Generate 42 days (6 weeks)
+  for (let i = 0; i < 42; i++) {
+    const dayData = {
+      date: currentDay.getDate(),
+      fullDate: new Date(currentDay),
+      isCurrentMonth: currentDay.getMonth() === month,
+      isToday: isSameDay(currentDay, new Date()),
+      isDisabled: isDateDisabled(currentDay),
+      key: `${currentDay.getFullYear()}-${currentDay.getMonth()}-${currentDay.getDate()}`,
+    };
+
+    if (currentDay.getDate() < 30 && i == 35){
+        break;
+    }
+
+    days.push(dayData);
+    currentDay.setDate(currentDay.getDate() + 1);
+  }
+
+  return days;
+});
+
+// Methods
+const isSameDay = (date1, date2) => {
+  return (
+    date1.getDate() === date2.getDate() &&
+    date1.getMonth() === date2.getMonth() &&
+    date1.getFullYear() === date2.getFullYear()
+  );
+};
+
+const isDateDisabled = (date) => {
+  const minDate = props.minDate ? new Date(props.minDate) : null;
+  const maxDate = props.maxDate ? new Date(props.maxDate) : null;
+
+  if (minDate && date < minDate) return true;
+  if (maxDate && date > maxDate) return true;
+
+  return false;
+};
+
+const isDateInRange = (date) => {
+  if (!startDate.value || !endDate.value) return false;
+
+  const start = new Date(startDate.value);
+  const end = new Date(endDate.value);
+
+  return date >= start && date <= end;
+};
+
+const isDateInHoverRange = (date) => {
+  if (!startDate.value || !hoverDate.value || endDate.value) return false;
+
+  const start = new Date(startDate.value);
+  const hover = new Date(hoverDate.value);
+  const min = start <= hover ? start : hover;
+  const max = start <= hover ? hover : start;
+
+  return date >= min && date <= max;
+};
+
+const getDayClasses = (day) => {
+  let classes = [
+    'aspect-square',
+    'flex',
+    'items-center',
+    'justify-center',
+    'cursor-pointer',
+    'rounded-lg',
+    'transition-all',
+    'duration-200',
+    'relative',
+    'text-sm',
+    'font-medium',
+  ];
+
+  // Base states
+  if (!day.isCurrentMonth) {
+    classes.push('text-gray-300');
+  } else {
+    classes.push('text-gray-700');
+  }
+
+  if (day.isToday) {
+    classes.push('font-bold', 'text-blue-600');
+  }
+
+  if (day.isDisabled) {
+    classes.push('text-gray-300', 'cursor-not-allowed');
+  } else {
+    classes.push('hover:bg-gray-100', 'hover:scale-105');
+  }
+
+  // Selection states
+  if (startDate.value && isSameDay(day.fullDate, startDate.value)) {
+    classes = classes.filter((c) => !c.includes('hover:bg-gray'));
+    classes.push('bg-teal-600', 'text-white', 'font-semibold');
+
+    if (endDate.value && !isSameDay(startDate.value, endDate.value)) {
+      classes.push('rounded-r-none');
+    }
+  } else if (endDate.value && isSameDay(day.fullDate, endDate.value)) {
+    classes = classes.filter((c) => !c.includes('hover:bg-gray'));
+    classes.push('bg-teal-600', 'text-white', 'font-semibold');
+
+    if (startDate.value && !isSameDay(startDate.value, endDate.value)) {
+      classes.push('rounded-l-none');
+    }
+  } else if (isDateInRange(day.fullDate)) {
+    classes = classes.filter((c) => !c.includes('hover:bg-gray'));
+    classes.push('bg-teal-100', 'text-teal-800', 'rounded-none');
+  } else if (isDateInHoverRange(day.fullDate)) {
+    classes = classes.filter((c) => !c.includes('hover:bg-gray'));
+    classes.push('bg-teal-50', 'text-teal-700', 'rounded-none');
+  }
+
+  if (day.isDisabled) {
+    classes = classes.filter(
+      (c) => !c.includes('hover:') && !c.includes('cursor-pointer')
+    );
+    classes.push('cursor-not-allowed');
+  }
+
+  return classes.join(' ');
+};
+
+const selectDate = (day) => {
+  if (day.isDisabled) return;
+
+  const selectedDate = new Date(day.fullDate);
+
+  // both dates are already selected
+  if (startDate.value && endDate.value) {
+    if (startDate.value > selectedDate){
+        startDate.value = selectedDate;
+        return;
+    }
+    if (endDate.value < selectedDate){
+        endDate.value = selectedDate;
+        return;
+    }
+    const range = endDate.value - startDate.value;
+    const half_range = Math.floor(range/2);
+    const new_range = selectedDate - startDate.value;
+    if (new_range < half_range && new_range > 0 ){
+        startDate.value = selectedDate;
+        return;
+    }
+
+    if (new_range >= half_range && new_range < range ){
+        endDate.value = selectedDate;
+        return;
+    }
+
+    if (new_range == 0){
+        startDate.value = endDate.value;
+        endDate.value = null;
+        isSelectingEnd.value = true;
+        return;
+    }
+
+    if (startDate.value > selectedDate && endDate.value > selectedDate){
+        endDate.value = selectedDate;
+        return;
+    }
+
+    endDate.value = null;
+    isSelectingEnd.value = true;
+    return;
+  }
+
+  // First selection
+  if (!startDate.value) {
+    startDate.value = selectedDate;
+    isSelectingEnd.value = true;
+    return;
+  }
+
+  // Second selection
+  if (startDate.value && !endDate.value) {
+    if (selectedDate < startDate.value) {
+      // If selected date is before start date, swap them
+      endDate.value = startDate.value;
+      startDate.value = selectedDate;
+    } else {
+      endDate.value = selectedDate;
+    }
+    isSelectingEnd.value = false;
+
+    // Emit the selection
+    nextTick(() => {
+      emitDateRange();
+    });
+  }
+};
+
+const handleHoverDate = (day) => {
+  if (day.isDisabled || !isSelectingEnd.value) return;
+  hoverDate.value = day.fullDate;
+};
+
+const handleClearHover = () => {
+  hoverDate.value = null;
+};
+
+const previousMonth = () => {
+  const newDate = new Date(currentDate.value);
+  newDate.setMonth(newDate.getMonth() - 1);
+  currentDate.value = newDate;
+};
+
+const nextMonth = () => {
+  const newDate = new Date(currentDate.value);
+  newDate.setMonth(newDate.getMonth() + 1);
+  currentDate.value = newDate;
+};
+
+const emitDateRange = () => {
+  if (!startDate.value || !endDate.value) return;
+
+  const result = {
+    startDate: format.stamp_to_naive_date(startDate.value.getTime(), true),//.toISOString().split('T')[0],
+    endDate: format.stamp_to_naive_date(endDate.value.getTime(), true),//.toISOString().split('T')[0],
+    startTimestamp: getUnixTimestamp(startDate.value),
+    endTimestamp: getUnixTimestamp(endDate.value),
+    duration: calculateDuration(startDate.value, endDate.value),
+  };
+
+  inputStartDate.value = result.startDate;
+  inputEndDate.value = result.endDate;
+
+  emit('dateRangeSelected', result);
+};
+
+const getUnixTimestamp = (date) => {
+  if (!date) return null;
+  return Math.floor(date.getTime() / 1000);
+};
+
+const calculateDuration = (start, end) => {
+  if (!start || !end) return 0;
+  const timeDiff = end.getTime() - start.getTime();
+  return Math.ceil(timeDiff / (1000 * 60 * 60 * 24)) + 1;
+};
+
+const keyPressed = (ev) => {
+    if (ev.which === 13){
+        startDate.value = new Date(inputStartDate.value);
+        endDate.value = new Date(inputEndDate.value);
+        emitDateRange();
+    }
+};
+
+const toggleShow = () =>{
+    isShow.value = !isShow.value;
+    if (isShow){
+        keyPressed({which:13});
+    }
+}
+
+const applySelection = () => {
+  if (startDate.value && endDate.value) {
+    isShow.value = false;
+    emitDateRange();
+  }
+};
+
+const clearSelection = () => {
+  startDate.value = null;
+  endDate.value = null;
+  hoverDate.value = null;
+  isSelectingEnd.value = false;
+  currentDate.value = new Date();
+  //emit('dateRangeCleared');
+};
+
+// Initialize
+onMounted(() => {
+  if (startDate.value && endDate.value) {
+    emitDateRange();
+  }
+});
+</script>

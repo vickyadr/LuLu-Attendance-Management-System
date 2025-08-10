@@ -5,6 +5,7 @@ import { faMicrochip, faBusinessTime } from '@fortawesome/free-solid-svg-icons'
 import logo from '~/assets/img/android-chrome-512x512.png'
 import { SMData } from '~/components/SimpleModal.vue';
 
+const open_menu_m = ref(false);
 
 const auth = useAuthStore(),
     sm_data = new SMData();
@@ -109,7 +110,7 @@ function modalLogout(){
                         <span
                         class="z-10 invisible absolute start-full top-1/2 ms-4 -translate-y-1/2 rounded-sm bg-gray-900 px-2 py-1.5 text-xs font-medium text-white group-hover:visible"
                         >
-                        Shift
+                        Schedule
                         </span>
                     </a>
                     </li>
@@ -245,31 +246,87 @@ function modalLogout(){
                     <div class="flex items-center gap-4">
 
                         <div class="block sm:hidden">
-                        <button
-                            class="rounded-sm bg-gray-100 p-2 text-gray-600 transition hover:text-gray-600/75"
-                        >
-                            <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            class="size-5"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                            stroke-width="2"
+                            <button
+                                v-on:click="open_menu_m = !open_menu_m"
+                                class="rounded-sm bg-gray-100 p-2 text-gray-600 transition hover:text-gray-600/75"
                             >
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-                            </svg>
-                        </button>
+                                <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                class="size-5"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                stroke-width="2"
+                                >
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                                </svg>
+                            </button>
+                        
+                            <div v-show="open_menu_m" class="fixed inset-0 mt-16 z-50 bg-slate-100 w-full max-h-[92lvh]">
+                                <div>
+                                    <a v-on:click="()=> {navigateTo('/', {replace: true}); open_menu_m = false;}"
+                                        class="flex py-1.5 text-gray-700 hover:bg-gray-50 hover:text-gray-500 items-center">
+                                        <font-awesome :icon="faHouse" class="px-2"/>
+                                        <span>
+                                            Dashboard
+                                        </span>
+                                    </a>
+
+                                    <a v-on:click="()=> {navigateTo('/controller', {replace: true}); open_menu_m = false;}"
+                                        class="flex py-1.5 text-gray-700 hover:bg-gray-50 hover:text-gray-500 items-center">
+                                        <font-awesome :icon="faMicrochip" class="px-2"/>
+                                        <span>
+                                            Controller
+                                        </span>
+                                    </a>
+
+                                    <a v-on:click="()=> {navigateTo('/shift', {replace: true}); open_menu_m = false;}"
+                                        class="flex py-1.5 text-gray-700 hover:bg-gray-50 hover:text-gray-500 items-center">
+                                        <font-awesome :icon="faBusinessTime" class="px-2"/>
+                                        <span>
+                                            Schedule
+                                        </span>
+                                    </a>
+
+                                    <a v-on:click="()=> {navigateTo('/report', {replace: true}); open_menu_m = false;}"
+                                        class="flex py-1.5 text-gray-700 hover:bg-gray-50 hover:text-gray-500 items-center">
+                                        <font-awesome :icon="faCalendarCheck" class="px-2"/>
+                                        <span>
+                                            Report
+                                        </span>
+                                    </a>
+                                    <hr class="border-2 mx-4"/>
+                                    <a v-on:click="modalLogout"
+                                        class="flex py-3 px-2 text-gray-700 hover:bg-gray-50 hover:text-gray-500 items-center">
+                                        <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        class="size-5 opacity-75 text-red-500"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                        >
+                                        <path
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                                        />
+                                        </svg>
+                                        <span class="text-teal-700 px-2">
+                                            Logout
+                                        </span>
+                                    </a>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     </div>
                 </div>
                 </div>
             </header>
-        
             <div class="pt-2 px-2">
                 <slot/>
             </div>
-
         </div>
     </div>
 
