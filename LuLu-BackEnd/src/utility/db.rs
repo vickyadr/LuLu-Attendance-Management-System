@@ -1,3 +1,4 @@
+//use actix_web::cookie::time::Duration;
 use sqlx::{postgres::PgPoolOptions, Error, Pool, Postgres};
 
 pub async fn initialize_db_pool() -> Result<Pool<Postgres>, Error> {
@@ -5,7 +6,9 @@ pub async fn initialize_db_pool() -> Result<Pool<Postgres>, Error> {
     let conn_spec = std::env::var("DATABASE_URL").expect("DATABASE_URL should be set");
 
     PgPoolOptions::new()
-        .max_connections(10)
+        .max_connections(20)
+        .min_connections(5)
+        //.acquire_timeout(Duration::from_secs(3))
         .connect(&conn_spec)
         .await
 }

@@ -106,6 +106,10 @@ const props = defineProps({
   initEndDate: {
     type: String,
     default: '',
+  },
+  useUtc:{
+    type: Boolean,
+    default: false,
   }
 });
 // Imports
@@ -405,7 +409,8 @@ const emitDateRange = () => {
 
 const getUnixTimestamp = (date) => {
   if (!date) return null;
-  return Math.floor(date.getTime() / 1000);
+  const tz = (props.useUtc===true ? new Date().getTimezoneOffset()* 60 * -1 : 0);
+  return Math.floor(date.getTime() / 1000) + tz;
 };
 
 const calculateDuration = (start, end) => {
@@ -425,7 +430,8 @@ const keyPressed = (ev) => {
 const toggleShow = () =>{
     isShow.value = !isShow.value;
     if (isShow){
-        keyPressed({which:13});
+        startDate.value = new Date(inputStartDate.value);
+        endDate.value = new Date(inputEndDate.value);
     }
 }
 

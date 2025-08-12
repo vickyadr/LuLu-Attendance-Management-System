@@ -26,6 +26,25 @@ export const useChecker = () => {
 
     function inRange(n, low, high, equalLow = true, equalHigh = true){
         if (isNull(n))
+            return low
+        
+        if (n === low && equalLow)
+            return n
+
+        if (n === high && equalHigh)
+            return n
+
+        if (n < low)
+            return high
+
+        if (n > high)
+            return low
+
+        return n
+    }
+
+    function isInRange(n, low, high, equalLow = true, equalHigh = true){
+        if (isNull(n))
             return false
 
         if (n > low && n < high)
@@ -69,5 +88,6 @@ export const useChecker = () => {
         inSwitch,
         inRange,
         isNotMinus,
+        isInRange,
     };
 };

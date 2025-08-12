@@ -174,11 +174,11 @@ defineExpose({
             <div class="mt-1">
                 <div class="relative">
                     <div class="flex justify-between divide-purple-200 divide-solid outline-purple-400 text-gray-700 block w-full border-2 duration-500 focus:border-purple-500 border-purple-200 hover:border-purple-300 rounded-md text-sm shadow-sm bg-slate-50 peer">
-                        <button type="button" class="flex items-center px-2 rounded-2xl border-r-2 font-medium duration-500 hover:border-purple-300 hover:text-teal-700 hover:bg-teal-50" v-on:click="() => {(check.inRange(shift.start_h, 1, 23)) ? shift.start_h -= 1 : shift.start_h = 23; view.setFocusId('shift_h');}"><FontAwesome :icon="faMinus" class="h-2"/></button>
+                        <button type="button" class="flex items-center px-2 rounded-2xl border-r-2 font-medium duration-500 hover:border-purple-300 hover:text-teal-700 hover:bg-teal-50" v-on:click="() => {shift.start_h = check.inRange(shift.start_h-1, 0, 23); view.setFocusId('shift_h');}"><FontAwesome :icon="faMinus" class="h-2"/></button>
                         <input v-model="shift.start_h" class="outline-transparent text-center my-2 w-6" type="text" maxlength="2" required="" placeholder=" " id="shift_h"/>
-                        <button type="button" class="flex items-center px-2 rounded-2xl border-l-2 font-medium duration-500 hover:border-purple-300 hover:text-teal-700 hover:bg-teal-50" v-on:click="() => {(check.inRange(shift.start_h, 0, 22)) ? shift.start_h += 1 : shift.start_h = 0; view.setFocusId('shift_h');}"><FontAwesome :icon="faPlus" class="h-2"/></button>
+                        <button type="button" class="flex items-center px-2 rounded-2xl border-l-2 font-medium duration-500 hover:border-purple-300 hover:text-teal-700 hover:bg-teal-50" v-on:click="() => {shift.start_h = check.inRange(shift.start_h+1, 0, 23); view.setFocusId('shift_h');}"><FontAwesome :icon="faPlus" class="h-2"/></button>
                     </div>
-                    <label for="shift_h" class="rounded-2xl absolute text-lg scale-90 text-slate-700 transform -translate-y-6 left-1 top-2 z-10 origin-[0] bg-slate-50 px-2">Start shift : </label>
+                    <label for="shift_h" class="rounded-2xl absolute text-lg scale-90 text-slate-700 transform -translate-y-6 left-1 top-2 z-10 origin-[0] bg-slate-50 px-2 whitespace-nowrap">Start shift : </label>
                 </div>
 
                 <p class="m-2 text-xs text-red-600 dark:text-red-400">
@@ -189,9 +189,9 @@ defineExpose({
             <div class="mt-1">
                 <div class="relative">
                     <div class="flex justify-between divide-purple-200 divide-solid outline-purple-400 text-gray-700 block w-full border-2 duration-500 focus:border-purple-500 border-purple-200 hover:border-purple-300 rounded-md text-sm shadow-sm bg-slate-50 peer">
-                        <button type="button" class="flex items-center px-2 rounded-2xl border-r-2 font-medium duration-500 hover:border-purple-300 hover:text-teal-700 hover:bg-teal-50" v-on:click="() => {(check.inRange(shift.start_m, 1, 59)) ? shift.start_m -= 1 : shift.start_m = 59; view.setFocusId('shift_m');}"><FontAwesome :icon="faMinus" class="h-2"/></button>
+                        <button type="button" class="flex items-center px-2 rounded-2xl border-r-2 font-medium duration-500 hover:border-purple-300 hover:text-teal-700 hover:bg-teal-50" v-on:click="() => {shift.start_m = check.inRange(shift.start_m-1, 0, 59); view.setFocusId('shift_m');}"><FontAwesome :icon="faMinus" class="h-2"/></button>
                         <input v-model="shift.start_m" class="outline-transparent text-center my-2 w-6" type="text" maxlength="2" required="" placeholder=" " id="shift_m"/>
-                        <button type="button" class="flex items-center px-2 rounded-2xl border-l-2 font-medium duration-500 hover:border-purple-300 hover:text-teal-700 hover:bg-teal-50" v-on:click="() => {(check.inRange(shift.start_m, 0, 58)) ? shift.start_m += 1 : shift.start_m = 0; view.setFocusId('shift_m');}"><FontAwesome :icon="faPlus" class="h-2"/></button>
+                        <button type="button" class="flex items-center px-2 rounded-2xl border-l-2 font-medium duration-500 hover:border-purple-300 hover:text-teal-700 hover:bg-teal-50" v-on:click="() => {shift.start_m = check.inRange(shift.start_m+1, 0, 59); view.setFocusId('shift_m');}"><FontAwesome :icon="faPlus" class="h-2"/></button>
                     </div>
                 </div>
             </div>
@@ -199,11 +199,11 @@ defineExpose({
             <div class="mt-1">
                 <div class="relative">
                     <div class="flex justify-between divide-purple-200 divide-solid outline-purple-400 text-gray-700 block w-full border-2 duration-500 focus:border-purple-500 border-purple-200 hover:border-purple-300 rounded-md text-sm shadow-sm bg-slate-50 peer">
-                        <button type="button" class="flex items-center px-2 rounded-2xl border-r-2 font-medium duration-500 hover:border-purple-300 hover:text-teal-700 hover:bg-teal-50" v-on:click="() => {(check.inRange(shift.end_h, 1, 23)) ? shift.end_h -= 1 : shift.end_h = 23; view.setFocusId('end_h');}"><FontAwesome :icon="faMinus" class="h-2"/></button>
+                        <button type="button" class="flex items-center px-2 rounded-2xl border-r-2 font-medium duration-500 hover:border-purple-300 hover:text-teal-700 hover:bg-teal-50" v-on:click="() => {shift.end_h = check.inRange(shift.end_h-1, 0, 23); view.setFocusId('end_h');}"><FontAwesome :icon="faMinus" class="h-2"/></button>
                         <input v-model="shift.end_h" class="outline-transparent text-center my-2 w-6" type="text" maxlength="2" required="" placeholder=" " id="end_h"/>
-                        <button type="button" class="flex items-center px-2 rounded-2xl border-l-2 font-medium duration-500 hover:border-purple-300 hover:text-teal-700 hover:bg-teal-50" v-on:click="() => {(check.inRange(shift.end_h, 0, 22)) ? shift.end_h += 1 : shift.end_h = 0; view.setFocusId('end_h');}"><FontAwesome :icon="faPlus" class="h-2"/></button>
+                        <button type="button" class="flex items-center px-2 rounded-2xl border-l-2 font-medium duration-500 hover:border-purple-300 hover:text-teal-700 hover:bg-teal-50" v-on:click="() => {shift.end_h = check.inRange(shift.end_h+1, 0, 23); view.setFocusId('end_h');}"><FontAwesome :icon="faPlus" class="h-2"/></button>
                     </div>
-                    <label for="end_h" class="rounded-2xl absolute text-lg scale-90 text-slate-700 transform -translate-y-6 left-1 top-2 z-10 origin-[0] bg-slate-50 px-2">End shift : </label>
+                    <label for="end_h" class="rounded-2xl absolute text-lg scale-90 text-slate-700 transform -translate-y-6 left-1 top-2 z-10 origin-[0] bg-slate-50 px-2 whitespace-nowrap">End shift : </label>
                 </div>
 
                 <p class="m-2 text-xs text-red-600 dark:text-red-400">
@@ -214,9 +214,9 @@ defineExpose({
             <div class="mt-1">
                 <div class="relative">
                     <div class="flex justify-between divide-purple-200 divide-solid outline-purple-400 text-gray-700 block w-full border-2 duration-500 focus:border-purple-500 border-purple-200 hover:border-purple-300 rounded-md text-sm shadow-sm bg-slate-50 peer">
-                        <button type="button" class="flex items-center px-2 rounded-2xl border-r-2 font-medium duration-500 hover:border-purple-300 hover:text-teal-700 hover:bg-teal-50" v-on:click="() => {(check.inRange(shift.end_m, 1, 59)) ? shift.end_m -= 1 : shift.end_m = 59; view.setFocusId('end_m');}"><FontAwesome :icon="faMinus" class="h-2"/></button>
+                        <button type="button" class="flex items-center px-2 rounded-2xl border-r-2 font-medium duration-500 hover:border-purple-300 hover:text-teal-700 hover:bg-teal-50" v-on:click="() => {shift.end_m = check.inRange(shift.end_m-1, 0, 59); view.setFocusId('end_m');}"><FontAwesome :icon="faMinus" class="h-2"/></button>
                         <input v-model="shift.end_m" class="outline-transparent text-center my-2 w-6" type="text" maxlength="2" required="" placeholder=" " id="end_m"/>
-                        <button type="button" class="flex items-center px-2 rounded-2xl border-l-2 font-medium duration-500 hover:border-purple-300 hover:text-teal-700 hover:bg-teal-50" v-on:click="() => {(check.inRange(shift.end_m, 0, 58)) ? shift.end_m += 1 : shift.end_m = 0; view.setFocusId('end_m');}"><FontAwesome :icon="faPlus" class="h-2"/></button>
+                        <button type="button" class="flex items-center px-2 rounded-2xl border-l-2 font-medium duration-500 hover:border-purple-300 hover:text-teal-700 hover:bg-teal-50" v-on:click="() => {shift.end_m = check.inRange(shift.end_m+1, 0, 59); view.setFocusId('end_m');}"><FontAwesome :icon="faPlus" class="h-2"/></button>
                     </div>
                 </div>
             </div>
@@ -224,11 +224,11 @@ defineExpose({
             <div class="mt-1">
                 <div class="relative">
                     <div class="flex justify-between divide-purple-200 divide-solid outline-purple-400 text-gray-700 block w-full border-2 duration-500 focus:border-purple-500 border-purple-200 hover:border-purple-300 rounded-md text-sm shadow-sm bg-slate-50 peer">
-                        <button type="button" class="flex items-center px-2 rounded-2xl border-r-2 font-medium duration-500 hover:border-purple-300 hover:text-teal-700 hover:bg-teal-50" v-on:click="() => {(check.inRange(shift.start_enroll_h, 1, 23)) ? shift.start_enroll_h -= 1 : shift.start_enroll_h = 23; view.setFocusId('shift_enroll_h');}"><FontAwesome :icon="faMinus" class="h-2"/></button>
+                        <button type="button" class="flex items-center px-2 rounded-2xl border-r-2 font-medium duration-500 hover:border-purple-300 hover:text-teal-700 hover:bg-teal-50" v-on:click="() => {shift.start_enroll_h = check.inRange(shift.start_enroll_h-1, 0, 23); view.setFocusId('shift_enroll_h');}"><FontAwesome :icon="faMinus" class="h-2"/></button>
                         <input v-model="shift.start_enroll_h" class="outline-transparent text-center my-2 w-6" type="text" maxlength="2" required="" placeholder=" " id="shift_enroll_h"/>
-                        <button type="button" class="flex items-center px-2 rounded-2xl border-l-2 font-medium duration-500 hover:border-purple-300 hover:text-teal-700 hover:bg-teal-50" v-on:click="() => {(check.inRange(shift.start_enroll_h, 0, 22)) ? shift.start_enroll_h += 1 : shift.start_enroll_h = 0; view.setFocusId('shift_enroll_h');}"><FontAwesome :icon="faPlus" class="h-2"/></button>
+                        <button type="button" class="flex items-center px-2 rounded-2xl border-l-2 font-medium duration-500 hover:border-purple-300 hover:text-teal-700 hover:bg-teal-50" v-on:click="() => {shift.start_enroll_h = check.inRange(shift.start_enroll_h+1, 0, 23); view.setFocusId('shift_enroll_h');}"><FontAwesome :icon="faPlus" class="h-2"/></button>
                     </div>
-                    <label for="shift_enroll_h" class="rounded-2xl absolute text-lg scale-90 text-slate-700 transform -translate-y-6 left-1 top-2 z-10 origin-[0] bg-slate-50 px-2 whitespace-nowrap">Start enroll : </label>
+                    <label for="shift_enroll_h" class="rounded-2xl absolute text-lg scale-90 text-slate-700 transform -translate-y-6 left-1 top-2 z-10 origin-[0] bg-slate-50 px-2 whitespace-nowrap whitespace-nowrap">Start enroll : </label>
                 </div>
 
                 <p class="m-2 text-xs text-red-600 dark:text-red-400">
@@ -239,9 +239,9 @@ defineExpose({
             <div class="mt-1">
                 <div class="relative">
                     <div class="flex justify-between divide-purple-200 divide-solid outline-purple-400 text-gray-700 block w-full border-2 duration-500 focus:border-purple-500 border-purple-200 hover:border-purple-300 rounded-md text-sm shadow-sm bg-slate-50 peer">
-                        <button type="button" class="flex items-center px-2 rounded-2xl border-r-2 font-medium duration-500 hover:border-purple-300 hover:text-teal-700 hover:bg-teal-50" v-on:click="() => {(check.inRange(shift.start_enroll_m, 1, 59)) ? shift.start_enroll_m -= 1 : shift.start_enroll_m = 59; view.setFocusId('shift_enroll_m');}"><FontAwesome :icon="faMinus" class="h-2"/></button>
+                        <button type="button" class="flex items-center px-2 rounded-2xl border-r-2 font-medium duration-500 hover:border-purple-300 hover:text-teal-700 hover:bg-teal-50" v-on:click="() => {shift.start_enroll_m = check.inRange(shift.start_enroll_m-1, 0, 59); view.setFocusId('shift_enroll_m');}"><FontAwesome :icon="faMinus" class="h-2"/></button>
                         <input v-model="shift.start_enroll_m" class="outline-transparent text-center my-2 w-6" type="text" maxlength="2" required="" placeholder=" " id="shift_enroll_m"/>
-                        <button type="button" class="flex items-center px-2 rounded-2xl border-l-2 font-medium duration-500 hover:border-purple-300 hover:text-teal-700 hover:bg-teal-50" v-on:click="() => {(check.inRange(shift.start_enroll_m, 0, 58)) ? shift.start_enroll_m += 1 : shift.start_enroll_m = 0; view.setFocusId('shift_enroll_m');}"><FontAwesome :icon="faPlus" class="h-2"/></button>
+                        <button type="button" class="flex items-center px-2 rounded-2xl border-l-2 font-medium duration-500 hover:border-purple-300 hover:text-teal-700 hover:bg-teal-50" v-on:click="() => {shift.start_enroll_m = check.inRange(shift.start_enroll_m+1, 0, 59); view.setFocusId('shift_enroll_m');}"><FontAwesome :icon="faPlus" class="h-2"/></button>
                     </div>
                 </div>
             </div>
@@ -249,11 +249,11 @@ defineExpose({
             <div class="mt-1">
                 <div class="relative">
                     <div class="flex justify-between divide-purple-200 divide-solid outline-purple-400 text-gray-700 block w-full border-2 duration-500 focus:border-purple-500 border-purple-200 hover:border-purple-300 rounded-md text-sm shadow-sm bg-slate-50 peer">
-                        <button type="button" class="flex items-center px-2 rounded-2xl border-r-2 font-medium duration-500 hover:border-purple-300 hover:text-teal-700 hover:bg-teal-50" v-on:click="() => {(check.inRange(shift.end_enroll_h, 1, 23)) ? shift.end_enroll_h -= 1 : shift.end_enroll_h = 23; view.setFocusId('end_enroll_h');}"><FontAwesome :icon="faMinus" class="h-2"/></button>
+                        <button type="button" class="flex items-center px-2 rounded-2xl border-r-2 font-medium duration-500 hover:border-purple-300 hover:text-teal-700 hover:bg-teal-50" v-on:click="() => {shift.end_enroll_h = check.inRange(shift.end_enroll_h-1, 0, 23); view.setFocusId('end_enroll_h');}"><FontAwesome :icon="faMinus" class="h-2"/></button>
                         <input v-model="shift.end_enroll_h" class="outline-transparent text-center my-2 w-6" type="text" maxlength="2" required="" placeholder=" " id="end_enroll_h"/>
-                        <button type="button" class="flex items-center px-2 rounded-2xl border-l-2 font-medium duration-500 hover:border-purple-300 hover:text-teal-700 hover:bg-teal-50" v-on:click="() => {(check.inRange(shift.end_enroll_h, 0, 22)) ? shift.end_enroll_h += 1 : shift.end_enroll_h = 0; view.setFocusId('end_enroll_h');}"><FontAwesome :icon="faPlus" class="h-2"/></button>
+                        <button type="button" class="flex items-center px-2 rounded-2xl border-l-2 font-medium duration-500 hover:border-purple-300 hover:text-teal-700 hover:bg-teal-50" v-on:click="() => {shift.end_enroll_h = check.inRange(shift.end_enroll_h+1, 0, 23); view.setFocusId('end_enroll_h');}"><FontAwesome :icon="faPlus" class="h-2"/></button>
                     </div>
-                    <label for="end_enroll_h" class="rounded-2xl absolute text-lg scale-90 text-slate-700 transform -translate-y-6 left-1 top-2 z-10 origin-[0] bg-slate-50 px-2 whitespace-nowrap">End enroll : </label>
+                    <label for="end_enroll_h" class="rounded-2xl absolute text-lg scale-90 text-slate-700 transform -translate-y-6 left-1 top-2 z-10 origin-[0] bg-slate-50 px-2 whitespace-nowrap whitespace-nowrap">End enroll : </label>
                 </div>
 
                 <p class="m-2 text-xs text-red-600 dark:text-red-400">
@@ -264,9 +264,9 @@ defineExpose({
             <div class="mt-1">
                 <div class="relative">
                     <div class="flex justify-between divide-purple-200 divide-solid outline-purple-400 text-gray-700 block w-full border-2 duration-500 focus:border-purple-500 border-purple-200 hover:border-purple-300 rounded-md text-sm shadow-sm bg-slate-50 peer">
-                        <button type="button" class="flex items-center px-2 rounded-2xl border-r-2 font-medium duration-500 hover:border-purple-300 hover:text-teal-700 hover:bg-teal-50" v-on:click="() => {(check.inRange(shift.end_enroll_m, 1, 59)) ? shift.end_enroll_m -= 1 : shift.end_enroll_m = 59; view.setFocusId('end_enroll_m');}"><FontAwesome :icon="faMinus" class="h-2"/></button>
+                        <button type="button" class="flex items-center px-2 rounded-2xl border-r-2 font-medium duration-500 hover:border-purple-300 hover:text-teal-700 hover:bg-teal-50" v-on:click="() => {shift.end_enroll_m = check.inRange(shift.end_enroll_m-1, 0, 59); view.setFocusId('end_enroll_m');}"><FontAwesome :icon="faMinus" class="h-2"/></button>
                         <input v-model="shift.end_enroll_m" class="outline-transparent text-center my-2 w-6" type="text" maxlength="2" required="" placeholder=" " id="end_enroll_m"/>
-                        <button type="button" class="flex items-center px-2 rounded-2xl border-l-2 font-medium duration-500 hover:border-purple-300 hover:text-teal-700 hover:bg-teal-50" v-on:click="() => {(check.inRange(shift.end_enroll_m, 0, 58)) ? shift.end_enroll_m += 1 : shift.end_enroll_m = 0; view.setFocusId('end_enroll_m');}"><FontAwesome :icon="faPlus" class="h-2"/></button>
+                        <button type="button" class="flex items-center px-2 rounded-2xl border-l-2 font-medium duration-500 hover:border-purple-300 hover:text-teal-700 hover:bg-teal-50" v-on:click="() => {shift.end_enroll_m = check.inRange(shift.end_enroll_m+1, 0, 59); view.setFocusId('end_enroll_m');}"><FontAwesome :icon="faPlus" class="h-2"/></button>
                     </div>
                 </div>
             </div>
