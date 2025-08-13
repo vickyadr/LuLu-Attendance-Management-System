@@ -15,45 +15,44 @@ export const useShiftStore = defineStore("shift", () => {
         passday: 0
     };
     
-    async function addList(data = def_data) {
+    function addList(data = def_data) {
         contents.value.push(data);
     }
 
-    async function updateList(data = def_data) {
-
+    function updateList(data = def_data) {
         if (check.isNull(data.id))
             return;
 
-        let index = contents.value.findIndex(x => x.id === data.id);
+        const index = contents.value.findIndex(x => x.id === data.id);
+        if (index === -1) return;
 
-        if (check.isNull(data.name))
-            data.name = contents.value[index].name;
-        if (check.isNull(data.start_time))
-            data.start_time = contents.value[index].start_time;
-        if (check.isNull(data.end_time))
-            data.end_time = contents.value[index].end_time;
-        if (check.isNull(data.start_enroll))
-            data.start_enroll = contents.value[index].start_enroll;
-        if (check.isNull(data.end_enroll))
-            data.end_enroll = contents.value[index].end_enroll;
-        if (check.isNull(data.passday))
-            data.passday = contents.value[index].passday;
-
-        contents.value[index] = data;
+        const existingItem = contents.value[index];
+        contents.value[index] = {
+            ...existingItem,
+            ...data,
+            name: data.name ?? existingItem.name,
+            start_time: data.start_time ?? existingItem.start_time,
+            end_time: data.end_time ?? existingItem.end_time,
+            start_enroll: data.start_enroll ?? existingItem.start_enroll,
+            end_enroll: data.end_enroll ?? existingItem.end_enroll,
+            passday: data.passday ?? existingItem.passday
+        };
     }
 
-    async function removeList(id) {
+    function removeList(id) {
         if (check.isNull(id))
             return;
-        let index = contents.value.findIndex(x => x.id === id);
-        contents.value.splice(index, 1);
+        const index = contents.value.findIndex(x => x.id === id);
+        if (index !== -1) {
+            contents.value.splice(index, 1);
+        }
     }
 
     function set(data) {
         contents.value = data;
     }
 
-    function get(id){
+    function get(id) {
         let index = contents.value.findIndex(x => x.id === id);
         return contents.value[index];
     }

@@ -99,7 +99,7 @@ onMounted(()=>{
                     </td>
                     <td>
                         <div class="flex text-gray-900 whitespace-nowrap">
-                            <span class="w-8">In</span> : {{ (!check.isNull(issue.start)) ? format.stamp_to_naive_time(issue.start) : "-" }}
+                            <span class="w-8">In</span> : {{ (!check.isNull(issue.start)) ? format.stamp_to_naive_time(issue.start, false) : "-" }}
                         </div>
                         <div class="flex text-gray-900 whitespace-nowrap">
                             <span class="w-8">Out</span> : {{ (!check.isNull(issue.end)) ? format.stamp_to_naive_time(issue.end) : "-" }}

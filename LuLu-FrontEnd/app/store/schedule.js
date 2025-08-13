@@ -5,7 +5,7 @@ export const useSchedule = defineStore("schedule", () => {
     const contents = ref([]),
         check = useChecker();
 
-    async function addList(data = {
+    function addList(data = {
         id: 0,
         name: null,
         shift_name: null,
@@ -15,7 +15,7 @@ export const useSchedule = defineStore("schedule", () => {
         contents.value.push(data);
     }
 
-    async function updateList(data = {
+    function updateList(data = {
         id: 0,
         name: null,
         shift_name: null,
@@ -25,37 +25,44 @@ export const useSchedule = defineStore("schedule", () => {
         if (check.isNull(data.id))
             return;
 
-        let index = contents.value.findIndex(x => x.id === data.id);
+        const index = contents.value.findIndex(x => x.id === data.id);
+        if (index === -1) return;
 
-        if (check.isNull(data.name))
-            data.name = contents.value[index].name;
-        if (check.isNull(data.shift_name))
-            data.shift_name = contents.value[index].shift_name;
-        if (check.isNull(data.dom))
-            data.dom = contents.value[index].dom;
-        if (check.isNull(data.parrent))
-            data.parrent = contents.value[index].parrent;
-
-        contents.value[index] = data;
+        const existingItem = contents.value[index];
+        contents.value[index] = {
+            ...existingItem,
+            ...data,
+            name: data.name ?? existingItem.name,
+            shift_name: data.shift_name ?? existingItem.shift_name,
+            dom: data.dom ?? existingItem.dom,
+            parrent: data.parrent ?? existingItem.parrent
+        };
     }
 
-    async function removeList(id) {
+    function removeList(id) {
         if (check.isNull(id))
             return;
-        let index = contents.value.findIndex(x => x.id === id);
-        contents.value.splice(index, 1);
+        const index = contents.value.findIndex(x => x.id === id);
+        if (index !== -1) {
+            contents.value.splice(index, 1);
+        }
     }
 
     function set(data) {
         contents.value = data;
     }
 
+    function get(id) {
+        let index = contents.value.findIndex(x => x.id === id);
+        return contents.value[index];
+    }
 
     return {
         addList,
         updateList,
         removeList,
         set,
+        get,
         contents
     };
 });

@@ -10,11 +10,7 @@ const
     check = useChecker(),
     emit = defineEmits(['edit', 'delete']),
     format = useFormater(),
-    contents = computed(()=>{
-        //let x = list.contents.filter(item => item.enroll_type == 1)
-        return list.contents//x
-
-    }),
+    contents = computed(() => list.contents),
     modals = reactive({
     isShow: false,
     title: '',
@@ -30,24 +26,31 @@ function callbackDelete(id) {
 }
 
 async function getListShift() {
-    await $fetch(`${config.public.apiBase}/shift/list`,
-    {
-        method: "GET",
-        headers: auth.confHeaders(),
-
-    }).then(async (response) => {
-        if (response.code == 200) {
+    try {
+        const response = await $fetch(`${config.public.apiBase}/shift/list`, {
+            method: "GET",
+            headers: auth.confHeaders(),
+        });
+        
+        if (response.code === 200) {
             list.set(response.data);
         }
-    });
+    } catch (error) {
+        console.error('Failed to fetch shift list:', error);
+    }
+}
+
+const parseSeconds = (input) => {
+    const totalSeconds = input < 0 ? 86400 + input : input;
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
 };
 
-function parseSeconds(input){
-    //const d = new Date(1735689600+input); // 1735689600 = 2025/01/01 00:00:00
-    let h = (input < 0) ? Math.floor((86400+input)/3600) : Math.floor(input/3600);
-    const m = Math.floor((input % 3600) / 60);
-    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
-}
+const handleDragStart = (e, act) => {
+    e.dataTransfer.setData('shift', JSON.stringify(act))
+    e.dataTransfer.effectAllowed = 'copyNone'
+};
 
 onMounted(()=>{
     getListShift()
@@ -69,12 +72,12 @@ onMounted(()=>{
             </thead>
 
             <tbody v-if="contents.length > 0">
-                <tr v-for="(shift, index) in contents" class="*:py-1 *:text-xs *:text-center *:items-center *:px-2">
-                    <td v-bind:class="format.stripes(index, '', 'bg-slate-50')" class="border-r border-gray-100 whitespace-nowrap">{{ shift.name}}</td>
-                    <td v-bind:class="format.stripes(index, '', 'bg-slate-50')" class="border-r border-gray-100 whitespace-nowrap">{{ parseSeconds(shift.start_enroll) }} {{ (shift.prevday == 1) ? "(prevday)":"" }}</td>
-                    <td v-bind:class="format.stripes(index, '', 'bg-slate-50')" class="border-r border-gray-100 whitespace-nowrap">{{ parseSeconds(shift.start_time) }} >> {{ parseSeconds(shift.end_time) }}</td>
-                    <td v-bind:class="format.stripes(index, '', 'bg-slate-50')" class="border-r border-gray-100 whitespace-nowrap">{{ parseSeconds(shift.end_enroll) }} {{ (shift.nextday == 1) ? "(nextday)":"" }}</td>
-                    <td v-bind:class="format.stripes(index, '', 'bg-slate-50')" class="whitespace-nowrap font-medium"><button class="hover:text-purple-700 hover:shadow-sm" v-on:click="callbackEdit(shift)">Edit</button> / <button class="hover:text-red-700 hover:shadow-sm" v-on:click="callbackDelete({id:shift.id, name:shift.name})">Delete</button></td>
+                <tr v-for="(shift, index) in contents" class="*:py-1 *:whitespace-nowrap *:text-xs *:text-center *:items-center *:px-2 odd:bg-slate-50">
+                    <td draggable="true" v-on:dragstart="(e) => handleDragStart(e, {act:'copy', id:shift.id})" class="border-r border-gray-100">{{ shift.name}}</td>
+                    <td class="border-r border-gray-100">{{ parseSeconds(shift.start_enroll) }} {{ (shift.prevday == 1) ? "(prevday)":"" }}</td>
+                    <td class="border-r border-gray-100">{{ parseSeconds(shift.start_time) }} >> {{ parseSeconds(shift.end_time) }}</td>
+                    <td class="border-r border-gray-100">{{ parseSeconds(shift.end_enroll) }} {{ (shift.nextday == 1) ? "(nextday)":"" }}</td>
+                    <td class="whitespace-nowrap font-medium"><button class="hover:text-purple-700 hover:shadow-sm" v-on:click="callbackEdit(shift)">Edit</button> / <button class="hover:text-red-700 hover:shadow-sm" v-on:click="callbackDelete({id:shift.id, name:shift.name})">Delete</button></td>
                 </tr>
             </tbody>
 

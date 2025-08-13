@@ -20,7 +20,7 @@ const
     sm_data = new SMData();
 
 useHead({
-    title: "LuLu's System - Shift",
+    title: "LuLu's System - Schedule",
 });
 
 definePageMeta({
