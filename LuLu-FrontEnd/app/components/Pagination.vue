@@ -3,7 +3,7 @@
         <li>
         <a
             href="#"
-            class="grid size-8 place-content-center rounded border border-gray-200 transition-colors hover:bg-gray-50 rtl:rotate-180"
+            class="grid size-8 place-content-center rounded border border-gray-200 transition-colors hover:bg-emerald-50 hover:border-emerald-200 hover:text-emerald-700 rtl:rotate-180"
             aria-label="Previous page"
         >
             <svg
@@ -24,14 +24,14 @@
         <li>
         <a
             href="#"
-            class="block size-8 rounded border border-gray-200 text-center text-sm/8 font-medium transition-colors hover:bg-gray-50"
+            class="block size-8 rounded border border-gray-200 text-center text-sm/8 font-medium transition-colors hover:bg-emerald-50 hover:border-emerald-200 hover:text-emerald-700"
         >
             1
         </a>
         </li>
     
         <li
-        class="block size-8 rounded border border-indigo-600 bg-indigo-600 text-center text-sm/8 font-medium text-white"
+        class="block size-8 rounded border border-emerald-600 bg-emerald-600 text-center text-sm/8 font-medium text-white"
         >
         2
         </li>
@@ -39,7 +39,7 @@
         <li>
         <a
             href="#"
-            class="block size-8 rounded border border-gray-200 text-center text-sm/8 font-medium transition-colors hover:bg-gray-50"
+            class="block size-8 rounded border border-gray-200 text-center text-sm/8 font-medium transition-colors hover:bg-emerald-50 hover:border-emerald-200 hover:text-emerald-700"
         >
             3
         </a>
@@ -48,7 +48,7 @@
         <li>
         <a
             href="#"
-            class="block size-8 rounded border border-gray-200 text-center text-sm/8 font-medium transition-colors hover:bg-gray-50"
+            class="block size-8 rounded border border-gray-200 text-center text-sm/8 font-medium transition-colors hover:bg-emerald-50 hover:border-emerald-200 hover:text-emerald-700"
         >
             4
         </a>
@@ -57,7 +57,7 @@
         <li>
         <a
             href="#"
-            class="grid size-8 place-content-center rounded border border-gray-200 transition-colors hover:bg-gray-50 rtl:rotate-180"
+            class="grid size-8 place-content-center rounded border border-gray-200 transition-colors hover:bg-emerald-50 hover:border-emerald-200 hover:text-emerald-700 rtl:rotate-180"
             aria-label="Next page"
         >
             <svg

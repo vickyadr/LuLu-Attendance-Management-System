@@ -1,17 +1,21 @@
 import { useAuthStore } from '~/store/auth';
 
-export default defineNuxtRouteMiddleware(async (to, from) => {
-    
-    useAuthStore().fetchUser(useCookie("XSRF-TOKEN").value).finally(()=>{
-        
-        if (useAuthStore().isLogIn.valueOf() == true) {   
-            if (to.path.replaceAll("/","") == "login")
-                return navigateTo("/")       
-        }else if (!to.path.replaceAll("/","") != "login")
-            return navigateTo("/login")
+export default defineNuxtRouteMiddleware(async (to) => {
+    const auth = useAuthStore();
+    const token = useCookie("XSRF-TOKEN").value;
 
-    }).catch(()=>{
-        if (useCookie("XSRF-TOKEN").value === undefined || useCookie("XSRF-TOKEN").value === null)
-            return navigateTo("/login")
-    })
+    if (token) {
+        await auth.fetchUser(token);
+    } else {
+        auth.clearUser();
+    }
+
+    const onLoginPage = to.path === "/login" || to.path === "/login/";
+
+    if (auth.isLogIn) {
+        if (onLoginPage) return navigateTo("/", { replace: true });
+        return;
+    }
+
+    if (!onLoginPage) return navigateTo("/login", { replace: true });
 });

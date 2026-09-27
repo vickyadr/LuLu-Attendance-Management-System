@@ -28,13 +28,12 @@ async fn main() -> std::io::Result<()> {
 
     HttpServer::new(move || {
         let cors = Cors::default()
-            .allowed_origin("http://127.0.0.1:8080")
-            .allowed_origin("http://127.0.0.1:3000")
-            .allowed_origin("http://localhost:3000")
-            //.allow_any_origin()
-            //.allow_any_header()
-            //.allow_any_method()
-            //.send_wildcard();
+            .allowed_origin_fn(|origin, _| {
+                // allow any origin (localhost, LAN IP, 0.0.0.0) — echo back request origin
+                // permissive but still supports credentials (Bearer token)
+                origin.as_bytes().starts_with(b"http://")
+                    || origin.as_bytes().starts_with(b"https://")
+            })
             .allowed_methods(vec!["GET", "POST", "PATCH", "DELETE", "OPTIONS"])
             .allowed_headers(vec![
                 header::CONTENT_TYPE,
@@ -48,7 +47,9 @@ async fn main() -> std::io::Result<()> {
                 header::REFERER,
                 header::USER_AGENT,
             ])
-            .supports_credentials();
+            .expose_headers(vec![header::CONTENT_TYPE, header::AUTHORIZATION])
+            .supports_credentials()
+            .max_age(3600);
 
         App::new()
             // add DB pool handle to app data; enables use of `web::Data<DbPool>` extractor
@@ -67,7 +68,7 @@ async fn main() -> std::io::Result<()> {
             .configure(router::config)
     })
     //.bind(("10.55.54.145", 8080))?
-    .bind(("0.0.0.0", 8080))?
+    .bind(("0.0.0.0", 4343))?
     .run()
     .await
 }

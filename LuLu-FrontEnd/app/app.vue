@@ -6,8 +6,6 @@ const {
   isModalActive,
   moduleOptions,
 } = useCookieControl()
-
-// example: react to a cookie being accepted
 watch(
   () => cookiesEnabledIds.value,
   (current, previous) => {
@@ -33,10 +31,15 @@ watch(
 
 <style>
 :root {
-  --color-primary: #000000;
-  --color-secondary: #000000;
-  --color-accent: #000000;
-  --color-background: #000000;
-  --color-text: #000000;
+  --color-primary: #059669;
+  --color-primary-dark: #047857;
+  --color-secondary: #16a34a;
+  --color-accent: #84cc16;
+  --color-background: #f0fdf4;
+  --color-surface: #ffffff;
+  --color-text: #14532d;
+  --color-muted: #5b9279;
 }
+html { -webkit-font-smoothing: antialiased; }
+body { color: var(--color-text); }
 </style>

@@ -14,6 +14,10 @@ pub struct LiveTransaction {
     pub enroll_type: i32,
     #[serde(rename = "location")]
     pub device_location: String,
+    #[serde(rename = "tz")]
+    pub device_timezone: i32,
+    #[serde(rename = "departement")]
+    pub employee_departement: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none", rename = "status")]
     pub enroll_status: Option<i32>,
     #[serde(skip_deserializing)]

@@ -1,4 +1,4 @@
-use std::{collections::HashMap};
+use std::collections::HashMap;
 use crate::{
     models::{m_report::*, m_schedule::ScheduleHelper}, utility::{
         authorization::is_login, helper::{ts_at_zero, ts_dow, ts_week}, stor::{AppState, GenericResponse, NoDataResponse}
@@ -105,8 +105,8 @@ pub async fn report_range(
 // Separate async functions for better concurrency
 async fn get_schedules(db: &sqlx::PgPool) -> Result<Vec<ScheduleHelper>, sqlx::Error> {
     sqlx::query_as::<_, ScheduleHelper>(
-        r#"SELECT * FROM schedules 
-           INNER JOIN shifts ON shifts.shift_id = schedules.schedule_shift_id"#
+        r#"SELECT schedules.schedule_name, COALESCE(shifts.shift_name,'Libur') as shift_name, COALESCE(shifts.shift_id,0) as shift_id, schedules.schedule_dom, schedules.schedule_parrent, schedules.schedule_type, schedules.schedule_hols, COALESCE(shifts.shift_start_time,0::BIGINT) as shift_start_time, COALESCE(shifts.shift_end_time,0::BIGINT) as shift_end_time, COALESCE(shifts.shift_start_enroll,0::BIGINT) as shift_start_enroll, COALESCE(shifts.shift_end_enroll,0::BIGINT) as shift_end_enroll, COALESCE(shifts.shift_passday,0::SMALLINT) as shift_passday, COALESCE(shifts.shift_prevday,0::SMALLINT) as shift_prevday FROM schedules 
+           LEFT JOIN shifts ON shifts.shift_id = schedules.schedule_shift_id"#
     )
     .fetch_all(db)
     .await
@@ -129,8 +129,12 @@ async fn get_reports_data(
            WHERE e.enroll_time BETWEEN $1 AND $2
            ORDER BY e.enroll_time ASC"#
     )
-    .bind(start_range - 86400)
-    .bind(end_range + 86400)
+    // Pad 2 days on each side. One day covers a `prevday` shift whose enroll window opens on
+    // the previous calendar day; the second covers a device whose timezone places local
+    // midnight more than 24h away from the UTC midnight of the requested range. Without it,
+    // punches at the range edges were never fetched and the report came back empty.
+    .bind(start_range - (2 * 86400))
+    .bind(end_range + (2 * 86400))
     .fetch_all(db)
     .await
 }
@@ -161,13 +165,19 @@ fn get_enroll_data(
     }
 
     let mut results = Vec::new();
-    
-    // Process each employee's enrollments
+
+    // Process each employee's enrollments.
+    //
+    // The day loop deliberately stays in the shared UTC frame: `enroll_date` is a UTC
+    // midnight and the frontend renders it as a plain calendar date, so the bucket identity
+    // must not move when a device timezone changes. All timezone awareness lives in
+    // get_shift_for_date / calculate_enrollment_window, which convert the local wall-clock
+    // shift offsets to UTC epochs.
     for (_employee_id, enrollments) in employee_enrollments {
         let employee_reports = process_employee_enrollments(
-            start, 
-            end, 
-            enrollments, 
+            start,
+            end,
+            enrollments,
             &schedule_map
         );
         results.extend(employee_reports);
@@ -185,8 +195,9 @@ fn process_employee_enrollments(
     schedule_map: &HashMap<(i32, i32), ScheduleHelper>
 ) -> Vec<Reports> {
     let mut daily_reports: HashMap<i64, Reports> = HashMap::new();
-    
-    // Process each day in the range
+
+    // Process each day in the range. `current_date` is a UTC midnight and doubles as the
+    // bucket key in `enroll_date`.
     for current_date in (start..=end).step_by(86400) {
         if let Some(enrollment) = enrollments.first() {
             if let Some(shift) = get_shift_for_date(current_date, enrollment, schedule_map) {
@@ -203,9 +214,9 @@ fn process_employee_enrollments(
 
                 if !day_enrollments.is_empty() {
                     if let Some(report) = create_daily_report(
-                        current_date, 
-                        enrollment, 
-                        &shift, 
+                        current_date,
+                        enrollment,
+                        &shift,
                         &day_enrollments
                     ) {
                         daily_reports.insert(current_date, report);
@@ -225,6 +236,7 @@ fn process_employee_enrollments(
         .collect()
 }
 
+
 fn get_shift_for_date<'a>(
     current_date: i64,
     enrollment: &ReportsHelper,
@@ -232,32 +244,41 @@ fn get_shift_for_date<'a>(
 ) -> Option<&'a ScheduleHelper> {
     let schedule_type = enrollment.schedule_type;
     let pattern = if schedule_type < 7 { 1 } else { schedule_type / 7 };
-    
-    let dow = (ts_dow(current_date, enrollment.device_timezone) as i32 % 
-               if schedule_type < 7 { 1 } else { 7 }) + 1;
-    let week = (ts_week(current_date, enrollment.device_timezone) as i32) % 
-               if pattern < 1 { 1 } else { pattern };
-    
+    let dom_span = if schedule_type < 7 { 1 } else { 7 };
+
+    let iso_dow = ts_dow(current_date, 0) as i32;
+    let dow = (iso_dow - 1) % dom_span + 1;
+    let week = (ts_week(current_date, 0) as i32) % if pattern < 1 { 1 } else { pattern };
+
     let key = (enrollment.employee_schedule_id as i32, (dow + (week * 7)) as i32);
+    if let Some(s) = schedule_map.get(&key) {
+        if s.shift_id == 0 || s.shift_name == "Libur" {
+            return None;
+        }
+    }
     schedule_map.get(&key)
 }
+
 
 fn calculate_enrollment_window(
     current_date: i64,
     enrollment: &ReportsHelper,
     shift: &ScheduleHelper
 ) -> (i64, i64) {
-    let timezone_offset = (enrollment.device_timezone * 3600) as i64;
-    let base_date = current_date - timezone_offset;
-    
-    let start_window = base_date + if shift.shift_prevday == 1 {
+    let timezone_offset = (enrollment.device_timezone as i64) * 3600;
+
+    // Local midnight of the named calendar day, as a UTC epoch.
+    let local_midnight = current_date - timezone_offset;
+
+    // A prevday shift opens its enroll window on the PREVIOUS calendar day.
+    let start_window = local_midnight + if shift.shift_prevday == 1 {
         shift.shift_start_enroll - 86400
     } else {
         shift.shift_start_enroll
     };
-    
-    let end_window = current_date + shift.shift_end_enroll - timezone_offset;
-    
+
+    let end_window = local_midnight + shift.shift_end_enroll;
+
     (start_window, end_window)
 }
 
@@ -277,10 +298,13 @@ fn create_daily_report(
 
     let schedule_type = enrollment.schedule_type;
     let pattern = if schedule_type < 7 { 1 } else { schedule_type / 7 };
-    let dow = (ts_dow(current_date, enrollment.device_timezone) as i32 % 
-               if schedule_type < 7 { 1 } else { 7 }) + 1;
-    let week = (ts_week(current_date, enrollment.device_timezone) as i32) % 
-               if pattern < 1 { 1 } else { pattern };
+    let dom_span = if schedule_type < 7 { 1 } else { 7 };
+
+    // Same frame as get_shift_for_date: the weekday of the named calendar day, mapped onto
+    // dom without wrapping, so `enroll_dow` agrees with the schedule row that was selected.
+    let iso_dow = ts_dow(current_date, 0) as i32;
+    let dow = (iso_dow - 1) % dom_span + 1;
+    let week = (ts_week(current_date, 0) as i32) % if pattern < 1 { 1 } else { pattern };
 
     Some(Reports {
         employee_id: enrollment.employee_id,
@@ -310,11 +334,16 @@ fn calculate_working_time(report: &mut Reports) {
     let Some(shift_end) = report.shift_end_time else { return };
 
     let timezone_offset = (device_timezone * 3600) as i64;
-    
-    // Calculate working period boundaries
-    let start_working = enroll_date - timezone_offset + 
+
+    // `enroll_date` is a UTC midnight; the shift's own start/end are wall-clock durations
+    // from LOCAL midnight. Convert the anchor to local midnight once, then add the shift
+    // offsets in that same frame. The original code added the offset to the start bound and
+    // subtracted it from the end bound, which stretched or compressed the shift span by
+    // twice the offset and pushed the reference point a day off for non-zero timezones.
+    let local_midnight = enroll_date - timezone_offset;
+    let start_working = local_midnight +
         if shift_start >= shift_end { shift_start - 86400 } else { shift_start };
-    let end_working = enroll_date + shift_end - timezone_offset;
+    let end_working = local_midnight + shift_end;
     
     let shift_duration = end_working - start_working;
     let half_shift = shift_duration / 2;
@@ -333,8 +362,15 @@ fn calculate_working_time(report: &mut Reports) {
         }
     }
 
-    // Calculate working time
-    if let Some(end_enroll) = report.end_enroll {
-        report.working_time = (end_enroll - start_working).max(0);
+    // Calculate working time: actual presence between first IN and last OUT.
+    // The old formula measured from shift start (`end_enroll - start_working`),
+    // which inflated the number whenever someone arrived late and hid early
+    // leave entirely (OUT before shift end still showed a full shift).
+    if let (Some(start_enroll), Some(end_enroll)) = (report.start_enroll, report.end_enroll) {
+        report.working_time = end_enroll.saturating_sub(start_enroll);
+    } else if let Some(end_enroll) = report.end_enroll {
+        // Single-punch corner (late arrival reclassified as checkout-only above):
+        // fall back to time since shift start so the row still carries a duration.
+        report.working_time = end_enroll.saturating_sub(start_working);
     }
 }

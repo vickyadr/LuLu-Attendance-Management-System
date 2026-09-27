@@ -2,7 +2,7 @@ import { defineStore } from "pinia";
 import { useChecker } from "~/utils/checker";
 
 export const useShiftStore = defineStore("shift", () => {
-    const contents = ref({}),
+    const contents = ref([]),
         check = useChecker();
 
     const def_data = {

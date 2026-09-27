@@ -10,6 +10,15 @@ export const useAuthStore = defineStore("auth", () => {
     };
 
     const isLogIn = computed(() => !!user.fname.value && !!user.lname.value && !!user.level.value);
+    
+    const displayName = computed(() => {
+        const s = `${user.fname.value || ''} ${user.lname.value || ''}`.trim();
+        return s || 'Guest';
+    });
+    const initials = computed(() =>
+        (displayName.value || 'GG').split(/\s+/).slice(0, 2).map(p => p[0]).join('').toUpperCase()
+    );
+    const level = computed(() => user.level.value || 0);
 
     const confHeaders = () => {
         // FIXME: Temporary Fix, server auth need some optimization
@@ -55,11 +64,20 @@ export const useAuthStore = defineStore("auth", () => {
                     user.fname.value = response.data[0].user_fname;
                     user.lname.value = response.data[0].user_lname;
                     user.level.value = response.data[0].user_level;
+                } else {
+                    // Token ditolak server -> sesi tidak valid, reset state.
+                    clearUser();
                 }
             });
         } catch (err) {
-            // handle errors
+            clearUser();
         }
+    }
+
+    function clearUser() {
+        user.fname.value = null;
+        user.lname.value = null;
+        user.level.value = 0;
     }
 
     async function logout() {
@@ -72,9 +90,9 @@ export const useAuthStore = defineStore("auth", () => {
                     maxAge: 5,
                     //expires: Date.now()
                 }).value = null
-                user.value = null
+
+                clearUser();
                 token.value = null
-                user.value = {fname: null, lname:null,level:0 }
                 window.location.reload()
                 //navigateTo("/login", { replace: true })
             }
@@ -85,9 +103,13 @@ export const useAuthStore = defineStore("auth", () => {
     return {
         attemptLogin,
         fetchUser,
+        clearUser,
         logout,
         user,
         isLogIn,
         confHeaders,
+        displayName,
+        initials,
+        level,
     };
 });

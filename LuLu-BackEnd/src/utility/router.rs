@@ -24,36 +24,40 @@ pub async fn validate(
 pub fn config(conf: &mut web::ServiceConfig) {
     let auth = HttpAuthentication::bearer(validate);
 
-    // Frontend API
-    let frontend = web::scope("/api").service(login_check)
-                                        .service(logout_act)
-                                        .service(transaction_live)
-                                        .service(device_add)
-                                        .service(device_delete)
-                                        .service(device_edit)
-                                        .service(device_list)
-                                        .service(schedule_add)
-                                        .service(schedule_delete)
-                                        .service(schedule_edit)
-                                        .service(schedule_list)
-                                        .service(shift_add)
-                                        .service(shift_delete)
-                                        .service(shift_edit)
-                                        .service(shift_list)
-                                        .service(report_today)
-                                        .service(report_range)
-                                        .service(employee_add)
-                                        .service(employee_delete)
-                                        .service(employee_edit)
-                                        .service(employee_list)
-                                        .wrap(auth.clone())
-                                        .service(login_act);
+    // Single /api scope: public login + protected sub-scope
+    let protected = web::scope("")
+        .wrap(auth)
+        .service(login_check)
+        .service(logout_act)
+        .service(transaction_live)
+        .service(device_add)
+        .service(device_delete)
+        .service(device_edit)
+        .service(device_list)
+        .service(schedule_add)
+        .service(schedule_delete)
+        .service(schedule_edit)
+        .service(schedule_list)
+        .service(shift_add)
+        .service(shift_delete)
+        .service(shift_edit)
+        .service(shift_list)
+        .service(report_today)
+        .service(report_range)
+        .service(employee_add)
+        .service(employee_delete)
+        .service(employee_edit)
+        .service(employee_list);
 
-    // ADMS API
+    let api = web::scope("/api")
+        .service(login_act)
+        .service(protected);
+
+    // ADMS API (device callbacks) — no auth
     let iclock = web::scope("/iclock").service(get_cdata)
                                       .service(post_cdata)
                                       .service(get_request)
                                       .service(post_device_cmd);
 
-    conf.service(frontend).service(iclock);
+    conf.service(api).service(iclock);
 }
