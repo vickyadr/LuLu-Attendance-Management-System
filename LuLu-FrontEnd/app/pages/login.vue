@@ -306,8 +306,6 @@ watch(remember, (v) => { try { localStorage.setItem('lulu:remember', v ? '1' : '
                                         d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
                                 </svg></span>
                         </button>
-                        <p class="mono text-center text-[11px] text-emerald-700/40 mt-1 sm:mt-2.5">Protected session •
-                            Encrypted • <span class="text-emerald-700/60">demo / demo12345</span></p>
                     </form>
                 </div>
                 <div
