@@ -6,7 +6,7 @@ Current Support List:
 2. Solution (Almost All)<br>
 
 <br><hr><br/>
---- DEMO SITE IS OFFLINE NOW
+--- DEMO SITE OFFLINE NOW<br/>
 Demo : <a href="https://lulu-demo.16pxlabs.com">lulu-demo.16pxlabs.com</a><br/><br/>
 User: demo<br/>
 Password: demo12345
