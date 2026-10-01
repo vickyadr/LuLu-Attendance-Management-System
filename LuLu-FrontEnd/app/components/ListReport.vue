@@ -1,9 +1,11 @@
 <script setup>
 import { useReportStore } from '~/store/report';
+import { useSettingsStore } from '~/store/settings';
 import { useChecker, useFormater } from '#imports';
 
 const
     list = useReportStore(),
+    settings = useSettingsStore(),
     check = useChecker(),
     format = useFormater(),
     props = defineProps({
@@ -11,6 +13,8 @@ const
         deptFilter: { type: String, default: '' },
         statusFilter: { type: String, default: '' },
     });
+
+const overtimeTol = computed(() => Number(settings.overtimeTolSec) || 0)
 
 function statusTags(issue) {
     const tags = []
@@ -20,9 +24,9 @@ function statusTags(issue) {
     if (!isAbsen && !check.isNull(issue.end)) {
         const tz = Number(issue.tz) || 0
         const endRef = (Number(issue.date) || 0) - tz * 3600 + (issue.shift_end ?? 0)
-        if (Number(issue.end) < endRef - 60) tags.push('early')
-        if (Number(issue.end) > endRef + 60) tags.push('overtime')
+        if (Number(issue.end) < endRef - overtimeTol.value) tags.push('early')
     }
+    if (Number(issue.overtime) > 0) tags.push('overtime')
     if (!isAbsen && check.isNull(issue.end)) tags.push('early')
     if (isAbsen) tags.push('puncht')
     if (tags.length === 0 && !isAbsen) tags.push('present')
@@ -83,13 +87,7 @@ function shiftDur(issue) {
     return Math.max(0, e >= s ? e - s : e - s + 86400)
 }
 function overtimeSec(issue) {
-    // Overtime amount = actual OUT minus shift end, in the device's own
-    // timezone. Mirrors the overtime tag rule (>60s tolerance).
-    if (check.isNull(issue.end)) return 0
-    const tz = Number(issue.tz) || 0
-    const endRef = (Number(issue.date) || 0) - tz * 3600 + (issue.shift_end ?? 0)
-    const over = Number(issue.end) - endRef
-    return over > 60 ? over : 0
+    return Number(issue.overtime) || 0
 }
 </script>
 
@@ -315,7 +313,6 @@ function overtimeSec(issue) {
             class="sticky bottom-0 bg-white/90 backdrop-blur border-t border-emerald-100 px-4 py-2.5 flex items-center justify-between mono text-[11px]">
             <span class="text-emerald-700/60">{{ contents.length }} rows • filtered from {{ (list.contents || []).length
                 }} total</span>
-            <span class="hidden sm:inline text-slate-400">Scroll to see all • Export CSV above</span>
         </div>
     </div>
 </template>

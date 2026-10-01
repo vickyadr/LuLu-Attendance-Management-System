@@ -200,7 +200,7 @@ defineExpose({ del_shift, edit_shift, fillForm })
         </div>
 
         <form @submit.prevent="shift_action" class="px-5 py-4 space-y-4">
-            <!-- Name -->
+            <!-- Nama -->
             <div>
                 <label for="shift_name_new"
                     class="block text-xs font-semibold tracking-widest uppercase text-emerald-700/70 mb-1.5 ml-1">Shift
@@ -209,8 +209,7 @@ defineExpose({ del_shift, edit_shift, fillForm })
                     placeholder="e.g. Morning 08–17, Afternoon, Night, Warehouse A Shift"
                     class="w-full px-3.5 h-11 rounded-xl border-2 border-emerald-100 bg-white focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 outline-none text-sm text-green-900 placeholder:text-green-900/30 transition">
                 <p v-if="validator.name" class="mt-1.5 text-xs font-medium text-red-500 ml-1">{{ validator.name }}</p>
-                <p v-else class="mt-1.5 mono text-[10px] tracking-wide text-emerald-700/40 ml-1">Unique name • used in
-                    schedules & reports</p>
+                <p v-else class="mt-1.5 mono text-[10px] tracking-wide text-emerald-700/40 ml-1">Unique name</p>
             </div>
 
             <!-- Presets -->
@@ -225,7 +224,7 @@ defineExpose({ del_shift, edit_shift, fillForm })
                 </div>
             </div>
 
-            <!-- Work Time -->
+            <!-- Jam kerja -->
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                     <label for="shift_start"
@@ -341,8 +340,6 @@ defineExpose({ del_shift, edit_shift, fillForm })
                     class="rounded-xl px-6 h-11 text-sm font-medium bg-white border-2 border-slate-200 text-slate-700 hover:bg-slate-50">Cancel</button>
                 <button v-else type="button" @click="shift.name = ''"
                     class="rounded-xl px-6 h-11 text-sm font-medium bg-white border-2 border-emerald-100 text-emerald-700 hover:bg-emerald-50">Reset</button>
-                <span class="mono text-[10px] tracking-widest text-emerald-700/40 ml-auto hidden sm:inline">Shifts can
-                    be dragged onto schedules in the left panel</span>
             </div>
         </form>
     </div>

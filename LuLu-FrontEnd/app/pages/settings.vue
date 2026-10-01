@@ -1,13 +1,127 @@
+<script setup>
+import { useSettingsStore } from '~/store/settings'
+import { useAuthStore } from '~/store/auth'
+import { faSliders } from '@fortawesome/free-solid-svg-icons'
+
+const settings = useSettingsStore()
+const auth = useAuthStore()
+
+useHead({ title: 'LuLu — Settings' })
+definePageMeta({ middleware: ['get-auth'], layout: 'default' })
+
+const lateTolMin = ref(1)
+const overtimeTolMin = ref(1)
+const saving = ref(false)
+const saved = ref(false)
+const saveError = ref('')
+let savedTimer
+
+const canSave = computed(() => !saving.value && lateTolMin.value >= 0 && lateTolMin.value <= 60 && overtimeTolMin.value >= 0 && overtimeTolMin.value <= 60)
+
+// Nilai diambil dari backend dan dikonversi ke menit untuk input; DB menyimpan detik.
+onMounted(async () => {
+    const cur = await settings.fetchSettings()
+    lateTolMin.value = Math.round((cur.late_tolerance_sec || 0) / 60)
+    overtimeTolMin.value = Math.round((cur.overtime_tolerance_sec || 0) / 60)
+})
+
+async function save() {
+    if (!canSave.value) return
+    saving.value = true
+    saveError.value = ''
+    try {
+        const resp = await settings.saveSettings({
+            late_tolerance_sec: Math.round(lateTolMin.value * 60),
+            overtime_tolerance_sec: Math.round(overtimeTolMin.value * 60),
+        })
+        if (resp.code === 200) {
+            saved.value = true
+            clearTimeout(savedTimer)
+            savedTimer = setTimeout(() => { saved.value = false }, 2000)
+        } else {
+            saveError.value = resp.message || 'Save failed'
+        }
+    } catch (e) {
+        saveError.value = 'Network error — is the backend running?'
+    }
+    saving.value = false
+}
+</script>
+
 <template>
-    <div class="hud-frame glass rounded-[1.5rem] border border-emerald-100 p-8 relative overflow-hidden md:p-10 text-center tech-pattern">
-        <span class="hud-corner hud-corner-tl"></span><span class="hud-corner hud-corner-br"></span>
-        <div class="pointer-events-none absolute inset-0 tech-dots opacity-[0.04]"></div>
-        <div class="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center shadow-lg shadow-emerald-200">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+    <div class="space-y-4 max-w-xl">
+        <!-- Header -->
+        <div
+            class="hud-frame glass rounded-[1.5rem] border border-emerald-100 p-6 sm:p-8 relative overflow-hidden tech-pattern">
+            <span class="hud-corner hud-corner-tl"></span><span class="hud-corner hud-corner-br"></span>
+            <div class="pointer-events-none absolute inset-0 tech-dots opacity-[0.04]"></div>
+            <div class="flex items-center gap-4">
+                <div
+                    class="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center shadow-lg shadow-emerald-200 shrink-0">
+                    <font-awesome :icon="faSliders" class="w-6 h-6 text-white" />
+                </div>
+                <div class="min-w-0">
+                    <h2 class="display text-xl font-extrabold text-green-900">Attendance Rules</h2>
+                    <p class="mono text-[10px] tracking-[0.14em] text-emerald-700/50 mt-0.5">LATE &amp; OVERTIME
+                        THRESHOLDS</p>
+                </div>
+            </div>
         </div>
-        <h2 class="display text-xl font-extrabold text-green-900 mt-4">General Settings</h2>
-        <p class="mono text-[11px] tracking-[0.16em] text-emerald-700/50 mt-1">CONFIGURATION</p>
-        <p class="text-sm text-emerald-700/60 mt-2 max-w-md mx-auto">General system configuration — secure & realtime. Full features are on the way.</p>
-        <div class="mt-6 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-100 text-amber-800 text-xs font-bold border border-amber-200">🚧 Coming soon</div>
+
+        <!-- Tolerance settings -->
+        <div class="hud-frame glass rounded-[1.5rem] border border-emerald-100 p-6 sm:p-8 relative overflow-hidden">
+            <span class="hud-corner hud-corner-tl"></span><span class="hud-corner hud-corner-br"></span>
+
+            <div class="space-y-6">
+                <!-- Late tolerance -->
+                <div>
+                    <label for="late-tol"
+                        class="mono text-[11px] font-bold tracking-[0.12em] uppercase text-emerald-800">Late
+                        tolerance</label>
+                    <div class="flex items-center gap-2 mt-2">
+                        <input id="late-tol" v-model.number="lateTolMin" type="number" min="0" max="60" step="1"
+                            class="w-24 h-11 rounded-xl border bg-white px-4 text-[15px] font-medium text-green-900 focus:outline-none border-emerald-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition">
+                        <span class="mono text-xs text-emerald-700/60">minutes</span>
+                    </div>
+                </div>
+
+                <!-- Overtime tolerance -->
+                <div>
+                    <label for="overtime-tol"
+                        class="mono text-[11px] font-bold tracking-[0.12em] uppercase text-emerald-800">Overtime
+                        tolerance</label>
+                    <div class="flex items-center gap-2 mt-2">
+                        <input id="overtime-tol" v-model.number="overtimeTolMin" type="number" min="0" max="60" step="1"
+                            class="w-24 h-11 rounded-xl border bg-white px-4 text-[15px] font-medium text-green-900 focus:outline-none border-emerald-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition">
+                        <span class="mono text-xs text-emerald-700/60">minutes</span>
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="flex items-center gap-3 pt-2">
+                    <button type="button" :disabled="!canSave" @click="save"
+                        class="btn-emerald px-6 h-11 rounded-xl text-sm font-bold inline-flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed transition">
+                        <span v-if="saving"
+                            class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                        <svg v-else-if="saved" xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none"
+                            viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                        <span>{{ saving ? 'Saving…' : (saved ? 'Saved ✓' : 'Save') }}</span>
+                    </button>
+                    <span v-if="saveError" class="mono text-xs text-red-600">{{ saveError }}</span>
+                </div>
+
+                <!-- Preview -->
+                <div
+                    class="mt-2 rounded-xl bg-emerald-50/60 border border-emerald-100 px-4 py-3 mono text-[11px] leading-relaxed text-emerald-800">
+                    <span class="font-bold tracking-widest">PREVIEW</span>
+                    <p class="mt-1.5">IN at shift start +{{ lateTolMin }} min → on time</p>
+                    <p>IN at shift start +{{ lateTolMin + 1 }} min → late</p>
+                    <p>OUT at shift end +{{ overtimeTolMin }} min → on time</p>
+                    <p>OUT at shift end +{{ overtimeTolMin + 1 }} min → overtime</p>
+                </div>
+            </div>
+        </div>
     </div>
 </template>

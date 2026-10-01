@@ -68,8 +68,6 @@ function rowClasses(sft) {
             <span class="text-emerald-700/60">•</span> {{ format.sec_to_naive(sch.start) }} → {{
               format.sec_to_naive(sch.end) }}
           </span>
-          <span class="mono text-[10px] text-emerald-700/40 hidden sm:inline">drag a shift here, or pick one
-            below</span>
         </div>
       </div>
       <select :value="sch.schedule_shift_id" @change="onPick(sch.id, $event)"
@@ -80,7 +78,6 @@ function rowClasses(sft) {
           format.sec_to_naive(s.start_time) }}→{{ format.sec_to_naive(s.end_time) }}</option>
       </select>
     </div>
-    <p class="mt-1.5 mono text-[10px] text-emerald-700/40 px-1">Drag from “Shift List”, or pick from the dropdown</p>
   </div>
 
   <!-- WEEKLY / BIWEEKLY / MONTHLY -->
@@ -106,12 +103,13 @@ function rowClasses(sft) {
           @dragleave="emit('drag-leave')" @drop="(e) => emit('handle-drop', e, sft.id)">
           <div class="flex items-center gap-2 min-w-0 flex-1">
             <span class="w-10 text-center mono text-[10px] font-bold px-1.5 py-1 rounded-lg"
-              :class="((sft.dom - 1) % 7 === 0) ? 'bg-red-500 text-white' : 'bg-emerald-600 text-white'">{{ dayShort(sft.dom)
+              :class="((sft.dom - 1) % 7 === 0) ? 'bg-red-500 text-white' : 'bg-emerald-600 text-white'">{{
+                dayShort(sft.dom)
               }}</span>
             <span class="mono text-[10px] text-emerald-700/50 hidden sm:inline">D{{ sft.dom }}</span>
             <span v-if="isLibur(sft)"
               class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-slate-100 border border-slate-200 text-slate-600 mono text-xs">{{
-              OFF_DAY_LABEL }}</span>
+                OFF_DAY_LABEL }}</span>
             <span v-else class="truncate mono text-xs font-medium text-green-900">{{ sft.shift_name }} <span
                 class="text-emerald-700/40">•</span> <span class="text-emerald-700">{{ format.sec_to_naive(sft.start)
                 }}→{{ format.sec_to_naive(sft.end) }}</span></span>

@@ -34,6 +34,9 @@ pub struct Reports {
     pub end_enroll: Option<i64>,
     pub working_time: i64,
     pub late_time: i64,
+
+    #[serde(rename = "overtime")]
+    pub overtime_time: i64,
 }
 
 #[derive(Debug, Deserialize, Serialize, sqlx::FromRow)]

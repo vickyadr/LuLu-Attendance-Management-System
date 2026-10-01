@@ -10,7 +10,7 @@ export const useAuthStore = defineStore("auth", () => {
     };
 
     const isLogIn = computed(() => !!user.fname.value && !!user.lname.value && !!user.level.value);
-    
+
     const displayName = computed(() => {
         const s = `${user.fname.value || ''} ${user.lname.value || ''}`.trim();
         return s || 'Guest';
@@ -90,7 +90,7 @@ export const useAuthStore = defineStore("auth", () => {
                     maxAge: 5,
                     //expires: Date.now()
                 }).value = null
-
+                
                 clearUser();
                 token.value = null
                 window.location.reload()

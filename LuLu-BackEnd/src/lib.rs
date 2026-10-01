@@ -7,6 +7,7 @@ pub mod models {
     pub mod m_shift;
     pub mod m_schedule;
     pub mod m_report;
+    pub mod m_settings;
     pub mod m_employee;
 }
 
@@ -22,6 +23,7 @@ pub mod handler {
     pub mod h_shift;
     pub mod h_schedule;
     pub mod h_report;
+    pub mod h_settings;
     pub mod h_employee;
 }
 

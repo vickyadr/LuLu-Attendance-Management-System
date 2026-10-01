@@ -124,7 +124,7 @@ function modalLogout() {
         </a>
       </nav>
 
-      <!-- Middle toggle -->
+      <!-- Middle toggle — floating di tengah seam (pattern: pill chevron centered on edge) -->
       <button type="button" @click="toggleSidebar" :aria-label="sidebarCompact ? 'Expand sidebar' : 'Collapse sidebar'"
         :title="sidebarCompact ? 'Expand' : 'Collapse'"
         class="absolute top-1/2 -translate-y-1/2 -right-3 z-[60] w-7 h-7 grid place-content-center rounded-full bg-white border border-emerald-200 text-emerald-700 shadow-[0_2px_10px_rgba(2,44,34,.22)] hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-800 active:scale-95 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2">

@@ -6,6 +6,35 @@ use crate::{
 };
 use actix_web::{get, web::{self, ReqData}, HttpResponse, Responder};
 use chrono::Utc;
+use sqlx::Row;
+
+#[derive(Clone, Copy)]
+struct Tolerances {
+    late_sec: i64,
+    overtime_sec: i64,
+}
+
+async fn load_tolerances(db: &sqlx::PgPool) -> Tolerances {
+    let row = sqlx::query(
+        r#"SELECT
+             COALESCE(MAX(setting_value) FILTER (WHERE setting_key='late_tolerance_sec'), $1::BIGINT) AS late_tol,
+             COALESCE(MAX(setting_value) FILTER (WHERE setting_key='overtime_tolerance_sec'), $2::BIGINT) AS overtime_tol
+           FROM settings"#
+    )
+    .bind(60i64)
+    .bind(60i64)
+    .fetch_one(db)
+    .await;
+
+    match row {
+        Ok(r) => Tolerances {
+            late_sec: r.get::<i64, _>("late_tol"),
+            overtime_sec: r.get::<i64, _>("overtime_tol"),
+        },
+
+        Err(_) => Tolerances { late_sec: 60, overtime_sec: 60 },
+    }
+}
 
 #[get("/report/today")]
 pub async fn report_today(pool: web::Data<AppState>, bearer: Option<ReqData<String>>) -> impl Responder {
@@ -32,10 +61,12 @@ pub async fn report_today(pool: web::Data<AppState>, bearer: Option<ReqData<Stri
         Err(_) => vec![]
     };
 
+    let tolerances = load_tolerances(&pool.db).await;
+
     // Then get reports data
     match get_reports_data(&pool.db, today, today).await {
         Ok(datas) => {
-            let reports = get_enroll_data(today, today, datas, schedule_list);
+            let reports = get_enroll_data(today, today, datas, schedule_list, tolerances);
             HttpResponse::Ok().json(GenericResponse::<Reports>::ok(
                 reports,
                 "OK".to_string(),
@@ -83,10 +114,12 @@ pub async fn report_range(
         Err(_) => vec![]
     };
 
+    let tolerances = load_tolerances(&pool.db).await;
+
     // Then get reports data
     match get_reports_data(&pool.db, start_range, end_range).await {
         Ok(datas) => {
-            let reports = get_enroll_data(start_range, end_range, datas, schedule_list);
+            let reports = get_enroll_data(start_range, end_range, datas, schedule_list, tolerances);
             HttpResponse::Ok().json(GenericResponse::<Reports>::ok(
                 reports,
                 "OK".to_string(),
@@ -143,7 +176,8 @@ fn get_enroll_data(
     start: i64,
     end: i64,
     collection: Vec<ReportsHelper>,
-    schedule_list: Vec<ScheduleHelper>
+    schedule_list: Vec<ScheduleHelper>,
+    tolerances: Tolerances
 ) -> Vec<Reports> {
     if collection.is_empty() {
         return Vec::new();
@@ -178,7 +212,8 @@ fn get_enroll_data(
             start,
             end,
             enrollments,
-            &schedule_map
+            &schedule_map,
+            tolerances
         );
         results.extend(employee_reports);
     }
@@ -192,7 +227,8 @@ fn process_employee_enrollments(
     start: i64,
     end: i64,
     enrollments: Vec<&ReportsHelper>,
-    schedule_map: &HashMap<(i32, i32), ScheduleHelper>
+    schedule_map: &HashMap<(i32, i32), ScheduleHelper>,
+    tolerances: Tolerances
 ) -> Vec<Reports> {
     let mut daily_reports: HashMap<i64, Reports> = HashMap::new();
 
@@ -230,12 +266,11 @@ fn process_employee_enrollments(
     daily_reports
         .into_values()
         .map(|mut report| {
-            calculate_working_time(&mut report);
+            calculate_working_time(&mut report, tolerances);
             report
         })
         .collect()
 }
-
 
 fn get_shift_for_date<'a>(
     current_date: i64,
@@ -258,7 +293,6 @@ fn get_shift_for_date<'a>(
     }
     schedule_map.get(&key)
 }
-
 
 fn calculate_enrollment_window(
     current_date: i64,
@@ -300,8 +334,6 @@ fn create_daily_report(
     let pattern = if schedule_type < 7 { 1 } else { schedule_type / 7 };
     let dom_span = if schedule_type < 7 { 1 } else { 7 };
 
-    // Same frame as get_shift_for_date: the weekday of the named calendar day, mapped onto
-    // dom without wrapping, so `enroll_dow` agrees with the schedule row that was selected.
     let iso_dow = ts_dow(current_date, 0) as i32;
     let dow = (iso_dow - 1) % dom_span + 1;
     let week = (ts_week(current_date, 0) as i32) % if pattern < 1 { 1 } else { pattern };
@@ -324,10 +356,11 @@ fn create_daily_report(
         end_enroll: last_enrollment,
         working_time: 0,
         late_time: 0,
+        overtime_time: 0,
     })
 }
 
-fn calculate_working_time(report: &mut Reports) {
+fn calculate_working_time(report: &mut Reports, tolerances: Tolerances) {
     let Some(enroll_date) = report.enroll_date else { return };
     let Some(device_timezone) = report.device_timezone else { return };
     let Some(shift_start) = report.shift_start_time else { return };
@@ -335,11 +368,6 @@ fn calculate_working_time(report: &mut Reports) {
 
     let timezone_offset = (device_timezone * 3600) as i64;
 
-    // `enroll_date` is a UTC midnight; the shift's own start/end are wall-clock durations
-    // from LOCAL midnight. Convert the anchor to local midnight once, then add the shift
-    // offsets in that same frame. The original code added the offset to the start bound and
-    // subtracted it from the end bound, which stretched or compressed the shift span by
-    // twice the offset and pushed the reference point a day off for non-zero timezones.
     let local_midnight = enroll_date - timezone_offset;
     let start_working = local_midnight +
         if shift_start >= shift_end { shift_start - 86400 } else { shift_start };
@@ -352,7 +380,7 @@ fn calculate_working_time(report: &mut Reports) {
     if let Some(start_enroll) = report.start_enroll {
         if start_enroll > start_working {
             let late = start_enroll - start_working;
-            report.late_time = if late < 60 { 0 } else { late.min(shift_duration) };
+            report.late_time = if late <= tolerances.late_sec { 0 } else { late.min(shift_duration) };
         }
         
         // Handle case where employee arrived after half shift without checkout
@@ -362,15 +390,16 @@ fn calculate_working_time(report: &mut Reports) {
         }
     }
 
-    // Calculate working time: actual presence between first IN and last OUT.
-    // The old formula measured from shift start (`end_enroll - start_working`),
-    // which inflated the number whenever someone arrived late and hid early
-    // leave entirely (OUT before shift end still showed a full shift).
     if let (Some(start_enroll), Some(end_enroll)) = (report.start_enroll, report.end_enroll) {
         report.working_time = end_enroll.saturating_sub(start_enroll);
     } else if let Some(end_enroll) = report.end_enroll {
-        // Single-punch corner (late arrival reclassified as checkout-only above):
-        // fall back to time since shift start so the row still carries a duration.
         report.working_time = end_enroll.saturating_sub(start_working);
+    }
+
+    if let Some(end_enroll) = report.end_enroll {
+        if end_enroll > end_working {
+            let over = end_enroll - end_working;
+            report.overtime_time = if over <= tolerances.overtime_sec { 0 } else { over };
+        }
     }
 }

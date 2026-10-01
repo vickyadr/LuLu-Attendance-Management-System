@@ -126,7 +126,7 @@ const add_schedule = async () => {
                 validator.name = response.data.name || ''
                 validator.shift = response.data.shift || response.data.pattern || ''
             }
-            callbackNotif({ title: 'Error', message: response.message || 'Failed to create schedule' })
+            callbackNotif({ title: 'Gagal', message: response.message || 'Failed to create schedule' })
         }
     } catch (e) {
         const msg = e?.data?.message || e?.message || 'Connection failed'
@@ -167,8 +167,7 @@ const add_schedule = async () => {
                         class="w-full px-3.5 h-11 rounded-xl border-2 border-emerald-100 bg-white focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 outline-none text-sm text-green-900 placeholder:text-green-900/30 transition">
                     <p v-if="validator.name" class="mt-1.5 text-xs font-medium text-red-500 ml-1">{{ validator.name }}
                     </p>
-                    <p v-else class="mt-1.5 mono text-[10px] tracking-wide text-emerald-700/40 ml-1">Unique name •
-                        becomes the parent id (employees pick this schedule)</p>
+                    <p v-else class="mt-1.5 mono text-[10px] tracking-wide text-emerald-700/40 ml-1">Unique name</p>
                 </div>
                 <div>
                     <label for="schedule_pattern"
@@ -256,8 +255,7 @@ const add_schedule = async () => {
                                         class="mono text-[10px] px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100">Copy
                                         W1 → all weeks</button>
                                     <span
-                                        class="mono text-[10px] tracking-widest text-emerald-700/40 hidden sm:inline">7
-                                        days</span>
+                                        class="mono text-[10px] tracking-widest text-emerald-700/40 hidden sm:inline">7d</span>
                                 </span>
                             </div>
                             <!-- mobile: stacked, desktop: 7 cols -->
@@ -322,9 +320,6 @@ const add_schedule = async () => {
                 </button>
                 <button type="button" @click="form_data.name = ''; clearShifts(); ensureShiftLength()"
                     class="rounded-xl px-8 h-11 text-sm font-medium bg-white border-2 border-emerald-100 text-emerald-700 hover:bg-emerald-50 hover:border-emerald-200 transition">Reset</button>
-                <span class="mono text-[10px] tracking-widest text-emerald-700/40 ml-auto hidden sm:inline">Shifts from
-                    the Shift
-                    tab • drag & drop also works from the list on the left</span>
             </div>
         </form>
     </div>

@@ -119,8 +119,6 @@ watch(remember, (v) => { try { localStorage.setItem('lulu:remember', v ? '1' : '
                 class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[220px] h-[220px] sm:w-[420px] sm:h-[420px] rounded-full bg-gradient-to-br from-emerald-200/8 sm:from-emerald-200/15 via-teal-100/5 sm:via-teal-100/8 to-transparent blur-3xl">
             </div>
         </div>
-
-
         <div class="relative w-full max-w-[420px] flex flex-col items-center">
 
             <div
@@ -179,7 +177,7 @@ watch(remember, (v) => { try { localStorage.setItem('lulu:remember', v ? '1' : '
                             <div class="relative mt-1.5 sm:mt-2 group">
                                 <input v-model.trim="user.user_id" id="user_name" type="text" required
                                     autocomplete="username" autocorrect="off" spellcheck="false" inputmode="text"
-                                    enterkeyhint="next" placeholder="e.g. demo" :disabled="loading"
+                                    enterkeyhint="next" placeholder="Enter your User ID" :disabled="loading"
                                     :aria-invalid="!!validation.user_id"
                                     :aria-describedby="validation.user_id ? 'err-user' : undefined"
                                     @keydown.enter.prevent="() => { if (canSubmit) login(); else document.getElementById('user_password')?.focus(); }"
@@ -306,8 +304,6 @@ watch(remember, (v) => { try { localStorage.setItem('lulu:remember', v ? '1' : '
                                         d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
                                 </svg></span>
                         </button>
-                        <p class="mono text-center text-[11px] text-emerald-700/40 mt-1 sm:mt-2.5">Protected session •
-                            Encrypted • <span class="text-emerald-700/60">demo / demo12345</span></p>
                     </form>
                 </div>
                 <div

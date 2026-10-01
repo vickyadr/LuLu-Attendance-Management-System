@@ -1,7 +1,6 @@
 /* tailwind base already injected by @nuxtjs/tailwindcss */
 @import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap");
 
-/* LuLu — Emerald */
 :root {
   --green-50: #f0fdf4;
   --green-100: #dcfce7;
@@ -182,7 +181,7 @@ tr.th-green th {
   background-clip: text;
 }
 
-/* ===== TECH LAYER ===== */
+/* ===== TECH LAYER — BioTech Fusion ===== */
 .mono {
   font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 }
@@ -378,7 +377,6 @@ tr.th-green th {
       0 6px / 100% 1px no-repeat;
 }
 
-/* ===== COOKIE BANNER ===== */
 .cookieControl__Bar {
   background: linear-gradient(180deg, #052e16 0%, #14532d 100%) !important;
   border-top: 1px solid rgba(16, 185, 129, 0.28);
