@@ -315,9 +315,7 @@ const device_action = async () => {
                                 <p v-if="validator.sn" class="mt-1.5 text-xs font-medium text-red-500 ml-1">{{
                                     validator.sn }}</p>
                                 <p v-else class="mt-1 mono text-[10px] tracking-wide ml-1"
-                                    :class="isEditMode ? 'text-amber-600' : 'text-emerald-700/40'">{{ isEditMode ? 'SN
-                                    is locked — delete and re - create to swap machines' : 'Find the SN under Menu →
-                                    Device on the machine • it must be unique' }}</p>
+                                    :class="isEditMode ? 'text-amber-600' : 'text-emerald-700/40'">{{ isEditMode ? 'SN is locked — delete and re - create to swap machines' : 'Find the SN under Menu → Device on the machine • it must be unique' }}</p>
                             </div>
                         </div>
 
