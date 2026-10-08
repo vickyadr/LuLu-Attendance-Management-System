@@ -1,1 +1,6 @@
 target/
+
+# Never track secrets: the live .env holds DATABASE_URL and SECRET_KEY.
+.env
+.env.*
+!.env.example

@@ -1,9 +1,14 @@
 use crate::{
-    models::m_settings::*, utility::{
-        authorization::is_login, stor::{AppState, GenericResponse, NoDataResponse, KeyValResponse}
-    }
+    models::m_settings::*,
+    utility::{
+        authorization::{Action, check_action_access},
+        stor::{AppState, GenericResponse, IntoResponse, KeyValResponse, NoDataResponse},
+    },
 };
-use actix_web::{get, post, web::{self, ReqData}, HttpResponse, Responder};
+use actix_web::{
+    Responder, get, post,
+    web::{self, ReqData},
+};
 use sqlx::Row;
 use std::collections::HashMap;
 
@@ -12,20 +17,12 @@ const DEFAULT_OVERTIME_TOL: i64 = 60;
 const MAX_TOL: i64 = 3600;
 
 #[get("/settings/list")]
-pub async fn settings_list(pool: web::Data<AppState>, bearer: Option<ReqData<String>>) -> impl Responder {
-    match is_login(pool.db.clone(), bearer).await {
-        Some(level) =>{
-            if level.lt(&100) {
-                return HttpResponse::Ok().json(NoDataResponse::new(
-                    format!("Sorry, doesnt have permission"),
-                    403
-                ))
-            }
-        },
-        None => return HttpResponse::Ok().json(NoDataResponse::new(
-                    format!("Session token invalid"),
-                    401
-                ))
+pub async fn settings_list(
+    pool: web::Data<AppState>,
+    bearer: Option<ReqData<String>>,
+) -> impl Responder {
+    if let Ok(resp) = check_action_access(pool.db.clone(), bearer, "settings", Action::View).await {
+        return resp;
     }
 
     // Resolve both keys in one pass, falling back to the built-in default when the table is
@@ -47,32 +44,32 @@ pub async fn settings_list(pool: web::Data<AppState>, bearer: Option<ReqData<Str
         Err(_) => (DEFAULT_LATE_TOL, DEFAULT_OVERTIME_TOL),
     };
 
-    HttpResponse::Ok().json(GenericResponse::<Settings>::ok(
+    GenericResponse::<Settings>::ok(
         vec![
-            Settings { setting_key: "late_tolerance_sec".to_string(), setting_value: late },
-            Settings { setting_key: "overtime_tolerance_sec".to_string(), setting_value: overtime },
+            Settings {
+                setting_key: "late_tolerance_sec".to_string(),
+                setting_value: late,
+            },
+            Settings {
+                setting_key: "overtime_tolerance_sec".to_string(),
+                setting_value: overtime,
+            },
         ],
-        format!("OK")
-    ))
+        "OK".to_string(),
+    )
+    .into_response()
 }
 
 #[post("/settings/edit")]
-pub async fn settings_edit(pool: web::Data<AppState>, body: web::Json<ReceiverSettings>, bearer: Option<ReqData<String>>) -> impl Responder {
+pub async fn settings_edit(
+    pool: web::Data<AppState>,
+    body: web::Json<ReceiverSettings>,
+    bearer: Option<ReqData<String>>,
+) -> impl Responder {
     let mut errs: HashMap<String, String> = HashMap::new();
 
-    match is_login(pool.db.clone(), bearer).await {
-        Some(level) =>{
-            if level.lt(&100) {
-                return HttpResponse::Ok().json(NoDataResponse::new(
-                    format!("Sorry, doesnt have permission"),
-                    403
-                ))
-            }
-        },
-        None => return HttpResponse::Ok().json(NoDataResponse::new(
-                    format!("Session token invalid"),
-                    401
-                ))
+    if let Ok(resp) = check_action_access(pool.db.clone(), bearer, "settings", Action::Edit).await {
+        return resp;
     }
 
     // Validate both fields before writing either, so a rejected value never half-applies.
@@ -80,19 +77,20 @@ pub async fn settings_edit(pool: web::Data<AppState>, body: web::Json<ReceiverSe
         ("late_tolerance_sec", body.late_tolerance_sec),
         ("overtime_tolerance_sec", body.overtime_tolerance_sec),
     ] {
-        if let Some(v) = value {
-            if v < 0 || v > MAX_TOL {
-                errs.insert(field.to_string(), format!("Use 0-3600 seconds"));
-            }
+        if let Some(v) = value
+            && (!(0..=MAX_TOL).contains(&v))
+        {
+            errs.insert(field.to_string(), "Use 0-3600 seconds".to_string());
         }
     }
 
-    if errs.len() > 0 {
-        return HttpResponse::Ok().json(KeyValResponse::<String, String>::new(
+    if !errs.is_empty() {
+        return KeyValResponse::<String, String>::new(
             errs,
-            format!("There's was error while saving settings"),
-            403
-        ));
+            "There's was error while saving settings".to_string(),
+            403,
+        )
+        .into_response();
     }
 
     for (key, value) in [
@@ -104,7 +102,7 @@ pub async fn settings_edit(pool: web::Data<AppState>, body: web::Json<ReceiverSe
                 r#"INSERT INTO settings (setting_key, setting_value, updated_at)
                    VALUES ($1, $2, NOW())
                    ON CONFLICT (setting_key)
-                   DO UPDATE SET setting_value = EXCLUDED.setting_value, updated_at = NOW()"#
+                   DO UPDATE SET setting_value = EXCLUDED.setting_value, updated_at = NOW()"#,
             )
             .bind(key)
             .bind(v)
@@ -112,14 +110,12 @@ pub async fn settings_edit(pool: web::Data<AppState>, body: web::Json<ReceiverSe
             .await;
 
             if let Err(e) = done {
-                println!("{}", e);
-                return HttpResponse::Ok().json(NoDataResponse::new(
-                    format!("Internal error, please try again!"),
-                    500
-                ));
+                log::error!("{}", e);
+                return NoDataResponse::new("Internal error, please try again!".to_string(), 500)
+                    .into_response();
             }
         }
     }
 
-    HttpResponse::Ok().json(NoDataResponse::ok(format!("Settings saved !!!")))
+    NoDataResponse::ok("Settings saved !!!".to_string()).into_response()
 }

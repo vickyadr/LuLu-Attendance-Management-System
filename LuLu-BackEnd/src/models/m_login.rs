@@ -8,7 +8,7 @@ pub struct LoginData {
 
 #[derive(Debug, Deserialize, Serialize, sqlx::FromRow)]
 pub struct UserData {
+    pub user_nickname: String,
     pub user_fname: String,
     pub user_lname: String,
-    pub user_level: i32,
 }

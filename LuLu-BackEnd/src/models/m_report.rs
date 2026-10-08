@@ -47,7 +47,7 @@ pub struct ReportsHelper {
     pub employee_departement: Option<String>,
     pub device_timezone: i32,
     pub device_name: Option<String>,
-    pub device_location: String,
+    pub device_location: Option<String>,
     //pub schedule_name: Option<String>,
     pub enroll_time: i64,
     pub employee_status: i32,

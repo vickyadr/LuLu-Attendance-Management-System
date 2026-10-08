@@ -3,17 +3,18 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize, sqlx::FromRow, Clone)]
 pub struct LiveTransaction {
-
     #[serde(rename = "date_time")]
-    pub enroll_time: i64,//NaiveDateTime,
+    pub enroll_time: i64, //NaiveDateTime,
     #[serde(rename = "first_name")]
     pub employee_fname: String,
     #[serde(rename = "last_name")]
     pub employee_lname: String,
     //#[serde(serialize_with = "parse_type")]
     pub enroll_type: i32,
+    #[serde(skip_serializing_if = "Option::is_none", rename = "op_code")]
+    pub enroll_op_code: Option<i32>,
     #[serde(rename = "location")]
-    pub device_location: String,
+    pub device_location: Option<String>,
     #[serde(rename = "tz")]
     pub device_timezone: i32,
     #[serde(rename = "departement")]
@@ -22,4 +23,5 @@ pub struct LiveTransaction {
     pub enroll_status: Option<i32>,
     #[serde(skip_deserializing)]
     pub enroll_id: i32,
+    pub employee_id: i32,
 }

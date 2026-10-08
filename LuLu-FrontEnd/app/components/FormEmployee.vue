@@ -1,19 +1,24 @@
 <script setup>
 import { useChecker, useFormater } from '#imports';
 import { useAuthStore } from '~/store/auth';
+const canAdd = computed(() => auth.hasActionAccess('employee', 'can_add'))
+const canEdit = computed(() => auth.hasActionAccess('employee', 'can_edit'))
+const canSubmit = computed(() => (form_data.id > 0 ? canEdit.value : canAdd.value))
 import { useEmployee } from '~/store/employee';
+import { useNotifyStore } from '~/store/notify';
 import { useSchedule } from '~/store/schedule';
 import { useShiftStore } from '~/store/shift'
 import { OFF_DAY, OFF_DAY_LABEL, isOffDay } from '~/utils/labels';
 
 const
     auth = useAuthStore(),
+    notify = useNotifyStore(),
     employee = useEmployee(),
     schedule = useSchedule(),
     shiftStore = useShiftStore(),
     config = useRuntimeConfig(),
     check = useChecker(),
-    emit = defineEmits(['notif', 'done']),
+    emit = defineEmits(['done']),
     validator = reactive({ first_name: '', departement: '', address: '', schedule_id: '' }),
     form_data = reactive({
         id: 0,
@@ -67,18 +72,67 @@ function previewSchedule(s) {
 async function ensureSchedules() {
     if (schedule.contents && schedule.contents.length) return
     try {
-        const r = await $fetch(`${config.public.apiBase}/schedule/list`, { method: 'GET', headers: auth.confHeaders() })
+        const r = await apiFetch(`${config.public.apiBase}/schedule/list`, { method: 'GET', headers: auth.confHeaders() })
         if (r.code === 200) schedule.set(r.data)
     } catch (e) { console.error(e) }
 }
 async function ensureShifts() {
     if (shiftStore.contents && shiftStore.contents.length) return
     try {
-        const r = await $fetch(`${config.public.apiBase}/shift/list`, { method: 'GET', headers: auth.confHeaders() })
+        const r = await apiFetch(`${config.public.apiBase}/shift/list`, { method: 'GET', headers: auth.confHeaders() })
         if (r.code === 200) shiftStore.set(r.data)
     } catch (e) { console.error(e) }
 }
 onMounted(() => { ensureSchedules(); ensureShifts() })
+
+
+const deptOpen = ref(false)
+const deptIdx = ref(-1)
+const deptOptions = computed(() => {
+    const set = new Set((employee.contents || []).map(x => (x.departement || '').trim()).filter(Boolean))
+    const all = [...set].sort((a, b) => a.localeCompare(b))
+    const q = form_data.departement.trim().toLowerCase()
+    const matched = q ? all.filter(d => d.toLowerCase().includes(q)) : all
+    // An exact match has nothing left to pick, so keep it out of the list.
+    return matched.filter(d => d !== form_data.departement.trim())
+})
+const deptVisible = computed(() => deptOpen.value && deptOptions.value.length > 0)
+
+function deptTyped() {
+    deptIdx.value = -1
+    deptOpen.value = form_data.departement.trim().length > 0
+}
+function deptPick(d) {
+    form_data.departement = d
+    deptOpen.value = false
+    deptIdx.value = -1
+}
+function deptHide() { deptOpen.value = false; deptIdx.value = -1 }
+function deptKey(e) {
+    const n = deptOptions.value.length
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        // preventDefault: arrows would otherwise scroll the page behind the list.
+        e.preventDefault()
+        if (!deptVisible.value) {
+            // Reopen only when there is a query; an empty field never lists.
+            if (form_data.departement.trim().length > 0) { deptOpen.value = true; deptIdx.value = -1 }
+            return
+        }
+        if (!n) return
+        // Clamp ArrowUp at 0 so one press lands on the first row.
+        deptIdx.value = e.key === 'ArrowDown' ? Math.min(deptIdx.value + 1, n - 1) : Math.max(deptIdx.value - 1, 0)
+        nextTick(() => document.querySelector('.dept-item.is-active')?.scrollIntoView({ block: 'nearest' }))
+    } else if (e.key === 'Enter') {
+        // Only swallow Enter when a suggestion is highlighted, otherwise the form
+        // must still submit normally.
+        if (deptVisible.value && deptIdx.value >= 0) {
+            e.preventDefault()
+            deptPick(deptOptions.value[deptIdx.value])
+        }
+    } else if (e.key === 'Escape') {
+        deptHide()
+    }
+}
 
 function validate() {
     validator.first_name = ''; validator.departement = ''; validator.address = ''; validator.schedule_id = ''
@@ -105,14 +159,20 @@ function fillForm(data) {
 function resetForm() {
     form_data.id = 0; form_data.first_name = ''; form_data.last_name = ''; form_data.address = ''; form_data.departement = ''; form_data.status = 0; form_data.schedule_id = null
     validator.first_name = ''; validator.departement = ''; validator.address = ''; validator.schedule_id = ''
+    deptHide()
 }
 
-function callbackNotif(d) { emit('notif', d) }
 
 async function submit() {
     if (!validate()) return
-    submitting.value = true
     const isEditMode = form_data.id > 0
+    // Belt and braces: the submit button is hidden without permission, but form
+    // submit (Enter key) can still fire, and the server would answer 403 anyway.
+    if (isEditMode ? !canEdit.value : !canAdd.value) {
+        notify.warning('No access', 'You do not have permission to do that')
+        return
+    }
+    submitting.value = true
     const url = isEditMode ? `${config.public.apiBase}/employee/edit` : `${config.public.apiBase}/employee/add`
     const body = {
         id: isEditMode ? form_data.id : undefined,
@@ -124,15 +184,15 @@ async function submit() {
         schedule_id: Number(form_data.schedule_id),
     }
     try {
-        const response = await $fetch(url, { method: 'POST', body, headers: auth.confHeaders() })
+        const response = await apiFetch(url, { method: 'POST', body, headers: auth.confHeaders() })
         if (response.code === 200) {
             // reload employee list
             try {
-                const r2 = await $fetch(`${config.public.apiBase}/employee/list`, { method: 'GET', headers: auth.confHeaders() })
+                const r2 = await apiFetch(`${config.public.apiBase}/employee/list`, { method: 'GET', headers: auth.confHeaders() })
                 if (r2.code === 200) employee.set(r2.data)
             } catch { }
             const msg = response.message || (isEditMode ? 'Employee updated' : 'Employee added')
-            callbackNotif({ title: isEditMode ? 'Edit Employee' : 'Add Employee', message: msg })
+            notify.success(isEditMode ? 'Edit Employee' : 'Add Employee', msg)
             if (!isEditMode) resetForm()
             else { resetForm(); emit('done') }
         } else {
@@ -142,7 +202,7 @@ async function submit() {
                 validator.address = response.data.address || response.data.location || ''
                 validator.schedule_id = response.data.schedule_id || ''
             }
-            callbackNotif({ title: 'Gagal', message: response.message || 'Failed to save employee' })
+            notify.error('Save failed', response.message || 'Failed to save employee')
         }
     } catch (e) {
         const msg = e?.data?.message || e?.message || 'Connection failed'
@@ -150,24 +210,24 @@ async function submit() {
             validator.first_name = e.data.data.first_name || ''
             validator.departement = e.data.data.departement || ''
         }
-        callbackNotif({ title: 'Error', message: msg })
+        notify.error('Connection failed', msg)
     } finally { submitting.value = false }
 }
 
 async function del_employee(id) {
     try {
-        const r = await $fetch(`${config.public.apiBase}/employee/delete/${id}`, { method: 'GET', headers: auth.confHeaders() })
+        const r = await apiFetch(`${config.public.apiBase}/employee/delete/${id}`, { method: 'GET', headers: auth.confHeaders() })
         if (r.code === 200) {
             employee.removeList(id)
             // also reload to sync
             try {
-                const r2 = await $fetch(`${config.public.apiBase}/employee/list`, { method: 'GET', headers: auth.confHeaders() })
+                const r2 = await apiFetch(`${config.public.apiBase}/employee/list`, { method: 'GET', headers: auth.confHeaders() })
                 if (r2.code === 200) employee.set(r2.data)
             } catch { }
         }
-        callbackNotif({ title: 'Delete Employee', message: r.message || 'Selesai' })
+        notify[r.code === 200 ? 'success' : 'error']('Delete Employee', r.message || 'Selesai')
     } catch (e) {
-        callbackNotif({ title: 'Error', message: e?.data?.message || e?.message })
+        notify.error('Delete failed', e?.data?.message || e?.message)
     }
 }
 
@@ -210,11 +270,25 @@ defineExpose({ fillForm, del_employee, resetForm })
                     <label
                         class="block text-xs font-semibold tracking-widest uppercase text-emerald-700/70 mb-1.5 ml-1">Department
                         <span class="text-red-500">*</span></label>
-                    <input v-model="form_data.departement" type="text" required
-                        placeholder="e.g. Warehouse A, Production"
-                        class="w-full px-3.5 h-11 rounded-xl border-2 border-emerald-100 bg-white focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 outline-none text-sm text-green-900 placeholder:text-green-900/30">
+                    <div class="relative">
+                        <input v-model="form_data.departement" type="text" required
+                            placeholder="e.g. Warehouse A, Production"
+                            class="w-full px-3.5 h-11 rounded-xl border-2 border-emerald-100 bg-white focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 outline-none text-sm text-green-900 placeholder:text-green-900/30"
+                            @blur="deptHide" @input="deptTyped" @keydown="deptKey">
+
+                        <div v-if="deptVisible"
+                            class="absolute z-30 left-0 right-0 top-full mt-1 max-h-56 overflow-auto rounded-xl border-2 border-emerald-100 bg-white shadow-lg shadow-emerald-900/10">
+                            <button v-for="(d, i) in deptOptions" :key="d" type="button" tabindex="-1"
+                                class="dept-item w-full text-left px-3.5 py-2 text-sm text-green-900 transition-colors"
+                                :class="{ 'is-active': i === deptIdx }" @mousedown.prevent="deptPick(d)">
+                                <span class="truncate">{{ d }}</span>
+                            </button>
+                        </div>
+                    </div>
                     <p v-if="validator.departement" class="mt-1.5 text-xs font-medium text-red-500 ml-1">{{
                         validator.departement }}</p>
+                    <p v-else-if="deptVisible" class="mt-1.5 text-[11px] text-emerald-700/60 ml-1 mono">↑↓ to pick •
+                        ENTER to use • ESC to close</p>
                 </div>
                 <div>
                     <label
@@ -281,7 +355,7 @@ defineExpose({ fillForm, del_employee, resetForm })
             </div>
 
             <div class="flex flex-wrap items-center gap-3 pt-1">
-                <button type="submit" :disabled="submitting"
+                <button v-if="canSubmit" type="submit" :disabled="submitting"
                     class="btn-emerald rounded-xl px-8 h-11 text-sm font-bold mono tracking-widest disabled:opacity-60 inline-flex items-center gap-2">
                     <svg v-if="submitting" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4">
@@ -300,3 +374,12 @@ defineExpose({ fillForm, del_employee, resetForm })
         </form>
     </div>
 </template>
+
+<style scoped>
+.dept-item:hover,
+.dept-item.is-active {
+    background: rgba(16, 185, 129, .1);
+    color: #047857;
+    font-weight: 600;
+}
+</style>

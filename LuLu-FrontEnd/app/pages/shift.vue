@@ -37,15 +37,15 @@ function actOk() {
 }
 function actCancel() { sm_data.clear() }
 function shiftEditDone() { edit_mode.value.shift = false; form_tab.value = 'schedule' }
-function showModal(data) { sm_data.setText(data.title, data.message); sm_data.showOK() }
 function onScheduleDone() { /* after create schedule, stay on schedule tab */ }
 </script>
 
 <template>
-    <div class="space-y-4">
+
+    <div class="flex flex-col gap-4 lg:flex-1 lg:min-h-0">
         <!-- Page header -->
         <div
-            class="hud-frame glass rounded-2xl border border-emerald-100 px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-3 tech-grid-soft">
+            class="hud-frame glass rounded-2xl border border-emerald-100 px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-3 tech-grid-soft shrink-0">
             <span class="hud-corner hud-corner-tl hidden sm:block"></span>
             <span class="hud-corner hud-corner-br hidden sm:block"></span>
             <div class="flex items-start gap-3">
@@ -71,39 +71,39 @@ function onScheduleDone() { /* after create schedule, stay on schedule tab */ }
                 </div>
             </div>
             <div class="ml-auto flex items-center gap-2 mono text-[10px]">
-                <span
-                    class="hidden md:inline-flex items-center gap-1.5 chip bg-white border-emerald-200 text-emerald-700 border"><span
-                        class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> DRAG & DROP ACTIVE</span>
             </div>
         </div>
 
-        <!-- Main grid: left schedules, right shifts+form -->
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+        <!-- Main grid: left schedules (self-scrolling), right shifts+form (pinned) -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start lg:items-stretch lg:flex-1 lg:min-h-0">
             <!-- LEFT: Schedule list (takes 7 cols) -->
-            <div class="lg:col-span-7 xl:col-span-7">
-                <div class="glass rounded-2xl border border-emerald-100 shadow-sm overflow-hidden">
-                    <ListSchedule ref="compSchedule" @notif="showModal" />
+            <div class="lg:col-span-7 xl:col-span-7 lg:h-full lg:min-h-0 flex flex-col">
+                <div
+                    class="glass rounded-2xl border border-emerald-100 shadow-sm overflow-hidden flex flex-col lg:h-full lg:min-h-0">
+                    <ListSchedule ref="compSchedule" />
                 </div>
             </div>
 
             <!-- RIGHT: Shift list + Form tabs (5 cols) -->
-            <div class="lg:col-span-5 xl:col-span-5 space-y-4">
+            <div
+                class="lg:col-span-5 xl:col-span-5 lg:h-full lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain space-y-4">
                 <!-- Shift list card -->
-                <div class="glass rounded-2xl border border-emerald-100 shadow-sm overflow-hidden">
+                <div
+                    class="glass rounded-2xl border border-emerald-100 shadow-sm overflow-hidden flex flex-col lg:min-h-0">
                     <div
-                        class="px-4 py-3 border-b border-emerald-100 bg-gradient-to-r from-emerald-50/60 to-white flex items-center justify-between">
+                        class="px-4 py-3 border-b border-emerald-100 bg-gradient-to-r from-emerald-50/60 to-white flex items-center justify-between shrink-0">
                         <h2 class="mono text-xs font-bold tracking-[0.14em] text-emerald-700 flex items-center gap-2">
                             <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> SHIFT LIST
                         </h2>
                     </div>
-                    <div class="max-h-[320px] overflow-auto">
+                    <div class="lg:max-h-[220px] lg:min-h-0 overflow-auto">
                         <ListShift v-on:delete="cbDelShift" v-on:edit="cbEditShift" />
                     </div>
                 </div>
 
                 <!-- Form tabs -->
                 <div id="shift-form-anchor"
-                    class="glass rounded-2xl border border-emerald-100 shadow-sm overflow-hidden">
+                    class="glass rounded-2xl border border-emerald-100 shadow-sm overflow-hidden lg:min-h-0">
                     <div class="flex border-b border-emerald-100 bg-white/60">
                         <button
                             :class="form_tab === 'schedule' ? 'bg-emerald-600 text-white shadow-sm' : 'bg-white text-emerald-700 hover:bg-emerald-50'"
@@ -137,10 +137,10 @@ function onScheduleDone() { /* after create schedule, stay on schedule tab */ }
                     </div>
 
                     <div v-show="form_tab === 'schedule'" class="bg-white">
-                        <FormSchedule ref="compScheduleForm" @notif="showModal" @done="onScheduleDone" />
+                        <FormSchedule ref="compScheduleForm" @done="onScheduleDone" />
                     </div>
                     <div v-show="form_tab === 'shift'" class="bg-white">
-                        <FormShift ref="compShift" @done-edit="shiftEditDone" @notif="showModal" />
+                        <FormShift ref="compShift" @done-edit="shiftEditDone" />
                     </div>
                 </div>
 

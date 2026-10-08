@@ -3,7 +3,7 @@ import { useAuthStore } from '~/store/auth';
 import {
   faGaugeHigh, faChartColumn, faUserGroup, faFingerprint, faClock,
   faSliders, faArrowRightFromBracket, faXmark,
-  faChevronLeft, faChevronRight, faChevronDown,
+  faChevronLeft, faChevronRight, faChevronDown, faUsers,
 } from '@fortawesome/free-solid-svg-icons'
 import { SMData } from '~/components/SimpleModal.vue';
 
@@ -42,14 +42,17 @@ function toggleSidebar() { sidebarCompact.value = !sidebarCompact.value; try { l
 watch(sidebarCompact, (v) => { try { localStorage.setItem('lulu:sidebar-compact', v ? '1' : '0'); } catch { } });
 
 const NAV = [
-  { path: '/', label: 'Dashboard', icon: faGaugeHigh },
-  { path: '/employee', label: 'Employees', icon: faUserGroup },
-  { path: '/shift', label: 'Shifts', icon: faClock },
-  { path: '/report', label: 'Reports', icon: faChartColumn },
-  { path: '/controller', label: 'Devices', icon: faFingerprint },
+  { path: '/', label: 'Dashboard', icon: faGaugeHigh, pageKey: 'dashboard' },
+  { path: '/employee', label: 'Employees', icon: faUserGroup, pageKey: 'employee' },
+  { path: '/shift', label: 'Shifts', icon: faClock, pageKey: 'shift' },
+  { path: '/report', label: 'Reports', icon: faChartColumn, pageKey: 'report' },
+  { path: '/controller', label: 'Devices', icon: faFingerprint, pageKey: 'controller' },
 ]
 const isActive = (p) => route.path === p || (p !== '/' && route.path.startsWith(p + '/'))
 const isActiveOn = isActive
+
+// Filter nav items based on user permissions
+const visibleNav = computed(() => NAV.filter(n => auth.hasPageAccess(n.pageKey)))
 
 const initials = computed(() => auth.initials)
 const userName = computed(() => auth.displayName)
@@ -89,7 +92,7 @@ function modalLogout() {
         :class="sidebarCompact ? 'px-2' : 'px-3'" aria-label="Main">
         <p v-show="!sidebarCompact" class="mono text-[10px] font-bold tracking-[0.18em] text-emerald-200/40 px-3 pb-2">
           MENU</p>
-        <template v-for="n in NAV" :key="n.path">
+        <template v-for="n in visibleNav" :key="n.path">
           <a :href="n.path" @click.prevent="go(n.path)" :aria-current="isActive(n.path) ? 'page' : undefined"
             :title="sidebarCompact ? n.label : undefined"
             class="group flex items-center rounded-xl text-sm font-semibold transition-all duration-150 cursor-pointer relative min-w-0"
@@ -109,6 +112,20 @@ function modalLogout() {
         </template>
 
         <div class="my-4 h-px bg-white/10"></div>
+        <a v-if="auth.hasPageAccess('users')" href="/users" @click.prevent="go('/users')"
+          :title="sidebarCompact ? 'Users' : undefined"
+          class="group flex items-center rounded-xl text-sm font-semibold transition-all duration-150 cursor-pointer relative min-w-0"
+          :class="[
+            sidebarCompact ? 'justify-center px-2 py-2.5' : 'gap-3 px-3 py-2.5',
+            isActive('/users') ? 'bg-white/15 text-white' : 'text-emerald-50/90 hover:text-white hover:bg-white/10'
+          ]">
+          <font-awesome :icon="faUsers" class="text-[15px] w-5 text-center shrink-0" />
+          <span v-show="!sidebarCompact">Users</span>
+          <span v-if="sidebarCompact"
+            class="pointer-events-none hidden group-hover:block absolute left-[calc(100%+10px)] top-1/2 -translate-y-1/2 whitespace-nowrap px-2.5 py-1.5 rounded-lg bg-green-950 text-white text-xs font-semibold shadow-xl z-50">
+            Users
+          </span>
+        </a>
         <a href="/settings" @click.prevent="go('/settings')" :title="sidebarCompact ? 'Settings' : undefined"
           class="group flex items-center rounded-xl text-sm font-semibold transition-all duration-150 cursor-pointer relative min-w-0"
           :class="[
@@ -124,7 +141,7 @@ function modalLogout() {
         </a>
       </nav>
 
-      <!-- Middle toggle — floating di tengah seam (pattern: pill chevron centered on edge) -->
+      <!-- Middle toggle — floating di tengah seam (pattern umum: pill chevron centered on edge) -->
       <button type="button" @click="toggleSidebar" :aria-label="sidebarCompact ? 'Expand sidebar' : 'Collapse sidebar'"
         :title="sidebarCompact ? 'Expand' : 'Collapse'"
         class="absolute top-1/2 -translate-y-1/2 -right-3 z-[60] w-7 h-7 grid place-content-center rounded-full bg-white border border-emerald-200 text-emerald-700 shadow-[0_2px_10px_rgba(2,44,34,.22)] hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-800 active:scale-95 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2">
@@ -137,7 +154,7 @@ function modalLogout() {
       <header class="shrink-0 sticky top-0 z-30 glass border-b border-emerald-100">
         <div class="h-[2px] w-full bg-gradient-to-r from-emerald-500 via-lime-400 to-emerald-600 opacity-60"></div>
         <div class="flex h-[64px] items-center gap-3 px-4 sm:px-6">
-          <!-- Mobile: Icon as Hamburger Menu-->
+          <!-- Mobile: ikon aplikasi yang bisa ditekan sebagai pengganti hamburger -->
           <button type="button" @click="toggleMenu" :aria-expanded="openMenu ? 'true' : 'false'"
             aria-controls="mobile-nav" aria-label="Toggle navigation"
             class="lg:hidden w-9 h-9 rounded-xl overflow-hidden shadow-md ring-1 ring-emerald-100 hover:ring-emerald-200 active:scale-95 transition shrink-0">
@@ -151,7 +168,9 @@ function modalLogout() {
           </div>
 
           <div class="ml-auto flex items-center gap-2 sm:gap-3 min-w-0">
-
+            <!-- Notifications — history of everything the app has told you -->
+            <NotifyBell />
+            <!-- User — 1x klik muncul logout, klik lagi / klik menu hidden -->
             <div ref="userMenuRef" class="relative flex items-center min-w-0">
               <button type="button" @click.stop="toggleUserMenu" :aria-expanded="showUserMenu ? 'true' : 'false'"
                 aria-haspopup="menu" aria-label="User menu"
@@ -165,7 +184,7 @@ function modalLogout() {
                 <font-awesome :icon="faChevronDown" class="hidden sm:block w-3 h-3 text-emerald-700/40 transition"
                   :class="showUserMenu ? 'rotate-180' : ''" />
               </button>
-              <!-- Dropdown logout -->
+              <!-- Dropdown logout — di atas header jadi tidak tertutup cookie banner -->
               <div v-if="showUserMenu"
                 class="absolute right-0 top-full mt-2 w-56 rounded-xl bg-white border border-emerald-100 shadow-[0_12px_32px_-12px_rgba(2,44,34,.28)] overflow-hidden z-50"
                 role="menu" aria-label="User menu">
@@ -202,13 +221,19 @@ function modalLogout() {
           </div>
           <div class="flex-1 overflow-y-auto overflow-x-hidden px-3 py-4 space-y-1">
             <p class="mono text-[10px] font-bold tracking-[0.18em] text-emerald-200/40 px-3 pb-2">MENU</p>
-            <a v-for="n in NAV" :key="n.path" :href="n.path" @click.prevent="go(n.path)"
+            <a v-for="n in visibleNav" :key="n.path" :href="n.path" @click.prevent="go(n.path)"
               class="flex items-center gap-3 px-3 py-3 rounded-xl font-semibold text-sm transition cursor-pointer"
               :class="isActive(n.path) ? 'bg-emerald-600 text-white shadow-sm' : 'text-white/90 hover:bg-white/10 border border-transparent'">
               <font-awesome :icon="n.icon" class="w-4 h-4 shrink-0" />
               <span class="truncate">{{ n.label }}</span>
             </a>
             <div class="my-3 h-px bg-white/10"></div>
+            <a v-if="auth.hasPageAccess('users')" href="/users" @click.prevent="go('/users')"
+              class="flex items-center gap-3 px-3 py-3 rounded-xl font-semibold text-sm transition cursor-pointer"
+              :class="isActive('/users') ? 'bg-white/15 text-white' : 'text-white/90 hover:bg-white/10 border border-transparent'">
+              <font-awesome :icon="faUsers" class="w-4 h-4 shrink-0" />
+              <span>Users</span>
+            </a>
             <a href="/settings" @click.prevent="go('/settings')"
               class="flex items-center gap-3 px-3 py-3 rounded-xl font-semibold text-sm transition cursor-pointer"
               :class="isActive('/settings') ? 'bg-white/15 text-white' : 'text-white/90 hover:bg-white/10 border border-transparent'">
@@ -235,4 +260,7 @@ function modalLogout() {
   <SimpleModal :options="sm_data.get()" v-on:cancel="actCancel" v-on:ok="actOk" v-show="sm_data.isShow()">
     {{ sm_data.message() }}
   </SimpleModal>
+
+  <!-- Toasts float above every page; the bell in the header keeps the history -->
+  <ToastStack />
 </template>

@@ -1,5 +1,3 @@
-// Once again, im too lazy to rewrite DB and redebug so i create it instead
-// Ehe...
 export const OFF_DAY = 'Libur';
 
 export const OFF_DAY_LABEL = 'Day off';

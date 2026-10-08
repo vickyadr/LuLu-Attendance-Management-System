@@ -2,8 +2,8 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { useAuthStore } from '~/store/auth'
 
-// Toleransi kehadiran, disimpan di backend (tabel `settings`) supaya konsisten
-// untuk semua user dan langsung memengaruhi perhitungan report.
+// Attendance tolerance, stored in the backend (the `settings` table) so it stays
+// consistent for every user and directly affects the report calculation.
 export const useSettingsStore = defineStore('settings', () => {
     const auth = useAuthStore()
     const config = useRuntimeConfig()
@@ -14,7 +14,7 @@ export const useSettingsStore = defineStore('settings', () => {
 
     async function fetchSettings() {
         try {
-            const resp = await $fetch(`${config.public.apiBase}/settings/list`, {
+            const resp = await apiFetch(`${config.public.apiBase}/settings/list`, {
                 method: 'GET',
                 headers: auth.confHeaders(),
             })
@@ -32,7 +32,7 @@ export const useSettingsStore = defineStore('settings', () => {
     }
 
     async function saveSettings({ late_tolerance_sec, overtime_tolerance_sec }) {
-        const resp = await $fetch(`${config.public.apiBase}/settings/edit`, {
+        const resp = await apiFetch(`${config.public.apiBase}/settings/edit`, {
             method: 'POST',
             headers: auth.confHeaders(),
             body: { late_tolerance_sec, overtime_tolerance_sec },

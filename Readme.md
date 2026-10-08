@@ -1,47 +1,105 @@
-LuLu Universal Attendance Management System<br>
+LuLu Universal Attendance Management System
 
-Current Support List:
+Attendance management. Licensed under GPL-3.0.
 
-1. ZKTeco (ADMS V2.1 and below)
-2. Solution (Almost All)<br>
+Supported devices:
 
-<br><hr><br/>
---- DEMO SITE OFFLINE NOW<br/>
-Demo : <a href="https://lulu-demo.16pxlabs.com">lulu-demo.16pxlabs.com</a><br/><br/>
-User: demo<br/>
+1. ZKTeco (ADMS V2.1 and earlier)
+2. Solution (Almost all)
+
+Demo: https://lulu-demo.16pxlabs.com
+User: demo
 Password: demo12345
-<br><hr>
-FAQ : <br>
 
-Q: Why lulu?<br>
-A: Why not. its sounds cute, simple and easy to remember. right?<br><br>
+## Repository layout
 
-Q: Will (A) supported later?<br>
-A: If it have network log feature then the answer is maybe<br><br>
+    LuLu-BackEnd/     Rust API (Actix Web) + database migrations
+    LuLu-FrontEnd/    Nuxt 4 SPA (Vue 3 + Pinia + Tailwind)
 
-Q: You said maybe, what do you mean?<br>
-A: Two things, fist one of course i need data sample so sent me the devices but if the device data is encrypted then nah...<br><br>
+## Requirements
 
-Q: My device on the list but not working?<br>
-A: First thing first, check your device is it match the requirement and configuration, next check LuLu's server maybe the firewall or the program not started succeedfully otherwise you can post your issues here<br><br>
+- Rust edition 2024 (backend)
+- Node.js 20+ and npm (frontend)
+- A running PostgreSQL server
 
-Q: Will it have paid features?<br>
-A: LuLu attendance management system will always free and opensource<br><br>
+## Running the backend
 
-Q: How i can support this project?<br>
-A: You can contribute the project source or... give me some snacks i need it to make my brain work last longer<br><br>
+    cd LuLu-BackEnd
+    cp .env.example .env        # then fill in the values
+    cargo run
 
-Q: How can i contact you in person?<br>
-A: Check my profile page there was an Email, anything else i cant tell on public<br><br>
+Database migrations run automatically at server start (`sqlx::migrate!`), by filename
+order. The server refuses to start if any migration fails.
 
-Q: What your plan later?<br>
-A: Whoaa... calm down, but lets see... maybe i can built my own enroll devices and i swear i'll use to LuLu's system as data management OFC<br><br>
+Variables the code reads:
 
-Q: Are you cat?<br>
-A: Fix your brain please<br>
-<br><hr>
-Support me on: <br>
+| Variable       | Required | Default   | Notes                                         |
+| -------------- | -------- | --------- | --------------------------------------------- |
+| `DATABASE_URL` | yes      | —         | PostgreSQL connection string                  |
+| `SECRET_KEY`   | yes      | —         | Must be present; the server exits without it. |
+| `HOST`         | no       | `0.0.0.0` | Bind address                                  |
+| `PORT`         | no       | `4343`    | Backend port                                  |
 
-- ETH : 0x56AC2134df9357aaD3FF2C6d9B42Cb930708372E
-- Patreon : <a href="https://patreon.com/16PxLabs">patreon.com/16PxLabs</a>
-- QRIS : Soon-->
+Example `.env` (replace with your own environment's values):
+
+    DATABASE_URL=postgres://USER:***@127.0.0.1:5432/lulu
+    SECRET_KEY=replace-with-a-long-random-string
+    HOST=0.0.0.0
+    PORT=4343
+
+The backend refuses to start unless `SECRET_KEY` is set.
+
+## Running the frontend
+
+    cd LuLu-FrontEnd
+    npm install
+    npm run dev                # dev port 3232 by default
+
+## Publishing the demo build (static, no server)
+
+The demo build swaps the real backend for a mock API that runs inside the browser, so it
+can be published to static hosting with no Rust and no database:
+
+    cd LuLu-FrontEnd
+    npm run generate:demo
+
+The result is in `.output/public`. The mock lives in `app/composables/mockApi.js`. That
+build uses the demo credentials, so do not use it for real data.
+
+## Security notes
+
+Findings from a code audit, and which ones are now fixed:
+
+- **Session tokens expire after 12 hours of inactivity.** The window slides: an
+  authenticated request pushes the expiry forward. Expired sessions stop authenticating and
+  are swept after a grace period. Tokens are 32 random bytes from `getrandom`.
+- **The session cookie is readable by JavaScript** (not `httpOnly`), and there is a
+  hardcoded token fallback on the client. Both remain open.
+- **CORS accepts any origin while allowing credentials.** Narrow it to the domains actually
+  in use.
+- The backend **binds to `0.0.0.0` by default**, so it is reachable from the whole network.
+- The demo user's password hash is _committed_ in `migrations/…_data_seed.sql`. That is
+  deliberate (so a clean install has a demo account), but it means the demo credentials are
+  publicly known.
+
+## Frequently asked questions
+
+**Q: Why is it called LuLu?**
+A: Why not. It sounds cute, short, and is easy to remember.
+
+**Q: My terminal is in the list but does not work.**
+A: Check first that the device matches the requirements and its configuration, then check
+the LuLu server — it may be a firewall, or the aplication may not be started. If it still
+fails, open an issue in the repository.
+
+**Q: Will there be paid features?**
+A: LuLu will always be free and open source.
+
+**Q: Are you cat?**
+A: Fix your brain please.
+
+## Supporting
+
+- ETH: `0x56AC2134df9357aaD3FF2C6d9B42Cb930708372E`
+- Patreon: https://patreon.com/16PxLabs
+- QRIS: coming soon

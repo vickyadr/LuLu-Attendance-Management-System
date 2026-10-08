@@ -1,6 +1,9 @@
 <script setup>
 import { useSchedule } from '~/store/schedule';
 import { useAuthStore } from '~/store/auth';
+import { useNotifyStore } from '~/store/notify';
+const canEdit = computed(() => auth.hasActionAccess('shift', 'can_edit'))
+const canDelete = computed(() => auth.hasActionAccess('shift', 'can_delete'))
 import { useChecker, useFormater } from '#imports';
 import { faAdd, faRefresh, faSave, faTrash, faMagnifyingGlass } from '@fortawesome/free-solid-svg-icons';
 import { useShiftStore } from '~/store/shift'
@@ -9,12 +12,12 @@ import ScheduleItem from './ScheduleItem.vue';
 
 const
   auth = useAuthStore(),
+  notify = useNotifyStore(),
   config = useRuntimeConfig(),
   list = useSchedule(),
   shift = useShiftStore(),
   check = useChecker(),
   format = useFormater(),
-  emit = defineEmits(['notif']),
   dragOverId = ref(null),
   dirty = reactive(new Set()),
   saving = ref(false),
@@ -34,7 +37,7 @@ const dirtyCount = computed(() => dirty.size)
 
 async function initSchedule() {
   try {
-    const response = await $fetch(`${config.public.apiBase}/schedule/list`, { method: "GET", headers: auth.confHeaders() });
+    const response = await apiFetch(`${config.public.apiBase}/schedule/list`, { method: "GET", headers: auth.confHeaders() });
     if (response.code == 200) {
       list.set(response.data);
       temp.value = JSON.parse(JSON.stringify(response.data));
@@ -55,11 +58,11 @@ function toggleCollapse(type, index) {
   if (collapse.value[type][index] === undefined) collapse.value[type][index] = false
   collapse.value[type][index] = !collapse.value[type][index];
 }
-// default expanded main
+// Default folded
 watchEffect(() => {
   for (const p of filteredSchedules.value) {
-    if (collapse.value.main[p.id] === undefined) collapse.value.main[p.id] = true
-    for (let w = 1; w <= 4; w++) if (collapse.value[`w${w}`][p.id] === undefined) collapse.value[`w${w}`][p.id] = true
+    if (collapse.value.main[p.id] === undefined) collapse.value.main[p.id] = false
+    for (let w = 1; w <= 4; w++) if (collapse.value[`w${w}`][p.id] === undefined) collapse.value[`w${w}`][p.id] = false
   }
 })
 
@@ -113,7 +116,7 @@ async function saveChanges() {
     const row = list.contents.find(x => x.id === id)
     if (!row) { dirty.delete(id); continue }
     try {
-      const res = await $fetch(`${config.public.apiBase}/schedule/edit`, {
+      const res = await apiFetch(`${config.public.apiBase}/schedule/edit`, {
         method: 'POST',
         body: { id, shift: [Number(row.schedule_shift_id)] },
         headers: auth.confHeaders(),
@@ -125,18 +128,18 @@ async function saveChanges() {
   saving.value = false
   // reload to sync
   await initSchedule()
-  emit('notif', { title: 'Save Schedule', message: fail ? `${ok} saved, ${fail} failed` : `${ok} schedules updated` })
+  notify[fail ? 'warning' : 'success']('Save Schedule', fail ? `${ok} saved, ${fail} failed` : `${ok} schedules updated`)
 }
 
 async function deleteSchedule(parrentId, name) {
   if (!confirm(`Delete schedule "${name}"?`)) return
   try {
-    const res = await $fetch(`${config.public.apiBase}/schedule/delete/${parrentId}`, { method: 'GET', headers: auth.confHeaders() })
+    const res = await apiFetch(`${config.public.apiBase}/schedule/delete/${parrentId}`, { method: 'GET', headers: auth.confHeaders() })
     if (res.code === 200) {
       await initSchedule()
-      emit('notif', { title: 'Delete Schedule', message: res.message || 'Schedule deleted' })
-    } else emit('notif', { title: 'Gagal', message: res.message })
-  } catch (e) { emit('notif', { title: 'Error', message: e?.data?.message || e.message }) }
+      notify.success('Delete Schedule', res.message || 'Schedule deleted')
+    } else notify.error('Delete failed', res.message)
+  } catch (e) { notify.error('Delete failed', e?.data?.message || e.message) }
 }
 
 onMounted(() => initSchedule());
@@ -171,15 +174,19 @@ defineExpose({ refresh: initSchedule })
         <span v-if="hasDirty" class="chip bg-amber-500 text-white mono !text-[9px] animate-pulse">{{ dirtyCount }}
           unsaved</span>
       </div>
-      <button @click="saveChanges" :disabled="!hasDirty || saving"
+      <button v-if="canEdit" @click="saveChanges" :disabled="!hasDirty || saving"
         class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold mono tracking-wide transition"
         :class="hasDirty ? 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm' : 'bg-slate-100 text-slate-400 cursor-not-allowed'">
         <FontAwesome :icon="faSave" class="w-3 h-3" /> {{ saving ? 'Menyimpan...' : 'Save changes' }}
       </button>
     </div>
 
-    <!-- List -->
-    <div class="flex-1 overflow-auto px-2 py-2 space-y-2 bg-emerald-50/20 min-h-[320px]">
+    <!-- The page column bounds this box (h-full + min-h-0 chain), so the scroll
+         stays inside the card. min-h-0 lets the list shrink below its content;
+         min-h-[320px] would instead push the card taller than the column.
+         overscroll-contain stops a scrolled-to-the-end list from handing the
+         wheel to the page, which would move the right column. -->
+    <div class="flex-1 overflow-auto overscroll-contain px-2 py-2 space-y-2 bg-emerald-50/20 min-h-0">
       <div v-if="filteredSchedules.length > 0" class="space-y-2">
         <div v-for="sch in filteredSchedules" :key="sch.id"
           class="bg-white rounded-2xl border border-emerald-100 shadow-sm overflow-hidden">
@@ -198,7 +205,7 @@ defineExpose({ refresh: initSchedule })
               <span class="mono text-[10px] text-emerald-700/40 hidden sm:inline">ID #{{ sch.parrent }} • {{
                 (contents.filter(x => x.parrent === sch.parrent).length) }} days</span>
             </button>
-            <button @click="deleteSchedule(sch.parrent, sch.name)"
+            <button v-if="canDelete" @click="deleteSchedule(sch.parrent, sch.name)"
               class="w-7 h-7 rounded-lg bg-white border border-red-100 text-red-500 hover:bg-red-50 hover:border-red-200 flex items-center justify-center"
               title="Delete schedule">
               <FontAwesome :icon="faTrash" class="w-3 h-3" />

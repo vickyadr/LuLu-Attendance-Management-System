@@ -25,6 +25,10 @@ const todayStr = computed(() => {
 // auth.user.fname.value here returned undefined and silently showed the fallback.
 const displayName = computed(() => auth.displayName)
 
+const canEmployees = computed(() => auth.hasPageAccess('employee'))
+const canDevices = computed(() => auth.hasPageAccess('controller'))
+const canReports = computed(() => auth.hasPageAccess('report'))
+
 const stats = reactive({
     karyawan: { total: 0, aktif: 0, loading: true },
     device: { total: 0, online: 0, loading: true },
@@ -41,6 +45,7 @@ function statusTagsOf(it) {
     const tags = []
     const isAbsen = check.isNull(it.start) && check.isNull(it.end)
     if (it.late_time > 0) tags.push('late')
+
     if (!isAbsen && !check.isNull(it.end)) {
         const tz = Number(it.tz) || 0
         const endRef = (Number(it.date) || 0) - tz * 3600 + (it.shift_end ?? 0)
@@ -53,9 +58,10 @@ function statusTagsOf(it) {
 }
 
 async function fetchKaryawan() {
+    if (!canEmployees.value) return
     stats.karyawan.loading = true
     try {
-        const r = await $fetch(`${config.public.apiBase}/employee/list`, { method: 'GET', headers: auth.confHeaders() })
+        const r = await apiFetch(`${config.public.apiBase}/employee/list`, { method: 'GET', headers: auth.confHeaders() })
         if (r.code === 200) {
             const arr = r.data || []
             stats.karyawan.total = arr.length
@@ -63,10 +69,12 @@ async function fetchKaryawan() {
         }
     } catch (e) { } finally { stats.karyawan.loading = false }
 }
-async function fetchDevices() {
-    stats.device.loading = true
+async function fetchDevices(quiet) {
+    if (!canDevices.value) return
+
+    if (!quiet) stats.device.loading = true
     try {
-        const r = await $fetch(`${config.public.apiBase}/device/list`, { method: 'GET', headers: auth.confHeaders() })
+        const r = await apiFetch(`${config.public.apiBase}/device/list`, { method: 'GET', headers: auth.confHeaders() })
         if (r.code === 200) {
             const arr = r.data || []
             stats.device.total = arr.length
@@ -74,10 +82,12 @@ async function fetchDevices() {
         }
     } catch (e) { } finally { stats.device.loading = false }
 }
-async function fetchToday() {
-    stats.today.loading = true
+async function fetchToday(quiet) {
+    if (!canReports.value) return
+
+    if (!quiet) stats.today.loading = true
     try {
-        const r = await $fetch(`${config.public.apiBase}/report/today`, { method: 'GET', headers: auth.confHeaders() })
+        const r = await apiFetch(`${config.public.apiBase}/report/today`, { method: 'GET', headers: auth.confHeaders() })
         if (r.code === 200) {
             const arr = r.data || []
             stats.today.total = arr.length
@@ -98,10 +108,11 @@ async function fetchToday() {
         }
     } catch (e) { } finally { stats.today.loading = false }
 }
-async function fetchLive() {
-    stats.live.loading = true
+async function fetchLive(quiet) {
+    if (!canReports.value) return
+    if (!quiet) stats.live.loading = true
     try {
-        const r = await $fetch(`${config.public.apiBase}/transaction/live`, { method: 'GET', headers: auth.confHeaders() })
+        const r = await apiFetch(`${config.public.apiBase}/transaction/live`, { method: 'GET', headers: auth.confHeaders() })
         if (r.code === 200) {
             stats.live.count = (r.data || []).length
             lastSync.value = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
@@ -115,9 +126,36 @@ async function refreshAll() {
     refreshing.value = false
 }
 
+function settleLockedCards() {
+    if (!canEmployees.value) stats.karyawan.loading = false
+    if (!canDevices.value) stats.device.loading = false
+    if (!canReports.value) { stats.today.loading = false; stats.live.loading = false }
+}
+
+const liveRefresh = ref(0)
+let syncTimer = null
+const { status: wsStatus } = useLiveFeed((data) => {
+    const ev = data?.event
+    if (ev !== 'enroll' && ev !== 'device') return
+    if (ev === 'enroll') liveRefresh.value++
+
+    if (syncTimer) return
+    syncTimer = setTimeout(() => {
+        syncTimer = null
+        fetchToday(true)
+        fetchLive(true)
+        fetchDevices(true)
+
+        lastSync.value = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+    }, 700)
+})
+
+onUnmounted(() => { if (syncTimer) clearTimeout(syncTimer) })
+
 onMounted(() => {
     settings.fetchSettings()
     refreshAll()
+    settleLockedCards()
 })
 </script>
 
@@ -135,7 +173,7 @@ onMounted(() => {
                 <div class="relative">
                     <div class="flex items-center gap-2 flex-wrap">
 
-                        <span class="mono text-[10px] tracking-[0.14em] text-white/60 hidden sm:inline">BIOMETRIC</span>
+
                         <span
                             class="ml-auto mono text-[10px] tracking-widest text-white/60 hidden sm:inline-flex items-center gap-1.5"><span
                                 class="w-1.5 h-1.5 rounded-full bg-lime-300 animate-pulse"></span> {{ lastSync }} •
@@ -147,20 +185,22 @@ onMounted(() => {
                             class="mono text-[11px] font-bold tracking-widest text-white/60 align-middle ml-1">◉
                             LIVE</span></h2>
                     <div class="mt-4 flex flex-wrap gap-2">
-                        <button @click="navigateTo('/report')"
+                        <button v-if="canReports" @click="navigateTo('/report')"
                             class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white text-emerald-700 mono text-xs font-extrabold hover:bg-emerald-50 transition shadow-sm">Open
                             Report <span
                                 class="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px]">→</span></button>
-                        <button @click="navigateTo('/employee')"
+                        <button v-if="canEmployees" @click="navigateTo('/employee')"
                             class="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-white/15 backdrop-blur text-white mono text-xs font-bold border border-white/20 hover:bg-white/20 transition">+
                             Employee</button>
                     </div>
                     <div class="mt-4 flex flex-wrap gap-1.5 mono text-[10px]">
                         <span
                             class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/10 border border-white/20 text-white/80"><span
-                                class="w-1.5 h-1.5 rounded-full bg-lime-300"></span> STREAMING</span>
-                        <span class="inline-flex px-2.5 py-1 rounded-full bg-white/10 text-white/70">REALTIME
-                            FEED</span>
+                                class="w-1.5 h-1.5 rounded-full"
+                                :class="wsStatus === 'open' ? 'bg-lime-300 animate-pulse' : 'bg-amber-300'"></span> <template
+                                v-if="wsStatus === 'open'">STREAMING</template><template
+                                v-else-if="wsStatus === 'reconnecting'">RECONNECTING…</template><template v-else>FEED
+                                OFFLINE</template></span>
                         <button @click="refreshAll()" :disabled="refreshing"
                             class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/10 hover:bg-white/15 text-white mono text-[10px] font-bold disabled:opacity-60">
                             <svg v-if="refreshing" class="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -191,14 +231,22 @@ onMounted(() => {
                     </div>
                     <p
                         class="mono text-[10px] font-bold tracking-[0.14em] text-emerald-700/60 mt-3 flex items-center gap-1.5">
-                        EMPLOYEES <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span></p>
-                    <p v-if="stats.karyawan.loading" class="mt-1 h-7 w-12 rounded bg-emerald-100 animate-pulse"></p>
+                        EMPLOYEES <span v-if="canEmployees"
+                            class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    </p>
+                    <p v-if="!canEmployees"
+                        class="mt-1 text-base font-bold text-emerald-700/50 leading-tight tracking-tight">No
+                        access</p>
+                    <p v-else-if="stats.karyawan.loading" class="mt-1 h-7 w-12 rounded bg-emerald-100 animate-pulse">
+                    </p>
                     <p v-else class="text-2xl font-extrabold text-green-900 mt-1 tracking-tight">{{ stats.karyawan.total
                         }}</p>
-                    <p v-if="!stats.karyawan.loading" class="mono text-[11px] text-emerald-700/60 mt-1">{{
+                    <p v-if="canEmployees && !stats.karyawan.loading" class="mono text-[11px] text-emerald-700/60 mt-1">
+                        {{
                         stats.karyawan.aktif }} active • {{ Math.max(0, stats.karyawan.total - stats.karyawan.aktif) }}
                         inactive</p>
-                    <p v-else class="mt-1 h-3 w-20 rounded bg-emerald-50 animate-pulse"></p>
+                    <p v-else-if="canEmployees" class="mt-1 h-3 w-20 rounded bg-emerald-50 animate-pulse"></p>
+                    <p v-else class="mono text-[11px] text-emerald-700/40 mt-1">Employee page not permitted</p>
                     <span
                         class="absolute top-3 right-3 w-6 h-6 rounded-full bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center justify-center mono text-[10px] group-hover:bg-emerald-600 group-hover:text-white transition">↗</span>
                 </button>
@@ -217,16 +265,20 @@ onMounted(() => {
                         </svg>
                     </div>
                     <p class="mono text-[10px] font-bold tracking-[0.14em] text-emerald-700/60 mt-3">DEVICES</p>
-                    <p v-if="stats.device.loading" class="mt-1 h-7 w-12 rounded bg-sky-100 animate-pulse"></p>
+                    <p v-if="!canDevices"
+                        class="mt-1 text-base font-bold text-emerald-700/50 leading-tight tracking-tight">No
+                        access</p>
+                    <p v-else-if="stats.device.loading" class="mt-1 h-7 w-12 rounded bg-sky-100 animate-pulse"></p>
                     <p v-else class="text-2xl font-extrabold text-green-900 mt-1 tracking-tight">{{ stats.device.total
                         }}</p>
-                    <p v-if="!stats.device.loading" class="mono text-[11px] mt-1"
+                    <p v-if="canDevices && !stats.device.loading" class="mono text-[11px] mt-1"
                         :class="stats.device.online > 0 ? 'text-emerald-600' : 'text-amber-600'"><span
                             class="inline-flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full"
                                 :class="stats.device.online > 0 ? 'bg-emerald-500' : 'bg-amber-500'"></span> {{
-                            stats.device.online }} online • {{ Math.max(0, stats.device.total - stats.device.online) }}
-                            offline</span></p>
-                    <p v-else class="mt-1 h-3 w-20 rounded bg-sky-50 animate-pulse"></p>
+                            stats.device.online }}
+                            online • {{ Math.max(0, stats.device.total - stats.device.online) }} offline</span></p>
+                    <p v-else-if="canDevices" class="mt-1 h-3 w-20 rounded bg-sky-50 animate-pulse"></p>
+                    <p v-else class="mono text-[11px] text-emerald-700/40 mt-1">Devices page not permitted</p>
                     <span
                         class="absolute top-3 right-3 w-6 h-6 rounded-full bg-sky-50 border border-sky-100 text-sky-600 flex items-center justify-center mono text-[10px] group-hover:bg-sky-600 group-hover:text-white transition">↗</span>
                 </button>
@@ -245,10 +297,16 @@ onMounted(() => {
                         </svg>
                     </div>
                     <p class="mono text-[10px] font-bold tracking-[0.14em] text-emerald-700/60 mt-3">TODAY</p>
-                    <p v-if="stats.today.loading" class="mt-1 h-7 w-16 rounded bg-amber-100 animate-pulse"></p>
+                    <p v-if="!canReports"
+                        class="mt-1 text-base font-bold text-emerald-700/50 leading-tight tracking-tight">No
+                        access</p>
+                    <p v-else-if="stats.today.loading" class="mt-1 h-7 w-16 rounded bg-amber-100 animate-pulse"></p>
                     <p v-else class="text-2xl font-extrabold text-green-900 mt-1 tracking-tight">{{ stats.today.total }}
                         <span class="mono text-xs font-bold text-emerald-700/40">records</span></p>
-                    <p v-if="!stats.today.loading" class="mono text-[11px] text-slate-600 mt-1 flex flex-wrap gap-1">
+                    <p v-if="!canReports" class="mono text-[11px] text-emerald-700/40 mt-1">Reports page not permitted
+                    </p>
+                    <p v-else-if="!stats.today.loading"
+                        class="mono text-[11px] text-slate-600 mt-1 flex flex-wrap gap-1">
                         <span
                             class="inline-flex px-1.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold">{{
                             stats.today.hadir }} present</span>
@@ -259,7 +317,7 @@ onMounted(() => {
                             class="inline-flex px-1.5 py-0.5 rounded-full bg-white border border-emerald-100 text-emerald-700/60">0
                             late</span>
                     </p>
-                    <p v-else class="mt-1 h-3 w-24 rounded bg-amber-50 animate-pulse"></p>
+                    <p v-else-if="canReports" class="mt-1 h-3 w-24 rounded bg-amber-50 animate-pulse"></p>
                     <span
                         class="absolute top-3 right-3 w-6 h-6 rounded-full bg-amber-50 border border-amber-100 text-amber-600 flex items-center justify-center mono text-[10px] group-hover:bg-amber-500 group-hover:text-white transition">↗</span>
                 </button>
@@ -280,18 +338,24 @@ onMounted(() => {
                     </div>
                     <p
                         class="mono text-[10px] font-bold tracking-[0.14em] text-emerald-700/60 mt-3 flex items-center gap-1.5">
-                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> LIVE FEED</p>
-                    <p v-if="stats.live.loading" class="mt-1 h-7 w-12 rounded bg-lime-100 animate-pulse"></p>
+                        <span v-if="canReports" class="w-1.5 h-1.5 rounded-full bg-lime-500 animate-pulse"></span> LIVE
+                        FEED</p>
+                    <p v-if="!canReports"
+                        class="mt-1 text-base font-bold text-emerald-700/50 leading-tight tracking-tight">No
+                        access</p>
+                    <p v-else-if="stats.live.loading" class="mt-1 h-7 w-12 rounded bg-lime-100 animate-pulse"></p>
                     <p v-else class="text-2xl font-extrabold text-green-900 mt-1 tracking-tight">{{ stats.live.count }}
                         <span class="mono text-xs font-bold text-emerald-700/40">transactions</span></p>
-                    <p class="mono text-[11px] text-emerald-700/50 mt-1">Latest 100 • synced {{ lastSync }}</p>
+                    <p class="mono text-[11px] text-emerald-700/50 mt-1">{{ canReports ? ('Latest 100 • synced ' +
+                        lastSync) :
+                        'Reports page not permitted' }}</p>
                 </div>
             </div>
         </div>
 
         <!-- Quick actions -->
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 shrink-0">
-            <button @click="navigateTo('/employee')"
+            <button v-if="canEmployees" @click="navigateTo('/employee')"
                 class="group flex items-center gap-3 px-3 py-2.5 rounded-2xl bg-white border-2 border-emerald-100 hover:border-emerald-300 hover:bg-emerald-50/60 transition text-left">
                 <span
                     class="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0">＋</span>
@@ -301,7 +365,7 @@ onMounted(() => {
                 </span>
                 <span class="ml-auto mono text-emerald-700/30 group-hover:text-emerald-600">→</span>
             </button>
-            <button @click="navigateTo('/shift')"
+            <button v-if="auth.hasPageAccess('shift')" @click="navigateTo('/shift')"
                 class="group flex items-center gap-3 px-3 py-2.5 rounded-2xl bg-white border-2 border-emerald-100 hover:border-emerald-300 hover:bg-emerald-50/60 transition text-left">
                 <span
                     class="w-9 h-9 rounded-xl bg-white border border-emerald-200 text-emerald-700 flex items-center justify-center shrink-0">◷</span>
@@ -311,7 +375,7 @@ onMounted(() => {
                 </span>
                 <span class="ml-auto mono text-emerald-700/30 group-hover:text-emerald-600">→</span>
             </button>
-            <button @click="navigateTo('/controller')"
+            <button v-if="canDevices" @click="navigateTo('/controller')"
                 class="group flex items-center gap-3 px-3 py-2.5 rounded-2xl bg-white border-2 border-emerald-100 hover:border-sky-200 hover:bg-sky-50/40 transition text-left">
                 <span
                     class="w-9 h-9 rounded-xl bg-sky-600 text-white flex items-center justify-center shrink-0">⬡</span>
@@ -322,7 +386,7 @@ onMounted(() => {
                 </span>
                 <span class="ml-auto mono text-emerald-700/30 group-hover:text-sky-600">→</span>
             </button>
-            <button @click="navigateTo('/report')"
+            <button v-if="canReports" @click="navigateTo('/report')"
                 class="group flex items-center gap-3 px-3 py-2.5 rounded-2xl bg-white border-2 border-emerald-100 hover:border-amber-200 hover:bg-amber-50/40 transition text-left">
                 <span
                     class="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0">▤</span>
@@ -334,7 +398,7 @@ onMounted(() => {
             </button>
         </div>
 
-        <!-- Live Transactions -->
-        <LiveTable />
+        <!-- Live Transactions — reads transaction/live, gated under "report" -->
+        <LiveTable v-if="canReports" :ws-status="wsStatus" :refresh="liveRefresh" />
     </div>
 </template>

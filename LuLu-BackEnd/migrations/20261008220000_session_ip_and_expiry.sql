@@ -1,0 +1,5 @@
+ALTER TABLE sessions
+    ALTER COLUMN session_ip TYPE VARCHAR(45);
+
+ALTER TABLE sessions
+    ALTER COLUMN session_ua TYPE VARCHAR(1024);

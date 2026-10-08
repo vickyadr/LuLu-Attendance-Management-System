@@ -1,0 +1,23 @@
+[build]
+  command = "npm run generate:demo"
+  publish = ".output/public"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+# The app is a single-page app: every unknown path is the same document, so the
+# router resolves it on the client. Static assets must stay reachable.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[[headers]]
+  for = "/_nuxt/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "no-cache"

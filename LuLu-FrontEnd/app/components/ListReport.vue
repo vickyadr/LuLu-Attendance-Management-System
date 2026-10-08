@@ -94,15 +94,26 @@ function overtimeSec(issue) {
 <template>
     <div class="overflow-auto max-h-[62vh] md:max-h-[58vh]">
         <!-- TABLE desktop -->
-        <table class="w-full min-w-[860px] divide-y divide-emerald-100 hidden md:table">
-            <thead class="bg-emerald-50/70 sticky top-0 z-10 backdrop-blur">
-                <tr class="text-left mono text-[11px] tracking-[0.12em] text-emerald-800/60">
-                    <th class="py-3 px-4 font-bold">EMPLOYEES</th>
-                    <th class="py-3 px-3 font-bold">DATE</th>
-                    <th class="py-3 px-3 font-bold">SHIFT</th>
-                    <th class="py-3 px-3 font-bold">PUNCH</th>
-                    <th class="py-3 px-3 font-bold">STATUS</th>
-                    <th class="py-3 px-3 font-bold text-right">DURATION</th>
+        <table class="w-full min-w-[860px] border-collapse hidden md:table">
+            <thead class="sticky top-0 z-10">
+                <tr class="bg-gradient-to-r from-emerald-600 to-green-600 text-white">
+                    <th
+                        class="py-2.5 px-3 text-left mono text-[10px] font-bold tracking-[0.14em] uppercase border-r border-white/15">
+                        Employees</th>
+                    <th
+                        class="py-2.5 px-3 text-left mono text-[10px] font-bold tracking-[0.14em] uppercase border-r border-white/15">
+                        Date</th>
+                    <th
+                        class="py-2.5 px-3 text-left mono text-[10px] font-bold tracking-[0.14em] uppercase border-r border-white/15">
+                        Shift</th>
+                    <th
+                        class="py-2.5 px-3 text-left mono text-[10px] font-bold tracking-[0.14em] uppercase border-r border-white/15">
+                        Punch</th>
+                    <th
+                        class="py-2.5 px-3 text-left mono text-[10px] font-bold tracking-[0.14em] uppercase border-r border-white/15">
+                        Status</th>
+                    <th class="py-2.5 px-3 text-right mono text-[10px] font-bold tracking-[0.14em] uppercase">Duration
+                    </th>
                 </tr>
             </thead>
             <tbody v-if="contents && contents.length" class="divide-y divide-emerald-50 bg-white">

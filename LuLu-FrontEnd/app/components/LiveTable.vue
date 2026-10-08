@@ -14,8 +14,14 @@ const
     return list.contents
   });
 
+const props = defineProps({
+  wsStatus: { type: String, default: 'closed' },
+  refresh: { type: Number, default: 0 },
+})
+const wsStatus = computed(() => props.wsStatus)
+
 async function initLiveTransaction() {
-  await $fetch(`${config.public.apiBase}/transaction/live`,
+  await apiFetch(`${config.public.apiBase}/transaction/live`,
     {
       method: "GET",
       headers: auth.confHeaders(),
@@ -27,8 +33,12 @@ async function initLiveTransaction() {
     });
 };
 
+
+watch(() => props.refresh, () => initLiveTransaction());
+
 function parseEnrollType(input) {
-  return check.inSwitch(input, ["Unknown", "Finger", "PIN", "Card", "Face"])
+
+  return check.inSwitch(input, ["Unknown", "Finger", "PIN", "Card", "Face", "Other"])
 }
 function initials(a, b) {
   return `${(a || '')[0] || ''}${(b || '')[0] || ''}`.toUpperCase().slice(0, 2) || '•'
@@ -167,8 +177,8 @@ onMounted(() => {
                 </div>
                 <div class="leading-tight">
                   <p class="text-[13px] font-semibold text-green-900">{{ enroll.first_name }} {{ enroll.last_name }}</p>
-                  <p class="mono text-[10px] tracking-widest text-emerald-700/50">ID #{{ enroll.enroll_id ?? enroll.id
-                    ?? '—' }}</p>
+                  <p class="mono text-[10px] tracking-widest text-emerald-700/50">ID #{{ enroll.employee_id ?? '—' }}
+                  </p>
                 </div>
               </div>
             </td>
@@ -219,7 +229,10 @@ onMounted(() => {
                 <p class="text-sm text-emerald-700/60 text-center max-w-sm">Waiting for the controller to sync — the
                   feed streams in realtime once devices send data.</p>
                 <span class="chip chip-emerald mono !text-[9px] mt-1"><span
-                    class="w-1.5 h-1.5 rounded-full bg-emerald-500 data-tick"></span> STREAMING READY • WS IDLE</span>
+                    class="w-1.5 h-1.5 rounded-full bg-emerald-500" :class="wsStatus === 'open' ? 'data-tick' : ''"></span>
+                  <template v-if="wsStatus === 'open'">LIVE FEED CONNECTED</template><template
+                    v-else-if="wsStatus === 'reconnecting'">RECONNECTING…</template><template v-else>FEED
+                    OFFLINE</template></span>
               </div>
             </td>
           </tr>

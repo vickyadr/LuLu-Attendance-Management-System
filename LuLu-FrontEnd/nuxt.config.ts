@@ -30,7 +30,15 @@ export default defineNuxtConfig({
   },
   runtimeConfig: {
     public: {
-      apiBase: 'http://10.55.54.222:4343/api',
+      // Same-origin by default: the browser resolves a relative URL against
+      // whatever host served the page, so LAN and localhost both work without
+      // hardcoding an IP. Override with NUXT_PUBLIC_API_BASE when the API is
+      // on a different origin (e.g. static hosting on another domain).
+      apiBase: process.env.NUXT_PUBLIC_API_BASE || '',
+      // Demo build: NUXT_PUBLIC_DEMO_MODE=true swaps the real backend for the
+      // in-browser mock (app/composables/mockApi.js) so the app can be published
+      // to a static host with no server and no database. Unset in dev/production.
+      demoMode: process.env.NUXT_PUBLIC_DEMO_MODE === 'true',
     }
   },
   modules: [

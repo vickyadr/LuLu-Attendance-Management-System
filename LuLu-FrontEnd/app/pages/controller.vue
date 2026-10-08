@@ -4,11 +4,16 @@ import { useChecker } from '#imports';
 import { useAuthStore } from '~/store/auth';
 import { useDeviceStore } from '~/store/devices';
 import { SMData } from '~/components/SimpleModal.vue';
+import { useNotifyStore } from '~/store/notify';
 
 const
     config = useRuntimeConfig(),
     check = useChecker(),
     auth = useAuthStore(),
+
+    canAdd = computed(() => auth.hasActionAccess('controller', 'can_add')),
+    canEdit = computed(() => auth.hasActionAccess('controller', 'can_edit')),
+    canDelete = computed(() => auth.hasActionAccess('controller', 'can_delete')),
     device_store = useDeviceStore(),
     device = reactive({
         id: 0,
@@ -26,6 +31,7 @@ const
         timezone: '',
     }),
     sm_data = new SMData(),
+    notify = useNotifyStore(),
     isEdit = ref(false),
     submitting = ref(false),
     showOtherTz = ref(false);
@@ -125,20 +131,21 @@ function actEdit(id) {
 }
 
 const del_controller = async (id) => {
+    if (!canDelete.value) { notify.warning("No Access", "You do not have permission to do that"); submitting.value = false; return }
     try {
-        const response = await $fetch(`${config.public.apiBase}/device/delete/${id}`, { method: "GET", headers: auth.confHeaders() });
+        const response = await apiFetch(`${config.public.apiBase}/device/delete/${id}`, { method: "GET", headers: auth.confHeaders() });
         if (response.code == 200) device_store.removeList(id);
-        sm_data.setText("Delete Device", response.message);
-        sm_data.showOK();
+        notify[response.code == 200 ? 'success' : 'error']("Delete Device", response.message);
     } catch (e) {
-        sm_data.setText("Error", e?.data?.message || e.message); sm_data.showOK()
+        notify.error("Delete failed", e?.data?.message || e.message)
     }
 }
 
 const edit_controller = async () => {
+    if (!canEdit.value) { notify.warning("No Access", "You do not have permission to do that"); submitting.value = false; return }
     submitting.value = true; resetValidator()
     try {
-        const response = await $fetch(`${config.public.apiBase}/device/edit`, {
+        const response = await apiFetch(`${config.public.apiBase}/device/edit`, {
             body: { id: device.id, name: device.name?.trim(), sn: device.sn?.trim(), location: device.location?.trim(), handler: parseInt(device.handler), timezone: parseInt(device.timezone) },
             method: "POST", headers: auth.confHeaders(),
         })
@@ -153,18 +160,19 @@ const edit_controller = async () => {
             validator.name = response.data?.name || '';
             validator.timezone = response.data?.timezone || '';
         }
-        sm_data.setText("Edit Device", response.message); sm_data.showOK();
+        notify[response.code == 200 ? 'success' : 'error']("Edit Device", response.message);
     } catch (e) {
-        sm_data.setText("Error", e?.data?.message || e.message); sm_data.showOK()
+        notify.error("Save failed", e?.data?.message || e.message)
     } finally { submitting.value = false }
 };
 
 const add_controller = async () => {
+    if (!canAdd.value) { notify.warning("No Access", "You do not have permission to do that"); submitting.value = false; return }
     submitting.value = true; resetValidator()
     if (!device.name || device.name.trim().length < 2) { validator.name = 'Name must be at least 2 characters'; submitting.value = false; return }
     if (!device.sn || device.sn.trim().length < 3) { validator.sn = 'Serial must be at least 3 characters'; submitting.value = false; return }
     try {
-        const response = await $fetch(`${config.public.apiBase}/device/add`, {
+        const response = await apiFetch(`${config.public.apiBase}/device/add`, {
             body: { name: device.name?.trim(), sn: device.sn?.trim(), location: device.location?.trim(), handler: parseInt(device.handler), timezone: parseInt(device.timezone) },
             method: "POST", headers: auth.confHeaders(),
         })
@@ -179,9 +187,9 @@ const add_controller = async () => {
             validator.name = response.data?.name || '';
             validator.timezone = response.data?.timezone || '';
         }
-        sm_data.setText("Add Device", response.message); sm_data.showOK();
+        notify[response.code == 200 ? 'success' : 'error']("Add Device", response.message);
     } catch (e) {
-        sm_data.setText("Error", e?.data?.message || e.message); sm_data.showOK()
+        notify.error("Save failed", e?.data?.message || e.message)
     } finally { submitting.value = false }
 };
 
@@ -195,10 +203,10 @@ const device_action = async () => {
     <div class="space-y-4">
         <!-- Header — compact hero -->
         <div
-            class="hud-frame glass rounded-[1.4rem] border border-emerald-100 px-4 sm:px-5 py-4 flex flex-col gap-3 tech-grid-soft relative overflow-hidden">
+            class="hud-frame glass rounded-2xl border border-emerald-100 px-5 py-4 flex flex-col lg:flex-row lg:items-center gap-4 tech-grid-soft">
             <span class="hud-corner hud-corner-tl hidden sm:block"></span>
             <span class="hud-corner hud-corner-br hidden sm:block"></span>
-            <div class="flex items-start gap-3 relative">
+            <div class="flex items-start gap-3 relative flex-1 min-w-0">
                 <div
                     class="hidden sm:flex w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-600 to-emerald-700 text-white items-center justify-center shadow-sm shrink-0">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -210,47 +218,40 @@ const device_action = async () => {
                         <path d="M8 16h8" />
                     </svg>
                 </div>
-                <div class="min-w-0 flex-1">
-                    <div class="flex flex-wrap items-center gap-2">
-                        <h1 class="display text-[17px] sm:text-lg font-extrabold text-green-900 tracking-tight">
-                            Controller & Device</h1>
-                        <span class="chip chip-emerald mono !text-[9px]">ADMS • iCLOCK • ZKNET</span>
+                <div class="min-w-0">
+                    <h1 class="display text-lg font-extrabold text-green-900 tracking-tight">Controller &amp; Device
+                    </h1>
+                    <div class="mt-2 flex flex-wrap items-center gap-2 mono text-[10px]">
+                        <span class="chip chip-emerald">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> {{ deviceCount }} registered
+                        </span>
+                        <span class="chip chip-emerald">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse"></span> {{ onlineCount
+                            }} online
+                        </span>
+                        <span class="chip !text-slate-600 !border-slate-200 !bg-slate-50">{{ offlineCount }}
+                            offline</span>
                     </div>
                 </div>
-                <button @click="listRef?.reload && listRef.reload()"
-                    class="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 text-white mono text-xs font-bold hover:bg-emerald-700 shrink-0 shadow-sm">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M21 12a9 9 0 11-2.64-6.36" />
-                        <path d="M21 3v6h-6" />
-                    </svg>
-                    Reload
-                </button>
             </div>
-            <!-- Stat pills -->
-            <div class="flex flex-wrap gap-2 mono text-[11px]">
-                <span
-                    class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white border border-emerald-100 text-green-900 font-bold shadow-sm">
-                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span> {{ deviceCount }} registered
-                </span>
-                <span
-                    class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-600 text-white font-bold shadow-sm">
-                    <span class="w-2 h-2 rounded-full bg-white animate-pulse"></span> {{ onlineCount }} online
-                </span>
-                <span
-                    class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white border border-slate-200 text-slate-600 font-bold">
-                    {{ offlineCount }} offline
-                </span>
-                <button @click="listRef?.reload && listRef.reload()"
-                    class="sm:hidden ml-auto inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-white border border-emerald-100 text-emerald-700 font-bold">↻
-                    Load</button>
-            </div>
+            <button @click="listRef?.reload && listRef.reload()"
+                class="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 text-white mono text-xs font-bold hover:bg-emerald-700 shrink-0 shadow-sm">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 12a9 9 0 11-2.64-6.36" />
+                    <path d="M21 3v6h-6" />
+                </svg>
+                Reload
+            </button>
+            <button @click="listRef?.reload && listRef.reload()"
+                class="sm:hidden inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-600 text-white mono text-xs font-bold shrink-0">↻
+                Reload</button>
         </div>
 
         <!-- Main grid -->
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
             <!-- LEFT: List — 7 cols -->
             <div class="lg:col-span-7 xl:col-span-7">
-                <div class="glass rounded-2xl border border-emerald-100 shadow-sm overflow-hidden bg-white">
+                <div class="glass rounded-2xl border border-emerald-100 shadow-sm overflow-hidden">
                     <ListController ref="listRef" @edit="actEdit" @delete="actDelete" />
                 </div>
             </div>
@@ -259,10 +260,9 @@ const device_action = async () => {
             <div class="lg:col-span-5 xl:col-span-5 space-y-3.5">
                 <!-- Form card -->
                 <div id="device-form-anchor"
-                    class="glass rounded-2xl border border-emerald-100 shadow-sm overflow-hidden bg-white">
-                    <div
-                        class="px-4 sm:px-5 py-3 border-b border-emerald-100 bg-gradient-to-r from-emerald-50/70 via-white to-lime-50/20 flex items-center justify-between gap-2">
-                        <div class="flex items-center gap-2 min-w-0">
+                    class="glass rounded-2xl border border-emerald-100 shadow-sm overflow-hidden">
+                    <div class="flex border-b border-emerald-100 bg-white/60">
+                        <div class="px-4 sm:px-5 py-3 flex items-center gap-2 min-w-0 flex-1">
                             <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
                             <h2 class="mono text-xs font-extrabold tracking-[0.14em] text-emerald-700 truncate">{{
                                 isEditMode ? 'EDIT DEVICE' : 'ADD DEVICE' }}</h2>
@@ -271,10 +271,10 @@ const device_action = async () => {
                                 isEditMode ? 'EDIT' : 'NEW' }}</span>
                         </div>
                         <span v-if="isEditMode"
-                            class="sm:hidden chip bg-amber-500 text-white mono !text-[9px] shrink-0">EDIT</span>
+                            class="sm:hidden chip self-center mr-3 bg-amber-500 text-white border-amber-500 mono !text-[9px] shrink-0">EDIT</span>
                     </div>
 
-                    <form @submit.prevent="device_action" class="px-4 sm:px-5 py-4 space-y-4">
+                    <form @submit.prevent="device_action" class="bg-white px-4 sm:px-5 py-4 space-y-4">
                         <!-- Section: Identitas -->
                         <div class="rounded-xl bg-emerald-50/40 border border-emerald-100 p-3.5 space-y-3.5">
                             <p
@@ -404,7 +404,7 @@ const device_action = async () => {
 
                         <!-- Actions -->
                         <div class="flex flex-col sm:flex-row gap-2.5 pt-1">
-                            <button type="submit" :disabled="submitting"
+                            <button v-if="isEditMode ? canEdit : canAdd" type="submit" :disabled="submitting"
                                 class="flex-1 sm:flex-initial btn-emerald rounded-xl px-6 sm:px-8 py-3 text-sm font-bold mono tracking-widest disabled:opacity-60 inline-flex items-center justify-center gap-2 shadow-sm">
                                 <svg v-if="submitting" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
                                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
@@ -440,10 +440,8 @@ const device_action = async () => {
                         </ol>
                         <div class="mt-3 flex flex-wrap gap-1.5">
                             <span class="chip chip-emerald mono !text-[9px]">WIB GMT+7</span>
-                            <span class="chip bg-white border-emerald-200 text-emerald-700 border mono !text-[9px]">WITA
-                                GMT+8</span>
-                            <span class="chip bg-white border-emerald-200 text-emerald-700 border mono !text-[9px]">WIT
-                                GMT+9</span>
+                            <span class="chip chip-emerald mono !text-[9px]">WITA GMT+8</span>
+                            <span class="chip chip-emerald mono !text-[9px]">WIT GMT+9</span>
                         </div>
                     </div>
                 </details>

@@ -1,4 +1,5 @@
- WITH query_sch AS (
+ CREATE OR REPLACE VIEW view_reports AS
+WITH query_sch AS (
          SELECT devices.device_timezone,
             devices.device_name,
             devices.device_location,
