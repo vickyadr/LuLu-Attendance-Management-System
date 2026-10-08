@@ -126,11 +126,11 @@ function overtimeSec(issue) {
                                 :style="{ background: avatarBg(issue) }">{{ initials(issue) }}</div>
                             <div class="min-w-0">
                                 <div class="text-sm font-bold text-green-900 leading-none truncate">{{ issue.first_name
-                                    }} {{ issue.last_name }}</div>
+                                }} {{ issue.last_name }}</div>
                                 <div class="mt-1 flex items-center gap-1.5">
                                     <span
                                         class="inline-flex px-1.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-100 text-emerald-700 mono text-[10px] font-bold tracking-wide">{{
-                                        issue.departement || '—' }}</span>
+                                            issue.departement || '—' }}</span>
                                     <span class="mono text-[10px] text-slate-400">#{{ issue.id }}</span>
                                 </div>
                             </div>
@@ -141,7 +141,7 @@ function overtimeSec(issue) {
                         <div class="inline-flex flex-col items-start">
                             <span
                                 class="px-2.5 py-1 rounded-full bg-white border border-emerald-100 mono text-xs font-bold text-green-900">{{
-                                fmtDate(issue.date) }}</span>
+                                    fmtDate(issue.date) }}</span>
                             <span class="mt-1 mono text-[10px] tracking-widest text-emerald-700/50">{{
                                 fmtWday(issue.date) }}</span>
                         </div>
@@ -158,7 +158,7 @@ function overtimeSec(issue) {
                             <span class="mono text-[11px] text-slate-600">{{ format.sec_to_naive(issue.shift_start) }} —
                                 {{ format.sec_to_naive(issue.shift_end) }}</span>
                             <span class="mono text-[10px] text-emerald-700/40">Shift {{ fmtDur(shiftDur(issue))
-                                }}</span>
+                            }}</span>
                         </div>
                     </td>
                     <!-- Enroll In/Out -->
@@ -303,7 +303,7 @@ function overtimeSec(issue) {
                 </div>
                 <div class="mt-2 flex items-center justify-between mono text-xs border-t border-emerald-50 pt-2">
                     <span class="text-slate-500">Worked <b class="text-green-900">{{ fmtDur(issue.working_time)
-                            }}</b></span>
+                    }}</b></span>
                     <span class="flex items-center gap-1.5">
                         <span v-if="overtimeSec(issue) > 0"
                             class="px-2 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 mono text-[10px] font-bold">Overtime
@@ -323,7 +323,7 @@ function overtimeSec(issue) {
         <div v-if="contents && contents.length"
             class="sticky bottom-0 bg-white/90 backdrop-blur border-t border-emerald-100 px-4 py-2.5 flex items-center justify-between mono text-[11px]">
             <span class="text-emerald-700/60">{{ contents.length }} rows • filtered from {{ (list.contents || []).length
-                }} total</span>
+            }} total</span>
         </div>
     </div>
 </template>

@@ -200,10 +200,11 @@ defineExpose({ refresh: initSchedule })
               <span class="font-bold text-sm text-green-900 truncate">{{ sch.name }}</span>
               <span class="chip mono !text-[9px]"
                 :class="isOffDay(sch.shift_name) ? 'bg-slate-100 border-slate-200 text-slate-600 border' : 'chip-emerald'">{{
-                  sch.type === 1 ? 'DAILY' : sch.type === 7 ? 'WEEKLY' : sch.type === 14 ? '2 WEEKS' : sch.type === 21 ? '3 WEEKS' : 'MONTHLY'
+                  sch.type === 1 ? 'DAILY' : sch.type === 7 ? 'WEEKLY' : sch.type === 14 ? '2 WEEKS' : sch.type === 21 ?
+                    '3 WEEKS' : 'MONTHLY'
                 }}</span>
               <span class="mono text-[10px] text-emerald-700/40 hidden sm:inline">ID #{{ sch.parrent }} • {{
-                (contents.filter(x => x.parrent === sch.parrent).length) }} days</span>
+                (contents.filter(x => x.parrent === sch.parrent).length)}} days</span>
             </button>
             <button v-if="canDelete" @click="deleteSchedule(sch.parrent, sch.name)"
               class="w-7 h-7 rounded-lg bg-white border border-red-100 text-red-500 hover:bg-red-50 hover:border-red-200 flex items-center justify-center"
@@ -234,9 +235,9 @@ defineExpose({ refresh: initSchedule })
           </svg>
         </div>
         <p class="text-sm font-semibold text-green-900">{{ search ? 'No results' : 'No schedules yet' }}</p>
-        <p class="mono text-xs text-emerald-700/50 mt-1 max-w-[28ch] mx-auto">{{ search ? 'Try a different keyword, or
-          clear the search' : 'Create a schedule in the right panel — pick a Daily / Weekly / Monthly pattern, then fill in
-          a shift per day' }}</p>
+        <p class="mono text-xs text-emerald-700/50 mt-1 max-w-[28ch] mx-auto">{{ search ?
+          'Try a different keyword, or clear the search' : 'Create a schedule in the right panel — pick a Daily'_
+        ' / Weekly / Monthly pattern, then fill in a shift per day' }}</p>
         <button v-if="search" @click="search = ''"
           class="mt-3 px-4 py-1.5 rounded-full bg-emerald-600 text-white mono text-xs">Clear search</button>
       </div>

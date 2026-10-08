@@ -142,7 +142,7 @@ onMounted(() => { initEmployee() })
                                 <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                                 {{ scheduleNameFor(data.schedule_id) }}
                                 <span class="opacity-60 mono text-[10px]">{{ scheduleBadgeFor(data.schedule_id)
-                                    }}</span>
+                                }}</span>
                             </span>
                             <span v-else
                                 class="inline-flex px-2.5 py-1 rounded-full bg-slate-50 border border-slate-200 text-slate-400 mono text-[11px]">—
@@ -180,8 +180,8 @@ onMounted(() => { initEmployee() })
                                 </p>
                                 <p class="text-sm text-slate-500 max-w-md">{{ (search || deptFilter || statusFilter !==
                                     '') ?
-                                    'Try a different keyword, or reset the filters.' : 'Add your first employee in the
-                                    form on the right — pick a daily / weekly / monthly schedule.' }}</p>
+                                    'Try a different keyword, or reset the filters.' : 'Add your first employee in the'_
+                                'form on the right — pick a daily / weekly / monthly schedule.' }}</p>
                             </div>
                         </td>
                     </tr>

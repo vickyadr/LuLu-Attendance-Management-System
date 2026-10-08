@@ -197,8 +197,8 @@ onMounted(() => {
                         <span
                             class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/10 border border-white/20 text-white/80"><span
                                 class="w-1.5 h-1.5 rounded-full"
-                                :class="wsStatus === 'open' ? 'bg-lime-300 animate-pulse' : 'bg-amber-300'"></span> <template
-                                v-if="wsStatus === 'open'">STREAMING</template><template
+                                :class="wsStatus === 'open' ? 'bg-lime-300 animate-pulse' : 'bg-amber-300'"></span>
+                            <template v-if="wsStatus === 'open'">STREAMING</template><template
                                 v-else-if="wsStatus === 'reconnecting'">RECONNECTING…</template><template v-else>FEED
                                 OFFLINE</template></span>
                         <button @click="refreshAll()" :disabled="refreshing"
@@ -240,10 +240,10 @@ onMounted(() => {
                     <p v-else-if="stats.karyawan.loading" class="mt-1 h-7 w-12 rounded bg-emerald-100 animate-pulse">
                     </p>
                     <p v-else class="text-2xl font-extrabold text-green-900 mt-1 tracking-tight">{{ stats.karyawan.total
-                        }}</p>
+                    }}</p>
                     <p v-if="canEmployees && !stats.karyawan.loading" class="mono text-[11px] text-emerald-700/60 mt-1">
                         {{
-                        stats.karyawan.aktif }} active • {{ Math.max(0, stats.karyawan.total - stats.karyawan.aktif) }}
+                            stats.karyawan.aktif }} active • {{ Math.max(0, stats.karyawan.total - stats.karyawan.aktif) }}
                         inactive</p>
                     <p v-else-if="canEmployees" class="mt-1 h-3 w-20 rounded bg-emerald-50 animate-pulse"></p>
                     <p v-else class="mono text-[11px] text-emerald-700/40 mt-1">Employee page not permitted</p>
@@ -270,12 +270,12 @@ onMounted(() => {
                         access</p>
                     <p v-else-if="stats.device.loading" class="mt-1 h-7 w-12 rounded bg-sky-100 animate-pulse"></p>
                     <p v-else class="text-2xl font-extrabold text-green-900 mt-1 tracking-tight">{{ stats.device.total
-                        }}</p>
+                    }}</p>
                     <p v-if="canDevices && !stats.device.loading" class="mono text-[11px] mt-1"
                         :class="stats.device.online > 0 ? 'text-emerald-600' : 'text-amber-600'"><span
                             class="inline-flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full"
                                 :class="stats.device.online > 0 ? 'bg-emerald-500' : 'bg-amber-500'"></span> {{
-                            stats.device.online }}
+                                    stats.device.online }}
                             online • {{ Math.max(0, stats.device.total - stats.device.online) }} offline</span></p>
                     <p v-else-if="canDevices" class="mt-1 h-3 w-20 rounded bg-sky-50 animate-pulse"></p>
                     <p v-else class="mono text-[11px] text-emerald-700/40 mt-1">Devices page not permitted</p>
@@ -302,17 +302,18 @@ onMounted(() => {
                         access</p>
                     <p v-else-if="stats.today.loading" class="mt-1 h-7 w-16 rounded bg-amber-100 animate-pulse"></p>
                     <p v-else class="text-2xl font-extrabold text-green-900 mt-1 tracking-tight">{{ stats.today.total }}
-                        <span class="mono text-xs font-bold text-emerald-700/40">records</span></p>
+                        <span class="mono text-xs font-bold text-emerald-700/40">records</span>
+                    </p>
                     <p v-if="!canReports" class="mono text-[11px] text-emerald-700/40 mt-1">Reports page not permitted
                     </p>
                     <p v-else-if="!stats.today.loading"
                         class="mono text-[11px] text-slate-600 mt-1 flex flex-wrap gap-1">
                         <span
                             class="inline-flex px-1.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold">{{
-                            stats.today.hadir }} present</span>
+                                stats.today.hadir }} present</span>
                         <span v-if="stats.today.terlambat > 0"
                             class="inline-flex px-1.5 py-0.5 rounded-full bg-red-50 border border-red-200 text-red-600 font-bold">{{
-                            stats.today.terlambat }} telat</span>
+                                stats.today.terlambat }} telat</span>
                         <span v-else
                             class="inline-flex px-1.5 py-0.5 rounded-full bg-white border border-emerald-100 text-emerald-700/60">0
                             late</span>
@@ -339,13 +340,15 @@ onMounted(() => {
                     <p
                         class="mono text-[10px] font-bold tracking-[0.14em] text-emerald-700/60 mt-3 flex items-center gap-1.5">
                         <span v-if="canReports" class="w-1.5 h-1.5 rounded-full bg-lime-500 animate-pulse"></span> LIVE
-                        FEED</p>
+                        FEED
+                    </p>
                     <p v-if="!canReports"
                         class="mt-1 text-base font-bold text-emerald-700/50 leading-tight tracking-tight">No
                         access</p>
                     <p v-else-if="stats.live.loading" class="mt-1 h-7 w-12 rounded bg-lime-100 animate-pulse"></p>
                     <p v-else class="text-2xl font-extrabold text-green-900 mt-1 tracking-tight">{{ stats.live.count }}
-                        <span class="mono text-xs font-bold text-emerald-700/40">transactions</span></p>
+                        <span class="mono text-xs font-bold text-emerald-700/40">transactions</span>
+                    </p>
                     <p class="mono text-[11px] text-emerald-700/50 mt-1">{{ canReports ? ('Latest 100 • synced ' +
                         lastSync) :
                         'Reports page not permitted' }}</p>

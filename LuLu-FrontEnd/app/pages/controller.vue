@@ -268,7 +268,7 @@ const device_action = async () => {
                                 isEditMode ? 'EDIT DEVICE' : 'ADD DEVICE' }}</h2>
                             <span class="hidden sm:inline-flex chip mono !text-[9px] shrink-0"
                                 :class="isEditMode ? 'bg-amber-500 text-white border-amber-500' : 'chip-emerald'">{{
-                                isEditMode ? 'EDIT' : 'NEW' }}</span>
+                                    isEditMode ? 'EDIT' : 'NEW' }}</span>
                         </div>
                         <span v-if="isEditMode"
                             class="sm:hidden chip self-center mr-3 bg-amber-500 text-white border-amber-500 mono !text-[9px] shrink-0">EDIT</span>
@@ -315,7 +315,9 @@ const device_action = async () => {
                                 <p v-if="validator.sn" class="mt-1.5 text-xs font-medium text-red-500 ml-1">{{
                                     validator.sn }}</p>
                                 <p v-else class="mt-1 mono text-[10px] tracking-wide ml-1"
-                                    :class="isEditMode ? 'text-amber-600' : 'text-emerald-700/40'">{{ isEditMode ? 'SN is locked — delete and re - create to swap machines' : 'Find the SN under Menu → Device on the machine • it must be unique' }}</p>
+                                    :class="isEditMode ? 'text-amber-600' : 'text-emerald-700/40'">{{ isEditMode ?
+                                        'SN is locked — delete and re - create to swap machines' : 'Find the SN under Menu'_
+                                    '→ Device on the machine • it must be unique' }}</p>
                             </div>
                         </div>
 
@@ -338,7 +340,8 @@ const device_action = async () => {
                                         :class="device.handler === 4 ? 'bg-emerald-600 border-emerald-600 text-white shadow-sm' : 'bg-white border-slate-200 text-slate-700 hover:border-emerald-200'">
                                         <p class="text-xs font-bold leading-none">iClock / ADMS</p>
                                         <p class="mono text-[10px] mt-1"
-                                            :class="device.handler === 4 ? 'text-white/80' : 'text-slate-400'">Recommended
+                                            :class="device.handler === 4 ? 'text-white/80' : 'text-slate-400'">
+                                            Recommended
                                             • stable</p>
                                     </button>
                                     <button type="button" @click="device.handler = 5"
@@ -392,7 +395,7 @@ const device_action = async () => {
                                 Location
                                 <span class="ml-auto mono text-[10px] font-normal normal-case tracking-wide"
                                     :class="locationLen > 150 ? 'text-amber-600 font-bold' : 'text-emerald-700/40'">{{
-                                    locationLen }}/160</span>
+                                        locationLen }}/160</span>
                             </label>
                             <textarea id="location" v-model="device.location" rows="2" maxlength="160"
                                 placeholder="Contoh: Lantai 2 — Lobby Utama, Gedung A (opsional)"

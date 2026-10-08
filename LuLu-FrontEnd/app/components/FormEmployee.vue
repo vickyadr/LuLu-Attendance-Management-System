@@ -337,7 +337,7 @@ defineExpose({ fillForm, del_employee, resetForm })
                             v-for="s in scheduleOptions.filter(x => String(x.parrent) === String(form_data.schedule_id))"
                             :key="s.parrent">
                             <p class="mono text-[10px] font-bold tracking-[0.14em] text-emerald-700">PREVIEW: {{ s.name
-                                }} — {{ scheduleBadge(s) }} • {{ scheduleDesc(s) }}</p>
+                            }} — {{ scheduleBadge(s) }} • {{ scheduleDesc(s) }}</p>
                             <div class="flex flex-wrap gap-1.5">
                                 <span v-for="p in previewSchedule(s)" :key="p.dom"
                                     class="inline-flex items-center gap-1 px-2 py-1 rounded-full border text-[11px] mono"
@@ -345,8 +345,9 @@ defineExpose({ fillForm, del_employee, resetForm })
                                     <span class="w-1.5 h-1.5 rounded-full"
                                         :class="p.isLibur ? 'bg-slate-400' : 'bg-emerald-500'"></span>
                                     D{{ p.dom }}: {{ p.name }} <span v-if="!p.isLibur && p.start != null"
-                                        class="opacity-60">{{ Math.floor(p.start / 3600).toString().padStart(2, '0') }}:{{
-                                            Math.floor((p.start %3600)/60).toString().padStart(2,'0') }}</span>
+                                        class="opacity-60">{{ Math.floor(p.start / 3600).toString().padStart(2, '0')
+                                        }}:{{
+                                            Math.floor((p.start % 3600) / 60).toString().padStart(2, '0') }}</span>
                                 </span>
                             </div>
                         </template>

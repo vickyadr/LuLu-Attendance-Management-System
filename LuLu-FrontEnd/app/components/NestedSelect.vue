@@ -7,13 +7,13 @@ const
     selected = ref(null),
     emit = defineEmits(['update']),
     props = defineProps({
-        def: { type: Object, required: false, default:{key:null, val:null} },
-        data: { type: Object, required:true },
+        def: { type: Object, required: false, default: { key: null, val: null } },
+        data: { type: Object, required: true },
         keyId: { type: Number, required: true },
     });
 
-function updateValue(){
-    emit('update', {key: props.keyId, val:selected.value})
+function updateValue() {
+    emit('update', { key: props.keyId, val: selected.value })
 }
 
 defineExpose({

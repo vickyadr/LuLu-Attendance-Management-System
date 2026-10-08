@@ -229,7 +229,8 @@ onMounted(() => {
                 <p class="text-sm text-emerald-700/60 text-center max-w-sm">Waiting for the controller to sync — the
                   feed streams in realtime once devices send data.</p>
                 <span class="chip chip-emerald mono !text-[9px] mt-1"><span
-                    class="w-1.5 h-1.5 rounded-full bg-emerald-500" :class="wsStatus === 'open' ? 'data-tick' : ''"></span>
+                    class="w-1.5 h-1.5 rounded-full bg-emerald-500"
+                    :class="wsStatus === 'open' ? 'data-tick' : ''"></span>
                   <template v-if="wsStatus === 'open'">LIVE FEED CONNECTED</template><template
                     v-else-if="wsStatus === 'reconnecting'">RECONNECTING…</template><template v-else>FEED
                     OFFLINE</template></span>
