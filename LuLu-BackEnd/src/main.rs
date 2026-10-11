@@ -1,4 +1,3 @@
-use actix_cors::Cors;
 use actix_web::body::MessageBody;
 use actix_web::dev::ServiceResponse;
 use actix_web::http::{StatusCode, header};
@@ -8,8 +7,10 @@ use actix_web_httpauth::extractors::bearer;
 
 use lulu_attendance_server::utility::router;
 use lulu_attendance_server::utility::{
-    db, device_sweeper, hash, stor::AppState, stor::NoDataResponse, wshub,
+    cors, db, device_sweeper, hash, shutdown, stor::AppState, stor::NoDataResponse, wshub,
 };
+use lulu_attendance_server::service::pull_scheduler::{self, PullRegistry};
+use lulu_attendance_server::service::live_scheduler::{self, LiveRegistry};
 
 /// Message shown for a status raised outside any handler.
 fn message_for(status: StatusCode) -> &'static str {
@@ -69,6 +70,8 @@ async fn main() -> std::io::Result<()> {
         std::process::exit(1);
     }
 
+    cors::log_scope();
+
     let host = std::env::var("HOST").unwrap_or_else(|_| "0.0.0.0".to_string());
     let port: u16 = std::env::var("PORT")
         .ok()
@@ -88,34 +91,29 @@ async fn main() -> std::io::Result<()> {
 
     log::info!("server starting on http://{host}:{port}");
 
+    shutdown::install();
+
     let ws_hub = wshub::WsHub::new();
+
+    // Pull task registry: track active ZKNet device pull loops
+    let pull_registry: PullRegistry = std::sync::Arc::new(tokio::sync::Mutex::new(std::collections::HashMap::new()));
+
+    let live_registry: LiveRegistry = std::sync::Arc::new(tokio::sync::Mutex::new(std::collections::HashMap::new()));
 
     actix_web::rt::spawn(device_sweeper::run_sweeper(pool.clone(), ws_hub.clone()));
 
-    HttpServer::new(move || {
-        let cors = Cors::default()
-            .allowed_origin_fn(|origin, _| {
-                // allow any origin (localhost, LAN IP, 0.0.0.0) — echo back request origin
-                // permissive but still supports credentials (Bearer token)
-                origin.as_bytes().starts_with(b"http://")
-                    || origin.as_bytes().starts_with(b"https://")
-            })
-            .allowed_methods(vec!["GET", "POST", "PATCH", "DELETE", "OPTIONS"])
-            .allowed_headers(vec![
-                header::CONTENT_TYPE,
-                header::AUTHORIZATION,
-                header::ACCEPT,
-                header::ACCEPT_ENCODING,
-                header::ACCEPT_LANGUAGE,
-                header::HOST,
-                header::CONNECTION,
-                header::ORIGIN,
-                header::REFERER,
-                header::USER_AGENT,
-            ])
-            .expose_headers(vec![header::CONTENT_TYPE, header::AUTHORIZATION])
-            .supports_credentials()
-            .max_age(3600);
+    let app_state = web::Data::new(AppState {
+        db: pool.clone(),
+        ws: ws_hub.clone(),
+    });
+
+    // Initialize ZKNet pull scheduler: spawn background tasks for all ZKNET devices
+    pull_scheduler::init_pull_scheduler(app_state.clone(), web::Data::new(pull_registry.clone())).await;
+
+    live_scheduler::init_live_scheduler(app_state.clone(), web::Data::new(live_registry.clone())).await;
+
+    let server = HttpServer::new(move || {
+        let cors = cors::policy();
 
         App::new()
             // add DB pool handle to app data; enables use of `web::Data<DbPool>` extractor
@@ -123,6 +121,11 @@ async fn main() -> std::io::Result<()> {
                 db: pool.clone(),
                 ws: ws_hub.clone(),
             }))
+            .app_data(web::Data::new(pull_registry.clone()))
+            // The pull endpoint has to hand the device socket over: a manual pull
+            // stops the live session first and restarts it afterwards, so it needs
+            // the same registry the scheduler owns.
+            .app_data(web::Data::new(live_registry.clone()))
             .app_data(web::JsonConfig::default().limit(32 * 1024))
             .app_data(
                 bearer::Config::default()
@@ -157,6 +160,27 @@ async fn main() -> std::io::Result<()> {
     })
     //.bind(("10.55.54.145", 8080))?
     .bind((host.as_str(), port))?
-    .run()
-    .await
+    .disable_signals()
+    .run();
+
+    let server_handle = server.handle();
+
+    actix_web::rt::spawn(async move {
+        loop {
+            tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+            if shutdown::triggered() {
+                break;
+            }
+        }
+
+        log::info!("shutdown signal received, closing server");
+        server_handle.stop(false).await;
+
+        tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+        log::info!("shutdown complete");
+        log::logger().flush();
+        std::process::exit(0);
+    });
+
+    server.await
 }

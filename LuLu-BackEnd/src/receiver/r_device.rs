@@ -13,4 +13,6 @@ pub struct ReceiverDevice {
     pub handler: Option<i32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub timezone: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ip: Option<String>,
 }

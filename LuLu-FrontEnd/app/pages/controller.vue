@@ -10,7 +10,7 @@ const
     config = useRuntimeConfig(),
     check = useChecker(),
     auth = useAuthStore(),
-
+    // Device writes map to the 'controller' page server-side.
     canAdd = computed(() => auth.hasActionAccess('controller', 'can_add')),
     canEdit = computed(() => auth.hasActionAccess('controller', 'can_edit')),
     canDelete = computed(() => auth.hasActionAccess('controller', 'can_delete')),
@@ -22,6 +22,7 @@ const
         location: '',
         handler: 4,
         timezone: 7,
+        ip: '',
     }),
     validator = reactive({
         name: '',
@@ -29,6 +30,7 @@ const
         location: '',
         handler: '',
         timezone: '',
+        ip: '',
     }),
     sm_data = new SMData(),
     notify = useNotifyStore(),
@@ -38,7 +40,7 @@ const
 
 const isEditMode = computed(() => isEdit.value && device.id > 0)
 
-useHead({ title: "LuLu — Controllers & Devices" });
+useHead({ title: "LuLu - Controllers & Devices" });
 definePageMeta({ middleware: ["get-auth"], layout: 'default' });
 
 const listRef = ref(null)
@@ -53,33 +55,33 @@ const tzQuick = [
     { v: 9, label: 'WIT', sub: 'GMT+9' },
 ]
 const tzOptions = [
-    { v: -12, label: 'GMT-12 — Baker Island' },
-    { v: -11, label: 'GMT-11 — Pago Pago' },
-    { v: -10, label: 'GMT-10 — Hawaii' },
-    { v: -9, label: 'GMT-9 — Alaska' },
-    { v: -8, label: 'GMT-8 — Los Angeles' },
-    { v: -7, label: 'GMT-7 — Denver' },
-    { v: -6, label: 'GMT-6 — Chicago' },
-    { v: -5, label: 'GMT-5 — New York' },
-    { v: -4, label: 'GMT-4 — Santiago' },
-    { v: -3, label: 'GMT-3 — Buenos Aires' },
-    { v: -2, label: 'GMT-2 — S. Georgia' },
-    { v: -1, label: 'GMT-1 — Azores' },
-    { v: 0, label: 'GMT+0 — London / UTC' },
-    { v: 1, label: 'GMT+1 — Paris, Berlin' },
-    { v: 2, label: 'GMT+2 — Cairo' },
-    { v: 3, label: 'GMT+3 — Moscow' },
-    { v: 4, label: 'GMT+4 — Dubai' },
-    { v: 5, label: 'GMT+5 — Karachi' },
-    { v: 6, label: 'GMT+6 — Dhaka' },
-    { v: 7, label: 'GMT+7 — Jakarta, Bangkok (WIB)' },
-    { v: 8, label: 'GMT+8 — Singapore, Bali (WITA)' },
-    { v: 9, label: 'GMT+9 — Tokyo, Jayapura (WIT)' },
-    { v: 10, label: 'GMT+10 — Sydney' },
-    { v: 11, label: 'GMT+11 — Solomon' },
-    { v: 12, label: 'GMT+12 — Auckland' },
-    { v: 13, label: 'GMT+13 — Samoa' },
-    { v: 14, label: 'GMT+14 — Kiritimati' },
+    { v: -12, label: 'GMT-12 - Baker Island' },
+    { v: -11, label: 'GMT-11 - Pago Pago' },
+    { v: -10, label: 'GMT-10 - Hawaii' },
+    { v: -9, label: 'GMT-9 - Alaska' },
+    { v: -8, label: 'GMT-8 - Los Angeles' },
+    { v: -7, label: 'GMT-7 - Denver' },
+    { v: -6, label: 'GMT-6 - Chicago' },
+    { v: -5, label: 'GMT-5 - New York' },
+    { v: -4, label: 'GMT-4 - Santiago' },
+    { v: -3, label: 'GMT-3 - Buenos Aires' },
+    { v: -2, label: 'GMT-2 - S. Georgia' },
+    { v: -1, label: 'GMT-1 - Azores' },
+    { v: 0, label: 'GMT+0 - London / UTC' },
+    { v: 1, label: 'GMT+1 - Paris, Berlin' },
+    { v: 2, label: 'GMT+2 - Cairo' },
+    { v: 3, label: 'GMT+3 - Moscow' },
+    { v: 4, label: 'GMT+4 - Dubai' },
+    { v: 5, label: 'GMT+5 - Karachi' },
+    { v: 6, label: 'GMT+6 - Dhaka' },
+    { v: 7, label: 'GMT+7 - Jakarta, Bangkok (WIB)' },
+    { v: 8, label: 'GMT+8 - Singapore, Bali (WITA)' },
+    { v: 9, label: 'GMT+9 - Tokyo, Jayapura (WIT)' },
+    { v: 10, label: 'GMT+10 - Sydney' },
+    { v: 11, label: 'GMT+11 - Solomon' },
+    { v: 12, label: 'GMT+12 - Auckland' },
+    { v: 13, label: 'GMT+13 - Samoa' },
+    { v: 14, label: 'GMT+14 - Kiritimati' },
 ]
 
 function tzLabel(v) {
@@ -89,10 +91,10 @@ function tzLabel(v) {
 function isQuickTz(v) { return [7, 8, 9].includes(Number(v)) }
 
 function resetValidator() {
-    validator.name = ''; validator.sn = ''; validator.location = ''; validator.handler = ''; validator.timezone = ''
+    validator.name = ''; validator.sn = ''; validator.location = ''; validator.handler = ''; validator.timezone = ''; validator.ip = ''
 }
 function resetForm() {
-    device.id = 0; device.name = ''; device.sn = ''; device.location = ''; device.handler = 4; device.timezone = 7
+    device.id = 0; device.name = ''; device.sn = ''; device.location = ''; device.handler = 4; device.timezone = 7; device.ip = ''
     showOtherTz.value = false
     resetValidator()
 }
@@ -102,8 +104,10 @@ function cancelEdit() {
 }
 
 function actOk() {
-    const id = sm_data.getHelper('del');
-    if (!check.isNull(id)) del_controller(id);
+    const h = sm_data.getHelper('act');
+    if (!check.isNull(h) && h) {
+        if (h.kind == 'del') del_controller(h.id);
+    }
     sm_data.clear();
     setTimeout(() => resetValidator(), 2000);
 }
@@ -112,8 +116,8 @@ function actCancel() { sm_data.clear() }
 function actDelete(id) {
     const d = device_store.get(id);
     const sn = d?.sn || `#${id}`
-    sm_data.setText("Delete Controller", `Device "${sn}" akan dihapus, yakin?`);
-    sm_data.setHelper('del', id);
+    sm_data.setText($t('device.deleteTitle'), `Device "${sn}" akan dihapus, yakin?`);
+    sm_data.setHelper('act', { kind: 'del', id });
     sm_data.showOKCancel();
 }
 function actEdit(id) {
@@ -123,6 +127,7 @@ function actEdit(id) {
     device.name = d.name || '';
     device.sn = d.sn || '';
     device.location = d.location || '';
+    device.ip = d.ip || '';
     device.handler = d.h_id ?? d.handler ?? 4;
     device.timezone = Number(d.timezone ?? 7);
     showOtherTz.value = !isQuickTz(device.timezone)
@@ -146,7 +151,7 @@ const edit_controller = async () => {
     submitting.value = true; resetValidator()
     try {
         const response = await apiFetch(`${config.public.apiBase}/device/edit`, {
-            body: { id: device.id, name: device.name?.trim(), sn: device.sn?.trim(), location: device.location?.trim(), handler: parseInt(device.handler), timezone: parseInt(device.timezone) },
+            body: { id: device.id, name: device.name?.trim(), sn: device.sn?.trim(), location: device.location?.trim(), handler: parseInt(device.handler), timezone: parseInt(device.timezone), ip: device.ip?.trim() },
             method: "POST", headers: auth.confHeaders(),
         })
         if (response.code == 200) {
@@ -159,6 +164,7 @@ const edit_controller = async () => {
             validator.sn = response.data?.sn || '';
             validator.name = response.data?.name || '';
             validator.timezone = response.data?.timezone || '';
+            validator.ip = response.data?.ip || '';
         }
         notify[response.code == 200 ? 'success' : 'error']("Edit Device", response.message);
     } catch (e) {
@@ -173,12 +179,12 @@ const add_controller = async () => {
     if (!device.sn || device.sn.trim().length < 3) { validator.sn = 'Serial must be at least 3 characters'; submitting.value = false; return }
     try {
         const response = await apiFetch(`${config.public.apiBase}/device/add`, {
-            body: { name: device.name?.trim(), sn: device.sn?.trim(), location: device.location?.trim(), handler: parseInt(device.handler), timezone: parseInt(device.timezone) },
+            body: { name: device.name?.trim(), sn: device.sn?.trim(), location: device.location?.trim(), handler: parseInt(device.handler), timezone: parseInt(device.timezone), ip: device.ip?.trim() },
             method: "POST", headers: auth.confHeaders(),
         })
         if (response.code == 200) {
             device_store.addList(response.data[0]);
-            device.name = ''; device.sn = ''; device.location = ''
+            device.name = ''; device.sn = ''; device.location = ''; device.ip = ''
             resetValidator()
         } else {
             validator.handler = response.data?.handler || '';
@@ -186,6 +192,7 @@ const add_controller = async () => {
             validator.sn = response.data?.sn || '';
             validator.name = response.data?.name || '';
             validator.timezone = response.data?.timezone || '';
+            validator.ip = response.data?.ip || '';
         }
         notify[response.code == 200 ? 'success' : 'error']("Add Device", response.message);
     } catch (e) {
@@ -201,7 +208,7 @@ const device_action = async () => {
 
 <template>
     <div class="space-y-4">
-        <!-- Header — compact hero -->
+        <!-- Header - compact hero -->
         <div
             class="hud-frame glass rounded-2xl border border-emerald-100 px-5 py-4 flex flex-col lg:flex-row lg:items-center gap-4 tech-grid-soft">
             <span class="hud-corner hud-corner-tl hidden sm:block"></span>
@@ -219,7 +226,7 @@ const device_action = async () => {
                     </svg>
                 </div>
                 <div class="min-w-0">
-                    <h1 class="display text-lg font-extrabold text-green-900 tracking-tight">Controller &amp; Device
+                    <h1 class="display text-lg font-extrabold text-green-900 tracking-tight">{{ $t('device.subtitle') }}
                     </h1>
                     <div class="mt-2 flex flex-wrap items-center gap-2 mono text-[10px]">
                         <span class="chip chip-emerald">
@@ -234,29 +241,18 @@ const device_action = async () => {
                     </div>
                 </div>
             </div>
-            <button @click="listRef?.reload && listRef.reload()"
-                class="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 text-white mono text-xs font-bold hover:bg-emerald-700 shrink-0 shadow-sm">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M21 12a9 9 0 11-2.64-6.36" />
-                    <path d="M21 3v6h-6" />
-                </svg>
-                Reload
-            </button>
-            <button @click="listRef?.reload && listRef.reload()"
-                class="sm:hidden inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-600 text-white mono text-xs font-bold shrink-0">↻
-                Reload</button>
         </div>
 
         <!-- Main grid -->
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
-            <!-- LEFT: List — 7 cols -->
+            <!-- LEFT: List - 7 cols -->
             <div class="lg:col-span-7 xl:col-span-7">
                 <div class="glass rounded-2xl border border-emerald-100 shadow-sm overflow-hidden">
                     <ListController ref="listRef" @edit="actEdit" @delete="actDelete" />
                 </div>
             </div>
 
-            <!-- RIGHT: Form — 5 cols -->
+            <!-- RIGHT: Form - 5 cols -->
             <div class="lg:col-span-5 xl:col-span-5 space-y-3.5">
                 <!-- Form card -->
                 <div id="device-form-anchor"
@@ -265,13 +261,14 @@ const device_action = async () => {
                         <div class="px-4 sm:px-5 py-3 flex items-center gap-2 min-w-0 flex-1">
                             <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
                             <h2 class="mono text-xs font-extrabold tracking-[0.14em] text-emerald-700 truncate">{{
-                                isEditMode ? 'EDIT DEVICE' : 'ADD DEVICE' }}</h2>
+                                isEditMode ? $t('device.editModeUp') : $t('device.addModeUp') }}</h2>
                             <span class="hidden sm:inline-flex chip mono !text-[9px] shrink-0"
                                 :class="isEditMode ? 'bg-amber-500 text-white border-amber-500' : 'chip-emerald'">{{
-                                    isEditMode ? 'EDIT' : 'NEW' }}</span>
+                                    isEditMode ? $t('device.editMode') : $t('common.newModeShort') }}</span>
                         </div>
                         <span v-if="isEditMode"
-                            class="sm:hidden chip self-center mr-3 bg-amber-500 text-white border-amber-500 mono !text-[9px] shrink-0">EDIT</span>
+                            class="sm:hidden chip self-center mr-3 bg-amber-500 text-white border-amber-500 mono !text-[9px] shrink-0">{{
+                            $t('common.editMode') }}</span>
                     </div>
 
                     <form @submit.prevent="device_action" class="bg-white px-4 sm:px-5 py-4 space-y-4">
@@ -281,30 +278,30 @@ const device_action = async () => {
                                 class="mono text-[10px] font-bold tracking-[0.14em] text-emerald-700 flex items-center gap-2">
                                 <span
                                     class="w-6 h-6 rounded-lg bg-emerald-600 text-white flex items-center justify-center text-[11px]">1</span>
-                                MACHINE IDENTITY
+                                {{ $t('device.machineIdentity') }}
                             </p>
                             <div>
                                 <label for="device_name"
-                                    class="block text-xs font-semibold tracking-widest uppercase text-emerald-700/70 mb-1.5 ml-1">Device
-                                    Name <span class="text-red-500">*</span></label>
+                                    class="block text-xs font-semibold tracking-widest uppercase text-emerald-700/70 mb-1.5 ml-1">{{
+                                    $t('device.fieldName') }} <span class="text-red-500">*</span></label>
                                 <input id="device_name" v-model="device.name" type="text" required
-                                    placeholder="Contoh: Pintu Utama / Mesin Gudang A"
+                                    :placeholder="$t('device.locationPh')"
                                     class="w-full px-3.5 h-11 rounded-xl border-2 border-white bg-white focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 outline-none text-sm text-green-900 placeholder:text-green-900/30 transition shadow-sm">
                                 <p v-if="validator.name" class="mt-1.5 text-xs font-medium text-red-500 ml-1">{{
                                     validator.name }}</p>
                             </div>
                             <div>
                                 <label for="serial_number"
-                                    class="block text-xs font-semibold tracking-widest uppercase text-emerald-700/70 mb-1.5 ml-1">Serial
-                                    Number (SN) <span class="text-red-500">*</span></label>
+                                    class="block text-xs font-semibold tracking-widest uppercase text-emerald-700/70 mb-1.5 ml-1">{{
+                                    $t('device.fieldSn') }} <span class="text-red-500">*</span></label>
                                 <div class="relative">
                                     <input id="serial_number" v-model="device.sn" :disabled="isEditMode" type="text"
-                                        required placeholder="Contoh: 583298001234"
+                                        required :placeholder="$t('device.snPh')"
                                         class="w-full px-3.5 h-11 pr-10 rounded-xl border-2 bg-white outline-none text-sm text-green-900 placeholder:text-green-900/30 mono font-medium tracking-wide transition shadow-sm"
                                         :class="isEditMode ? 'border-amber-200 bg-amber-50/50 text-amber-800 cursor-not-allowed' : 'border-white focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100'">
                                     <span v-if="isEditMode"
                                         class="absolute right-2.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-lg bg-amber-500 text-white flex items-center justify-center shadow-sm"
-                                        title="Terkunci saat edit">
+                                        :title="$t('device.lockedEdit')">
                                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
                                             stroke="currentColor" stroke-width="2">
                                             <rect x="3" y="11" width="18" height="11" rx="2" />
@@ -316,8 +313,7 @@ const device_action = async () => {
                                     validator.sn }}</p>
                                 <p v-else class="mt-1 mono text-[10px] tracking-wide ml-1"
                                     :class="isEditMode ? 'text-amber-600' : 'text-emerald-700/40'">{{ isEditMode ?
-                                        'SN is locked — delete and re - create to swap machines' : 'Find the SN under Menu'_
-                                    '→ Device on the machine • it must be unique' }}</p>
+                                        $t('device.snLocked') : $t('device.snHint') }}</p>
                             </div>
                         </div>
 
@@ -327,30 +323,41 @@ const device_action = async () => {
                                 class="mono text-[10px] font-bold tracking-[0.14em] text-emerald-700 flex items-center gap-2">
                                 <span
                                     class="w-6 h-6 rounded-lg bg-green-700 text-white flex items-center justify-center text-[11px]">2</span>
-                                CONNECTION
+                                {{ $t('device.connection') }}
                             </p>
+                            <!-- Device IP, needed to reach the machine over the LAN -->
+                            <div>
+                                <label for="device_ip"
+                                    class="block text-xs font-semibold tracking-widest uppercase text-emerald-700/70 mb-1.5 ml-1">{{
+                                    $t('device.ipField') }}</label>
+                                <input id="device_ip" v-model="device.ip" type="text" :placeholder="$t('device.ipPh')"
+                                    class="w-full px-3.5 h-11 rounded-xl border-2 border-white bg-white focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 outline-none text-sm text-green-900 placeholder:text-green-900/30 mono transition shadow-sm">
+                                <p v-if="validator.ip" class="mt-1.5 text-xs font-medium text-red-500 ml-1">{{
+                                    validator.ip }}</p>
+                                <p v-else class="mt-1 mono text-[10px] tracking-wide text-emerald-700/40 ml-1">{{
+                                    $t('device.ipHint') }}</p>
+                            </div>
                             <!-- Handler as segmented -->
                             <div>
                                 <label
-                                    class="block text-xs font-semibold tracking-widest uppercase text-emerald-700/70 mb-1.5 ml-1">Handler
-                                    <span class="text-red-500">*</span></label>
+                                    class="block text-xs font-semibold tracking-widest uppercase text-emerald-700/70 mb-1.5 ml-1">{{
+                                    $t('device.fieldHandler') }} <span class="text-red-500">*</span></label>
                                 <div class="grid grid-cols-2 gap-2">
                                     <button type="button" @click="device.handler = 4"
                                         class="text-left px-3 py-2.5 rounded-xl border-2 transition"
                                         :class="device.handler === 4 ? 'bg-emerald-600 border-emerald-600 text-white shadow-sm' : 'bg-white border-slate-200 text-slate-700 hover:border-emerald-200'">
                                         <p class="text-xs font-bold leading-none">iClock / ADMS</p>
                                         <p class="mono text-[10px] mt-1"
-                                            :class="device.handler === 4 ? 'text-white/80' : 'text-slate-400'">
-                                            Recommended
+                                            :class="device.handler === 4 ? 'text-white/80' : 'text-slate-400'">Recommended
                                             • stable</p>
                                     </button>
                                     <button type="button" @click="device.handler = 5"
                                         class="text-left px-3 py-2.5 rounded-xl border-2 transition"
                                         :class="device.handler === 5 ? 'bg-slate-800 border-slate-800 text-white shadow-sm' : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'">
-                                        <p class="text-xs font-bold leading-none">ZKNET</p>
+                                        <p class="text-xs font-bold leading-none">{{ $t('device.protocolZk') }}</p>
                                         <p class="mono text-[10px] mt-1"
-                                            :class="device.handler === 5 ? 'text-white/70' : 'text-slate-400'">Not fully
-                                            supported</p>
+                                            :class="device.handler === 5 ? 'text-white/70' : 'text-slate-400'">{{
+                                            $t('device.notFullySupported') }}</p>
                                     </button>
                                 </div>
                                 <p v-if="validator.handler" class="mt-1 text-xs text-red-500">{{ validator.handler }}
@@ -359,8 +366,8 @@ const device_action = async () => {
                             <!-- Timezone quick -->
                             <div>
                                 <label
-                                    class="block text-xs font-semibold tracking-widest uppercase text-emerald-700/70 mb-1.5 ml-1">Timezone
-                                    <span class="text-red-500">*</span></label>
+                                    class="block text-xs font-semibold tracking-widest uppercase text-emerald-700/70 mb-1.5 ml-1">{{
+                                    $t('device.fieldTimezone') }} <span class="text-red-500">*</span></label>
                                 <div class="flex flex-wrap gap-1.5">
                                     <button v-for="q in tzQuick" :key="q.v" type="button"
                                         @click="device.timezone = q.v; showOtherTz = false"
@@ -372,7 +379,7 @@ const device_action = async () => {
                                     <button type="button" @click="showOtherTz = !showOtherTz"
                                         class="px-3 py-2 rounded-full border-2 mono text-xs font-bold transition"
                                         :class="showOtherTz || !isQuickTz(device.timezone) ? 'bg-slate-800 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'">
-                                        Other ▾
+                                        {{ $t('device.otherTz') }} ▾
                                     </button>
                                 </div>
                                 <div v-if="showOtherTz || !isQuickTz(device.timezone)" class="mt-2">
@@ -383,8 +390,9 @@ const device_action = async () => {
                                 </div>
                                 <p v-if="validator.timezone" class="mt-1 text-xs text-red-500">{{ validator.timezone }}
                                 </p>
-                                <p v-else class="mt-1 mono text-[10px] text-emerald-700/40 ml-1">Selected: <b
-                                        class="text-emerald-700">{{ tzLabel(device.timezone) }}</b></p>
+                                <p v-else class="mt-1 mono text-[10px] text-emerald-700/40 ml-1">{{
+                                    $t('device.selected') }} <b class="text-emerald-700">{{ tzLabel(device.timezone)
+                                        }}</b></p>
                             </div>
                         </div>
 
@@ -392,13 +400,13 @@ const device_action = async () => {
                         <div>
                             <label for="location"
                                 class="block text-xs font-semibold tracking-widest uppercase text-emerald-700/70 mb-1.5 ml-1 flex items-center gap-2">
-                                Location
+                                {{ $t('device.fieldLocation') }}
                                 <span class="ml-auto mono text-[10px] font-normal normal-case tracking-wide"
                                     :class="locationLen > 150 ? 'text-amber-600 font-bold' : 'text-emerald-700/40'">{{
-                                        locationLen }}/160</span>
+                                    locationLen }}/160</span>
                             </label>
                             <textarea id="location" v-model="device.location" rows="2" maxlength="160"
-                                placeholder="Contoh: Lantai 2 — Lobby Utama, Gedung A (opsional)"
+                                :placeholder="$t('device.locationPh2')"
                                 class="w-full px-3.5 py-2.5 rounded-xl border-2 border-emerald-100 bg-white focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 outline-none text-sm text-green-900 placeholder:text-green-900/30 resize-none transition shadow-sm"></textarea>
                             <p v-if="validator.location" class="mt-1 text-xs text-red-500">{{ validator.location }}</p>
                         </div>
@@ -413,36 +421,39 @@ const device_action = async () => {
                                     <path class="opacity-75" fill="currentColor"
                                         d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                                 </svg>
-                                {{ submitting ? 'Menyimpan…' : (isEditMode ? 'Save Changes' : 'Save Device') }}
+                                {{ submitting ? $t('common.saving') : (isEditMode ? $t('common.saveChanges') :
+                                $t('device.saveDevice')) }}
                             </button>
                             <button v-if="isEditMode" type="button" @click="cancelEdit()"
-                                class="px-6 py-3 rounded-xl bg-white border-2 border-slate-200 text-slate-700 hover:bg-slate-50 text-sm font-bold mono">Cancel</button>
+                                class="px-6 py-3 rounded-xl bg-white border-2 border-slate-200 text-slate-700 hover:bg-slate-50 text-sm font-bold mono">{{
+                                $t('common.cancel') }}</button>
                             <button v-else type="button" @click="resetForm()"
-                                class="px-6 py-3 rounded-xl bg-white border-2 border-emerald-100 text-emerald-700 hover:bg-emerald-50 text-sm font-bold mono">Reset</button>
+                                class="px-6 py-3 rounded-xl bg-white border-2 border-emerald-100 text-emerald-700 hover:bg-emerald-50 text-sm font-bold mono">{{
+                                $t('common.reset') }}</button>
                         </div>
                     </form>
                 </div>
 
-                <!-- Help — compact -->
+                <!-- Help - compact -->
                 <details class="rounded-2xl border border-emerald-100 bg-emerald-50/40 overflow-hidden group">
                     <summary
                         class="px-4 py-3 cursor-pointer list-none flex items-center gap-2 mono text-[11px] font-bold tracking-widest text-emerald-700 select-none">
                         <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                        REGISTRATION • 4 STEPS
+                        {{ $t('device.stepsTitle') }}
                         <span class="ml-auto text-emerald-700/40 group-open:rotate-180 transition">▾</span>
                     </summary>
                     <div class="px-4 pb-3.5 pt-1">
                         <ol
                             class="space-y-1.5 mono text-[11px] leading-relaxed text-emerald-800/80 list-decimal list-inside">
-                            <li>On the machine: <b>Menu → Device Info</b> note it down <b>SN</b>.</li>
-                            <li>Enter <b>Nama</b> + <b>SN</b> in the form — pick <b>WIB/WITA/WIT</b>.</li>
-                            <li>Pick a handler <b>ADMS</b> (recommended).</li>
-                            <li>Save → check the status in the table on the left <b>Online</b>.</li>
+                            <li>{{ $t('device.step1') }}</li>
+                            <li>{{ $t('device.step2') }}</li>
+                            <li>{{ $t('device.step3') }}</li>
+                            <li>{{ $t('device.step4') }}</li>
                         </ol>
                         <div class="mt-3 flex flex-wrap gap-1.5">
-                            <span class="chip chip-emerald mono !text-[9px]">WIB GMT+7</span>
-                            <span class="chip chip-emerald mono !text-[9px]">WITA GMT+8</span>
-                            <span class="chip chip-emerald mono !text-[9px]">WIT GMT+9</span>
+                            <span class="chip chip-emerald mono !text-[9px]">{{ $t('device.tzWib') }}</span>
+                            <span class="chip chip-emerald mono !text-[9px]">{{ $t('device.tzWita') }}</span>
+                            <span class="chip chip-emerald mono !text-[9px]">{{ $t('device.tzWit') }}</span>
                         </div>
                     </div>
                 </details>

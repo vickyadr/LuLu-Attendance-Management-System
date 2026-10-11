@@ -5,6 +5,8 @@ import {
     faXmark,
 } from '@fortawesome/free-solid-svg-icons'
 
+// Renders the live toasts. Mounted once in the layout, so any page can push to
+// it through the store without owning markup.
 const notify = useNotifyStore()
 
 const ICONS = {
@@ -14,6 +16,8 @@ const ICONS = {
     warning: faTriangleExclamation,
 }
 
+// Emerald for success reads as the app's own colour; the rest stay readable
+// rather than introducing a second brand palette.
 const TONE = {
     success: 'border-emerald-200 bg-white text-emerald-800',
     error: 'border-red-200 bg-white text-red-800',
@@ -42,7 +46,7 @@ const ICON_TONE = {
                     <p class="text-sm font-semibold leading-snug">{{ t.title }}</p>
                     <p v-if="t.message" class="text-xs leading-snug opacity-80 mt-0.5 break-words">{{ t.message }}</p>
                 </div>
-                <button type="button" @click="notify.dismiss(t.id)" aria-label="Dismiss notification"
+                <button type="button" @click="notify.dismiss(t.id)" :aria-label="$t('common.dismiss')"
                     class="shrink-0 w-6 h-6 grid place-content-center rounded-lg opacity-50 hover:opacity-100 hover:bg-black/5 transition">
                     <font-awesome :icon="faXmark" class="w-3 h-3" />
                 </button>

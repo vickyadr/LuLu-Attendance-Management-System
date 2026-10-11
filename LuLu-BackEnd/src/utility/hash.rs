@@ -68,6 +68,11 @@ pub async fn verify_password(stored: &str, candidate: &str) -> bool {
 mod tests {
     use super::*;
 
+    // `SECRET_KEY` comes from the environment; `cargo test` inherits it from the
+    // shell, and `scripts/verify_f3_night_shift.sh` sources .env before running.
+    // A missing key makes `SECRET` panic in the FIRST test that touches it, so
+    // fail loudly here with a message that names the fix instead.
+
     fn require_secret() {
         assert!(
             std::env::var("SECRET_KEY").is_ok(),
@@ -134,7 +139,7 @@ mod tests {
     }
 
     /// The legacy hash is still the session-token transform, so it must stay
-    /// deterministic — a salted token would break every stored session.
+    /// deterministic - a salted token would break every stored session.
     #[tokio::test]
     async fn encode_256_stays_deterministic() {
         require_secret();

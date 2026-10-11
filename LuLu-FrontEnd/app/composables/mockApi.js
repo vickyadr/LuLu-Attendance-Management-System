@@ -10,7 +10,7 @@
 //   - login returns `data: [{ user_id: "<string>", token }]` (models/m_login.rs)
 //   - /login/user returns `data: [{ user_nickname, user_fname, user_lname }]`
 //   - /transaction/live returns `data` newest-first and puts the newest
-//     `enroll_id` in `message` — LiveTable.vue parses it for its "last seen" stamp
+//     `enroll_id` in `message` - LiveTable.vue parses it for its "last seen" stamp
 //   - /user/list returns `UserWithPermissions`: `permissions` is a MAP keyed by
 //     page_key, never an array (models/m_user.rs)
 //   - field renames match the serde attributes (employee `id`/`first_name`,
@@ -18,15 +18,15 @@
 //   - success/failure messages are the backend's own strings, because the UI
 //     toasts `response.message` verbatim and users.vue matches one of them
 //
-// It is wired in at the single choke point every page already goes through — the
-// `apiFetch` composable — so no page, store or component has to know whether it is
+// It is wired in at the single choke point every page already goes through - the
+// `apiFetch` composable - so no page, store or component has to know whether it is
 // talking to the real backend or the mock.
 //
 // Enable with NUXT_PUBLIC_DEMO_MODE=true. With the flag off, `apiFetch` passes
 // through to the real backend untouched, so dev and production are unaffected.
 //
-// Attendance is generated deterministically per (employee, day) — seeded from the
-// ids, never Math.random — so a reload shows the same attendance for the same day
+// Attendance is generated deterministically per (employee, day) - seeded from the
+// ids, never Math.random - so a reload shows the same attendance for the same day
 // instead of reshuffling on every refresh.
 
 /** Page keys, matching the `users` page grid and the route middleware. */
@@ -135,7 +135,7 @@ const EMPLOYEE_SEED = [
 const STREETS = ['Melati', 'Anggrek', 'Kenanga', 'Flamboyan', 'Cendana', 'Teratai', 'Mawar', 'Daisy']
 const CITIES = ['Bekasi', 'Bandung', 'Jakarta', 'Surabaya', 'Medan', 'Yogyakarta', 'Semarang', 'Denpasar']
 
-/** Live, mutable copy of the mock database — writes land here, not in the tables. */
+/** Live, mutable copy of the mock database - writes land here, not in the tables. */
 function buildDb() {
     return {
         employee: EMPLOYEE_SEED.map((e, i) => ({
@@ -185,7 +185,7 @@ function seeded(seed) {
     return Math.abs(x) / 0x7fffffff
 }
 
-/** Midnight of the day containing `ts`, shifted by `tz` hours — `ts_at_zero`. */
+/** Midnight of the day containing `ts`, shifted by `tz` hours - `ts_at_zero`. */
 function tsAtZero(ts, tz) {
     const shifted = ts + (tz || 0) * 3600
     return shifted - (mod(shifted, 86400))
@@ -196,12 +196,12 @@ function mod(n, m) {
     return ((n % m) + m) % m
 }
 
-/** ISO weekday 1..7 (Mon..Sun) — `ts_dow`. */
+/** ISO weekday 1..7 (Mon..Sun) - `ts_dow`. */
 function tsDow(ts, tz) {
     return new Date((ts + (tz || 0) * 3600) * 1000).getUTCDay() === 0 ? 7 : new Date((ts + (tz || 0) * 3600) * 1000).getUTCDay()
 }
 
-/** ISO week number 1..52 — `ts_week`. */
+/** ISO week number 1..52 - `ts_week`. */
 function tsWeek(ts, tz) {
     const d = new Date((ts + (tz || 0) * 3600) * 1000)
     d.setUTCHours(0, 0, 0, 0)
@@ -214,12 +214,12 @@ function tsWeek(ts, tz) {
 // ── envelope helpers (ports of utility/stor.rs) ─────────────────────────
 
 /**
- * GenericResponse::ok — a list envelope.
+ * GenericResponse::ok - a list envelope.
  *
  * `data` is copied on the way out. A real response crosses the network, so every
  * caller gets its own array; handing back the live DB array aliased the store to
  * it, and a later push in a handler showed up in the already-rendered list. That
- * put the same row on screen twice — once because the store's array grew, once
+ * put the same row on screen twice - once because the store's array grew, once
  * because the component also pushed the row the add call returned.
  */
 function listOk(data, message = 'OK') {
@@ -237,12 +237,12 @@ function clone(value) {
     return value
 }
 
-/** NoDataResponse::ok — a success with no payload; `data` is an empty array. */
+/** NoDataResponse::ok - a success with no payload; `data` is an empty array. */
 function noDataOk(message) {
     return { message, data: [], code: 200 }
 }
 
-/** NoDataResponse::new — a failure carrying a real HTTP status. */
+/** NoDataResponse::new - a failure carrying a real HTTP status. */
 function fail(code, message, data) {
     return { message, data: clone(data ?? []), code }
 }
@@ -318,7 +318,7 @@ function shiftForDate(dayTs, employee) {
  * Build one report row for an employee on one day.
  *
  * The frame matches the backend exactly: `enroll_date` is a UTC midnight and the
- * device timezone offset is applied ONCE — when converting the shift's local
+ * device timezone offset is applied ONCE - when converting the shift's local
  * wall-clock offsets into UTC epochs. Applying it twice is what stretched a shift
  * by 2x the offset and dropped days from the real report, so it is applied once.
  */
@@ -498,7 +498,7 @@ function userByNickname(nickname) {
  *
  * The token format is `demo.<nickname>.<issued_at_ms>.<nonce>`: it CARRIES the
  * identity, so a page reload cannot invalidate it. An in-memory Map cannot do
- * that — `nuxt generate` emits an ES module that the browser re-evaluates on
+ * that - `nuxt generate` emits an ES module that the browser re-evaluates on
  * every full page load, which wiped the session and bounced visitors to /login
  * the moment they refreshed or opened a second tab.
  *
@@ -530,7 +530,7 @@ function sessionNickname(token) {
 /**
  * Authenticate a request and enforce a page grant. Returns null when allowed, or
  * the error envelope to return. Mirrors check_action_access: 401 with no session,
- * 403 when the page grant is missing — including View, which gates every read.
+ * 403 when the page grant is missing - including View, which gates every read.
  */
 function guard(token, pageKey, action) {
     const user = sessionUser(token)
@@ -588,7 +588,7 @@ function login(body) {
     return listOk([{ user_id: String(user.user_id), token }], 'Login success !!!')
 }
 
-/** GET /login/user — GenericResponse::single, so `data` is a one-element array. */
+/** GET /login/user - GenericResponse::single, so `data` is a one-element array. */
 function loginUser(token) {
     const user = sessionUser(token)
     if (!user) return fail(400, 'Session token invalid', [])
@@ -781,19 +781,19 @@ const scheduleAdd = gated('shift', 'Add', (token, url, method, body) => {
 })
 
 /**
- * POST /schedule/edit — the schedule grid's drag-and-drop save. The body is
+ * POST /schedule/edit - the schedule grid's drag-and-drop save. The body is
  * `{ id, shift: [new_shift_id] }` for a single row, answered with
  * NoDataResponse::ok (no payload), not a list.
  *
  * `id` is the row's PRIMARY KEY, exactly as the backend's
- * `UPDATE schedules SET schedule_shift_id=$1 WHERE schedule_id=$2` treats it —
+ * `UPDATE schedules SET schedule_shift_id=$1 WHERE schedule_id=$2` treats it -
  * not a schedule_dom. The id -> slot mapping is therefore derived from the
  * flattened rows rather than assumed.
  */
 const scheduleEdit = gated('shift', 'Edit', (token, url, method, body) => {
     const shifts = Array.isArray(body?.shift) ? body.shift : null
     if (!shifts || shifts.length !== 1) {
-        return fail(400, 'Format edit tidak didukung — kirim id + shift', [])
+        return fail(400, 'Format edit tidak didukung - kirim id + shift', [])
     }
     if (body?.id === undefined || Number(body.id) < 1) {
         return fail(403, 'Gagal edit jadwal', { id: 'ID jadwal wajib' })
@@ -919,7 +919,7 @@ const settingsEdit = gated('settings', 'Edit', (token, url, method, body) => {
     const errors = {}
 
     // Validate both fields before writing either, so a rejected value never
-    // half-applies — the same contract as h_settings.rs.
+    // half-applies - the same contract as h_settings.rs.
     for (const key of ['late_tolerance_sec', 'overtime_tolerance_sec']) {
         const value = body?.[key]
         if (value === undefined || value === null) continue
@@ -973,7 +973,7 @@ const userAdd = gated('users', 'Add', (token, url, method, body) => {
         // A new account starts with no pages: view is never granted implicitly.
         permissions: PAGE_KEYS.reduce((acc, page_key) => { acc[page_key] = 0; return acc }, {}),
     })
-    // GenericResponse<String>::ok(vec![user_nickname]) — the payload is the nickname.
+    // GenericResponse<String>::ok(vec![user_nickname]) - the payload is the nickname.
     return listOk([String(body.nickname)], 'User added')
 })
 
@@ -1009,7 +1009,7 @@ const userEdit = gated('users', 'Edit', (token, url, method, body) => {
     }
 
     if (updates.length === 0) return fail(400, 'No fields to update', [])
-    // NoDataResponse::new("OK", 200) — no payload on an edit.
+    // NoDataResponse::new("OK", 200) - no payload on an edit.
     return noDataOk('OK')
 })
 
@@ -1031,11 +1031,11 @@ const userDelete = gated('users', 'Delete', (token, url, method, body) => {
 })
 
 /**
- * POST /user/permissions — update another account's flags.
+ * POST /user/permissions - update another account's flags.
  *
  * Self-lockout is refused: with no admin level and no superuser, dropping your own
  * `users` access is a one-way door. can_view AND can_edit must both survive, since
- * this very endpoint is gated on can_edit — dropping it would succeed once and
+ * this very endpoint is gated on can_edit - dropping it would succeed once and
  * then lock you out of every later permission change.
  */
 const userPermissionsUpdate = gated('users', 'Edit', (token, url, method, body) => {
@@ -1072,7 +1072,7 @@ const userPermissionsUpdate = gated('users', 'Edit', (token, url, method, body) 
 })
 
 /**
- * GET /user/permissions — the CALLER's own flags, as a flat array of
+ * GET /user/permissions - the CALLER's own flags, as a flat array of
  * UserPermission rows. Deliberately not gated on the 'users' page: every signed-in
  * user needs their own flags to render the sidebar and guard their routes.
  */
@@ -1196,7 +1196,7 @@ function dispatch(url, options) {
         const denied = guard(token, 'dashboard', 'View')
         if (denied) return denied
         const rows = transactionLive()
-        // The newest enroll_id travels in `message` — LiveTable.vue parses it.
+        // The newest enroll_id travels in `message` - LiveTable.vue parses it.
         return listOk(rows, String(rows[0]?.enroll_id ?? 0))
     }
 

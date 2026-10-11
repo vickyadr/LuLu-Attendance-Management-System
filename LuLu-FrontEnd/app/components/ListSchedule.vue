@@ -2,13 +2,13 @@
 import { useSchedule } from '~/store/schedule';
 import { useAuthStore } from '~/store/auth';
 import { useNotifyStore } from '~/store/notify';
-const canEdit = computed(() => auth.hasActionAccess('shift', 'can_edit'))
-const canDelete = computed(() => auth.hasActionAccess('shift', 'can_delete'))
 import { useChecker, useFormater } from '#imports';
 import { faAdd, faRefresh, faSave, faTrash, faMagnifyingGlass } from '@fortawesome/free-solid-svg-icons';
 import { useShiftStore } from '~/store/shift'
 import { OFF_DAY, isOffDay } from '~/utils/labels';
 import ScheduleItem from './ScheduleItem.vue';
+
+const { t } = useI18n()
 
 const
   auth = useAuthStore(),
@@ -23,6 +23,12 @@ const
   saving = ref(false),
   search = ref(''),
   temp = ref([]);
+
+// /schedule/* is gated on the 'shift' page server-side, so the UI must agree.
+// Declared after `auth` exists: a computed referencing `auth` above its
+// declaration throws on first access, not at definition time.
+const canEdit = computed(() => auth.hasActionAccess('shift', 'can_edit'))
+const canDelete = computed(() => auth.hasActionAccess('shift', 'can_delete'))
 
 const contents = computed(() => list.contents)
 const filteredSchedules = computed(() => {
@@ -58,7 +64,9 @@ function toggleCollapse(type, index) {
   if (collapse.value[type][index] === undefined) collapse.value[type][index] = false
   collapse.value[type][index] = !collapse.value[type][index];
 }
-// Default folded
+// Default folded: both the parent schedules and every week stay collapsed
+// until clicked. Only rows the user explicitly toggles are tracked, so the
+// undefined check below must keep assigning a default rather than assume one.
 watchEffect(() => {
   for (const p of filteredSchedules.value) {
     if (collapse.value.main[p.id] === undefined) collapse.value.main[p.id] = false
@@ -128,7 +136,7 @@ async function saveChanges() {
   saving.value = false
   // reload to sync
   await initSchedule()
-  notify[fail ? 'warning' : 'success']('Save Schedule', fail ? `${ok} saved, ${fail} failed` : `${ok} schedules updated`)
+  notify[fail ? 'warning' : 'success'](t('schedule.saveSchedule'), fail ? t('schedule.saveSummaryFail', { ok, fail }) : t('schedule.saveSummaryOk', { ok }))
 }
 
 async function deleteSchedule(parrentId, name) {
@@ -137,9 +145,9 @@ async function deleteSchedule(parrentId, name) {
     const res = await apiFetch(`${config.public.apiBase}/schedule/delete/${parrentId}`, { method: 'GET', headers: auth.confHeaders() })
     if (res.code === 200) {
       await initSchedule()
-      notify.success('Delete Schedule', res.message || 'Schedule deleted')
-    } else notify.error('Delete failed', res.message)
-  } catch (e) { notify.error('Delete failed', e?.data?.message || e.message) }
+      notify.success(t('schedule.deleteTitle'), res.message || t('schedule.deleted'))
+    } else notify.error(t('common.deleteFailed'), res.message)
+  } catch (e) { notify.error(t('common.deleteFailed'), e?.data?.message || e.message) }
 }
 
 onMounted(() => initSchedule());
@@ -152,14 +160,14 @@ defineExpose({ refresh: initSchedule })
     <!-- Header search -->
     <div class="px-3 py-2.5 border-b border-emerald-100 bg-white flex items-center gap-2">
       <div class="relative flex-1">
-        <input v-model="search" type="text" placeholder="Search schedules (name / ID)..."
+        <input v-model="search" type="text" :placeholder="$t('schedule.searchPh')"
           class="w-full pl-8 pr-3 py-2 rounded-xl border-2 border-emerald-100 bg-emerald-50/30 focus:bg-white focus:border-emerald-300 focus:ring-4 focus:ring-emerald-100 outline-none text-sm text-green-900 placeholder:text-green-900/40 transition" />
         <FontAwesome :icon="faMagnifyingGlass"
           class="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-emerald-400" />
         <button v-if="search" @click="search = ''"
           class="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white border border-emerald-100 text-emerald-600 text-xs">×</button>
       </div>
-      <button @click="refreshSchedule()" title="Reload"
+      <button @click="refreshSchedule()" :title="$t('device.reloadShort')"
         class="w-9 h-9 rounded-xl bg-white border-2 border-emerald-100 text-emerald-600 hover:bg-emerald-50 hover:border-emerald-200 flex items-center justify-center transition">
         <FontAwesome :icon="faRefresh" class="w-3.5 h-3.5" :class="saving ? 'animate-spin' : ''" />
       </button>
@@ -169,7 +177,8 @@ defineExpose({ refresh: initSchedule })
     <div
       class="px-3 py-2.5 flex items-center justify-between bg-gradient-to-r from-emerald-50/40 to-white border-b border-emerald-100">
       <div class="flex items-center gap-2">
-        <span class="mono text-[10px] font-bold tracking-[0.14em] text-emerald-700">SCHEDULE LIST</span>
+        <span class="mono text-[10px] font-bold tracking-[0.14em] text-emerald-700">{{ $t('schedule.listTitle')
+        }}</span>
         <span class="chip chip-emerald mono !text-[9px]">{{ filteredSchedules.length }} schedules</span>
         <span v-if="hasDirty" class="chip bg-amber-500 text-white mono !text-[9px] animate-pulse">{{ dirtyCount }}
           unsaved</span>
@@ -177,7 +186,7 @@ defineExpose({ refresh: initSchedule })
       <button v-if="canEdit" @click="saveChanges" :disabled="!hasDirty || saving"
         class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold mono tracking-wide transition"
         :class="hasDirty ? 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm' : 'bg-slate-100 text-slate-400 cursor-not-allowed'">
-        <FontAwesome :icon="faSave" class="w-3 h-3" /> {{ saving ? 'Menyimpan...' : 'Save changes' }}
+        <FontAwesome :icon="faSave" class="w-3 h-3" /> {{ saving ? $t('common.saving') : $t('schedule.saveChanges') }}
       </button>
     </div>
 
@@ -200,15 +209,14 @@ defineExpose({ refresh: initSchedule })
               <span class="font-bold text-sm text-green-900 truncate">{{ sch.name }}</span>
               <span class="chip mono !text-[9px]"
                 :class="isOffDay(sch.shift_name) ? 'bg-slate-100 border-slate-200 text-slate-600 border' : 'chip-emerald'">{{
-                  sch.type === 1 ? 'DAILY' : sch.type === 7 ? 'WEEKLY' : sch.type === 14 ? '2 WEEKS' : sch.type === 21 ?
-                    '3 WEEKS' : 'MONTHLY'
-                }}</span>
+                  sch.type === 1 ? 'DAILY' : sch.type === 7 ? 'WEEKLY' : sch.type === 14 ? $t('schedule.weeks2') :
+                    sch.type === 21 ? $t('schedule.weeks3') : 'MONTHLY' }}</span>
               <span class="mono text-[10px] text-emerald-700/40 hidden sm:inline">ID #{{ sch.parrent }} • {{
                 (contents.filter(x => x.parrent === sch.parrent).length)}} days</span>
             </button>
             <button v-if="canDelete" @click="deleteSchedule(sch.parrent, sch.name)"
               class="w-7 h-7 rounded-lg bg-white border border-red-100 text-red-500 hover:bg-red-50 hover:border-red-200 flex items-center justify-center"
-              title="Delete schedule">
+              :title="$t('schedule.deleteTitle')">
               <FontAwesome :icon="faTrash" class="w-3 h-3" />
             </button>
           </div>
@@ -221,7 +229,7 @@ defineExpose({ refresh: initSchedule })
               @pick-shift="handlePickShift" />
             <div v-if="hasDirty"
               class="px-3 py-2 bg-amber-50 border-t border-amber-100 mono text-[10px] text-amber-700 flex items-center gap-1.5">
-              ● Unsaved changes — click <b>Save changes</b> di atas</div>
+              ● Unsaved changes - click <b>{{ $t('common.saveChanges') }}</b> di atas</div>
           </div>
         </div>
       </div>
@@ -236,10 +244,12 @@ defineExpose({ refresh: initSchedule })
         </div>
         <p class="text-sm font-semibold text-green-900">{{ search ? 'No results' : 'No schedules yet' }}</p>
         <p class="mono text-xs text-emerald-700/50 mt-1 max-w-[28ch] mx-auto">{{ search ?
-          'Try a different keyword, or clear the search' : 'Create a schedule in the right panel — pick a Daily'_
-        ' / Weekly / Monthly pattern, then fill in a shift per day' }}</p>
+          'Try a different keyword, or clear the search' :
+          'Create a schedule in the right panel - pick a Daily / Weekly / Monthly pattern, then fill in a shift per day'
+          }}</p>
         <button v-if="search" @click="search = ''"
-          class="mt-3 px-4 py-1.5 rounded-full bg-emerald-600 text-white mono text-xs">Clear search</button>
+          class="mt-3 px-4 py-1.5 rounded-full bg-emerald-600 text-white mono text-xs">{{ $t('common.clearSearch')
+          }}</button>
       </div>
     </div>
 

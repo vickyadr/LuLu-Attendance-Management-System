@@ -15,6 +15,7 @@ Password: demo12345
 
     LuLu-BackEnd/     Rust API (Actix Web) + database migrations
     LuLu-FrontEnd/    Nuxt 4 SPA (Vue 3 + Pinia + Tailwind)
+    Readme.md         this file
 
 ## Requirements
 
@@ -33,12 +34,13 @@ order. The server refuses to start if any migration fails.
 
 Variables the code reads:
 
-| Variable       | Required | Default   | Notes                                         |
-| -------------- | -------- | --------- | --------------------------------------------- |
-| `DATABASE_URL` | yes      | —         | PostgreSQL connection string                  |
-| `SECRET_KEY`   | yes      | —         | Must be present; the server exits without it. |
-| `HOST`         | no       | `0.0.0.0` | Bind address                                  |
-| `PORT`         | no       | `4343`    | Backend port                                  |
+| Variable          | Required | Default                   | Notes                                                        |
+| ----------------- | -------- | ------------------------- | ------------------------------------------------------------ |
+| `DATABASE_URL`    | yes      | -                         | PostgreSQL connection string                                 |
+| `SECRET_KEY`      | yes      | -                         | Must be present; the server exits without it.                |
+| `HOST`            | no       | `0.0.0.0`                 | Bind address                                                 |
+| `PORT`            | no       | `4343`                    | Backend port                                                 |
+| `ALLOWED_ORIGINS` | no       | loopback + private ranges | Comma-separated CORS allowlist; public origins need this set |
 
 Example `.env` (replace with your own environment's values):
 
@@ -46,6 +48,7 @@ Example `.env` (replace with your own environment's values):
     SECRET_KEY=replace-with-a-long-random-string
     HOST=0.0.0.0
     PORT=4343
+    ALLOWED_ORIGINS=https://lulu.example.com
 
 The backend refuses to start unless `SECRET_KEY` is set.
 
@@ -54,6 +57,15 @@ The backend refuses to start unless `SECRET_KEY` is set.
     cd LuLu-FrontEnd
     npm install
     npm run dev                # dev port 3232 by default
+
+Production:
+
+    npm run build
+    node .output/server/index.mjs
+
+The API address is derived from whatever host the browser used, so it resolves to
+`http://<hostname>:4343/api`. That means `localhost`, a LAN IP, and a static domain all
+work from the same build. Set `NUXT_PUBLIC_API_BASE` if the API lives on another origin.
 
 ## Publishing the demo build (static, no server)
 
@@ -70,13 +82,21 @@ build uses the demo credentials, so do not use it for real data.
 
 Findings from a code audit, and which ones are now fixed:
 
+- **Passwords are stored as Argon2id** (per-user random salt), rehashed on the next
+  successful sign-in for any row still holding a legacy hash. Rows written before the
+  migration stay verifiable in the meantime.
 - **Session tokens expire after 12 hours of inactivity.** The window slides: an
   authenticated request pushes the expiry forward. Expired sessions stop authenticating and
   are swept after a grace period. Tokens are 32 random bytes from `getrandom`.
-- **The session cookie is readable by JavaScript** (not `httpOnly`), and there is a
-  hardcoded token fallback on the client. Both remain open.
-- **CORS accepts any origin while allowing credentials.** Narrow it to the domains actually
-  in use.
+- **The session cookie is readable by JavaScript** (not `httpOnly`), so any XSS on the app's
+  origin can lift the token.
+- **CORS accepts any origin while allowing credentials.** This one is now closed: the API
+  answers loopback and private-range origins by default (`127.0.0.1`, RFC1918, `::1`,
+  `fc00::/7`, `fe80::/10`, `.local`, `.localhost`) and refuses every public origin, so a page
+  on `attacker.example` cannot read a response with the operator's session attached. Setting
+  `ALLOWED_ORIGINS` replaces that default with an explicit list - a bare host entry matches
+  any port and scheme, a full origin has to match exactly. A `WARN` at startup says which mode
+  is in effect.
 - The backend **binds to `0.0.0.0` by default**, so it is reachable from the whole network.
 - The demo user's password hash is _committed_ in `migrations/…_data_seed.sql`. That is
   deliberate (so a clean install has a demo account), but it means the demo credentials are
@@ -89,7 +109,7 @@ A: Why not. It sounds cute, short, and is easy to remember.
 
 **Q: My terminal is in the list but does not work.**
 A: Check first that the device matches the requirements and its configuration, then check
-the LuLu server — it may be a firewall, or the aplication may not be started. If it still
+the LuLu server - it may be a firewall, or the program may not be started. If it still
 fails, open an issue in the repository.
 
 **Q: Will there be paid features?**

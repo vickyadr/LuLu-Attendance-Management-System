@@ -9,11 +9,19 @@ export const useAuthStore = defineStore("auth", () => {
         fname: ref(null),
         lname: ref(null),
     };
-
+    // page_key -> { can_view, can_add, can_edit, can_delete }
     const permissions = ref({});
 
+    // Identity alone decides "is there a session". It used to also require a
+    // truthy `user.level`, which meant a level 0 account looked logged out
+    // despite having every page permission - and level no longer exists.
     const isLogIn = computed(() => !!user.fname.value && !!user.lname.value);
 
+    // Derive display identity HERE, inside the store scope, while the refs are still
+    // direct properties. Consumers must not do `auth.user.fname.value`: the store object is
+    // wrapped in reactive(), so `auth.user` is itself a reactive proxy and Pinia already
+    // unwrapped the nested ref - `.value` on the resulting string is undefined. That bug
+    // made the UI fall back to "Guest" / "the LuLu team" even on a valid session.
     const displayName = computed(() => {
         const s = `${user.fname.value || ''} ${user.lname.value || ''}`.trim();
         return s || 'Guest';
@@ -22,6 +30,8 @@ export const useAuthStore = defineStore("auth", () => {
         (displayName.value || 'GG').split(/\s+/).slice(0, 2).map(p => p[0]).join('').toUpperCase()
     );
 
+    // There is no admin level any more. Access to user management is just the
+    // 'users' page permission, so "admin" means exactly this and nothing more.
     const isAdmin = computed(() => hasPageAccess('users'));
 
     function permFor(pageKey) {
@@ -32,6 +42,8 @@ export const useAuthStore = defineStore("auth", () => {
         return permFor(pageKey)?.can_view === true;
     }
 
+    // Gate a write control. A page the user may read but not change returns false,
+    // so Add/Edit/Delete can be hidden independently of the read gate.
     function hasActionAccess(pageKey, action) {
         const perm = permFor(pageKey);
         if (!perm) return false;
@@ -96,6 +108,9 @@ export const useAuthStore = defineStore("auth", () => {
         }
     }
 
+    // Reset the in-memory session state. REQUIRED: without this, the cookie is
+    // deleted but user.fname/lname are still set -> isLogIn stays true ->
+    // the middleware allows access to protected pages without a token.
     function clearUser() {
         user.nickname.value = null;
         user.fname.value = null;
@@ -112,7 +127,8 @@ export const useAuthStore = defineStore("auth", () => {
             if (resp.code === 200 && Array.isArray(resp.data)) {
                 const map = {};
                 for (const row of resp.data) {
-
+                    // Keep the whole flag set, not just the read flag: the write
+                    // controls are gated separately from the page itself.
                     map[row.page_key] = {
                         can_view: row.can_view === true,
                         can_add: row.can_add === true,
@@ -137,15 +153,20 @@ export const useAuthStore = defineStore("auth", () => {
                     maxAge: 5,
                     //expires: Date.now()
                 }).value = null
-
+                // BEFORE: user.value = {...} - user was a plain {fname,lname,level}
+                // object whose contents were already refs, not the refs themselves.
+                // Replacing user.value never changed isLogIn, so the session stayed
+                // "active".
                 clearUser();
                 token.value = null
-
+                // The notification history lives in localStorage, which is not
+                // scoped to a session: without this, the next user to sign in on a
+                // shared machine would read the previous user's messages.
                 try {
                     const notify = useNotifyStore();
                     notify.reset();
                 } catch {
-                    // Store unavailable (e.g. during SSR) — nothing to clear.
+                    // Store unavailable (e.g. during SSR) - nothing to clear.
                 }
                 window.location.reload()
                 //navigateTo("/login", { replace: true })

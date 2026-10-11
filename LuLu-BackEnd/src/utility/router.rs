@@ -2,6 +2,8 @@ use crate::handler::{
     adms::{h_cdata::*, h_devicecmd::*, h_getrequest::*},
     h_device::*,
     h_employee::*,
+    h_holiday::*,
+    h_leave::*,
     h_login::*,
     h_report::*,
     h_schedule::*,
@@ -9,6 +11,7 @@ use crate::handler::{
     h_shift::*,
     h_transaction::*,
     h_user::*,
+    h_zkpull::*,
 };
 use actix_web::{error::Error, web};
 
@@ -40,8 +43,10 @@ pub fn config(conf: &mut web::ServiceConfig) {
         .service(transaction_live)
         .service(device_add)
         .service(device_delete)
+        .service(device_disable)
         .service(device_edit)
         .service(device_list)
+        .service(device_pull)
         .service(schedule_add)
         .service(schedule_delete)
         .service(schedule_edit)
@@ -54,10 +59,21 @@ pub fn config(conf: &mut web::ServiceConfig) {
         .service(report_range)
         .service(settings_list)
         .service(settings_edit)
+        .service(holiday_list)
+        .service(holiday_edit)
+        .service(holiday_delete)
+        .service(holiday_import)
+        .service(leave_list)
+        .service(leave_employee_options)
+        .service(leave_edit)
+        .service(leave_decision)
+        .service(leave_cancel)
         .service(employee_add)
         .service(employee_delete)
         .service(employee_edit)
         .service(employee_list)
+        .service(employee_unregistered)
+        .service(employee_import)
         .service(user_list)
         .service(user_add)
         .service(user_edit)
@@ -72,7 +88,7 @@ pub fn config(conf: &mut web::ServiceConfig) {
         .service(ws_endpoint)
         .service(protected);
 
-    // ADMS API (device callbacks) — no auth
+    // ADMS API (device callbacks) - no auth
     let iclock = web::scope("/iclock")
         .service(get_cdata)
         .service(post_cdata)

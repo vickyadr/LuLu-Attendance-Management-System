@@ -1,9 +1,6 @@
 <script setup>
 import { useEmployee } from '~/store/employee';
 import { useAuthStore } from '~/store/auth';
-
-const canEdit = computed(() => auth.hasActionAccess('employee', 'can_edit'))
-const canDelete = computed(() => auth.hasActionAccess('employee', 'can_delete'))
 import { useSchedule } from '~/store/schedule';
 
 const
@@ -11,12 +8,18 @@ const
     config = useRuntimeConfig(),
     list = useEmployee(),
     sched = useSchedule(),
-    emit = defineEmits(['delete', 'edit']),
+    emit = defineEmits(['delete', 'edit', 'import']),
     props = defineProps({
         search: { type: String, default: '' },
         deptFilter: { type: String, default: '' },
         statusFilter: { type: String, default: '' },
     });
+
+// List rows only expose writes the signed-in user is actually allowed to make.
+// Declared after `auth` exists: a computed callback referencing `auth` above its
+// declaration is fine at definition time but throws on first access.
+const canEdit = computed(() => auth.hasActionAccess('employee', 'can_edit'))
+const canDelete = computed(() => auth.hasActionAccess('employee', 'can_delete'))
 
 const scheduleMap = computed(() => {
     const m = {}
@@ -26,18 +29,18 @@ const scheduleMap = computed(() => {
     return m
 })
 function scheduleNameFor(id) {
-    if (id == null || id === '') return '—'
+    if (id == null || id === '') return '-'
     const s = scheduleMap.value[String(id)]
     return s ? s.name : `#${id}`
 }
 function scheduleBadgeFor(id) {
     const s = scheduleMap.value[String(id)]
     if (!s) return ''
-    if (s.type === 1) return 'DAILY'
-    if (s.type === 7) return 'WEEKLY'
+    if (s.type === 1) return $t('report.periodDaily')
+    if (s.type === 7) return $t('report.periodWeekly')
     if (s.type === 14) return '2M'
     if (s.type === 21) return '3M'
-    if (s.type === 28) return 'MONTHLY'
+    if (s.type === 28) return $t('report.periodMonthly')
     return `T${s.type}`
 }
 function initials(a, b) {
@@ -53,7 +56,7 @@ const filtered = computed(() => {
     let arr = list.contents || []
     const q = (props.search || '').trim().toLowerCase()
     // NOTE: API returns friendly keys via serde rename (id, first_name,
-    // last_name, departement, address, status, schedule_id) — NOT employee_*.
+    // last_name, departement, address, status, schedule_id) - NOT employee_*.
     if (q) arr = arr.filter(x => `${x.first_name || ''} ${x.last_name || ''} ${x.departement || ''} ${x.address || ''}`.toLowerCase().includes(q))
     if (props.deptFilter) arr = arr.filter(x => (x.departement || '') === props.deptFilter)
     if (props.statusFilter !== '' && props.statusFilter !== null && props.statusFilter !== undefined) {
@@ -78,6 +81,23 @@ async function initEmployee() {
     } catch (e) { }
 }
 function reload() { initEmployee() }
+
+// Import reads the file in the browser and POSTs it as a plain JSON string. A
+// multipart upload would need an extra dependency and a second parser on the
+// server for no gain: the CSV is small, and text is what csv::Reader wants.
+async function onImportFile(e) {
+    const file = e.target.files?.[0]
+    e.target.value = '' // clear so re-picking the same file still fires change
+    if (!file) return
+    const csv = await file.text()
+    try {
+        const r = await apiFetch(`${config.public.apiBase}/employee/import`, { method: 'POST', headers: auth.confHeaders(), body: { csv } })
+        emit('import', r)
+        reload()
+    } catch (err) {
+        emit('import', { code: 500, message: err?.data?.message || 'Import failed', data: [] })
+    }
+}
 defineExpose({ reload, initEmployee })
 
 onMounted(() => { initEmployee() })
@@ -86,11 +106,41 @@ onMounted(() => { initEmployee() })
 <template>
     <div class="flex flex-col overflow-hidden">
         <div
-            class="px-4 py-2.5 bg-gradient-to-r from-emerald-50/70 to-white border-b border-emerald-100 flex items-center justify-between gap-2">
-            <span class="mono text-[10px] font-bold tracking-[0.14em] text-emerald-700 flex items-center gap-2">
-                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> EMPLOYEE LIST
+            class="px-4 py-2.5 bg-gradient-to-r from-emerald-50/70 to-white border-b border-emerald-100 flex items-center gap-2">
+            <span
+                class="mono text-[10px] font-bold tracking-[0.14em] text-emerald-700 flex items-center gap-2 shrink-0 uppercase">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> {{ $t('employee.listTitle') }}
             </span>
-            <span class="mono text-[11px] text-emerald-700/60">{{ filteredCount }} shown • {{ total }} total</span>
+            <!--
+                One right-hand group, not justify-between: with four children
+                justify-between spreads them across the full width, so the
+                buttons drifted to opposite edges. Import sits left of Reload
+                because both act on the list itself, while Add opens the form.
+            -->
+            <div class="ml-auto flex items-center gap-1.5 shrink-0">
+                <span class="mono text-[11px] text-emerald-700/60 hidden sm:inline">{{ $t('employee.countShownTotal', {
+                    shown: filteredCount, total: total
+                }) }}</span>
+                <label
+                    class="h-8 px-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 inline-flex items-center justify-center gap-1.5 mono text-[11px] font-bold cursor-pointer shadow-sm"
+                    :title="$t('employee.importTitle')">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2.2">
+                        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                        <path d="M7 10l5 5 5-5" />
+                        <path d="M12 15V3" />
+                    </svg><span class="hidden sm:inline">{{ $t('employee.importTitle') }}</span>
+                    <input type="file" accept=".csv,text/csv" class="hidden" @change="onImportFile">
+                </label>
+                <button @click="reload()" :title="$t('device.reloadShort')"
+                    class="h-8 px-2.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 inline-flex items-center justify-center gap-1.5 mono text-[11px] font-bold shadow-sm">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2.2">
+                        <path d="M21 12a9 9 0 11-2.64-6.36" />
+                        <path d="M21 3v6h-6" />
+                    </svg><span class="hidden sm:inline">{{ $t('device.reloadShort') }}</span>
+                </button>
+            </div>
         </div>
 
         <div class="overflow-auto max-h-[52vh] lg:max-h-[56vh] hidden md:block scrollbar-thin">
@@ -99,19 +149,19 @@ onMounted(() => { initEmployee() })
                     <tr class="bg-gradient-to-r from-emerald-600 to-green-600 text-white">
                         <th
                             class="py-2.5 px-3 text-left mono text-[10px] font-bold tracking-[0.14em] uppercase border-r border-white/15 w-[30%]">
-                            Employee</th>
+                            {{ $t('employee.colEmployee') }}</th>
                         <th
                             class="py-2.5 px-3 text-left mono text-[10px] font-bold tracking-[0.14em] uppercase border-r border-white/15 w-[18%]">
-                            Department</th>
+                            {{ $t('employee.department') }}</th>
                         <th
                             class="py-2.5 px-3 text-left mono text-[10px] font-bold tracking-[0.14em] uppercase border-r border-white/15 w-[22%]">
-                            Schedule</th>
+                            {{ $t('employee.schedule') }}</th>
                         <th
                             class="py-2.5 px-3 text-center mono text-[10px] font-bold tracking-[0.14em] uppercase border-r border-white/15 w-[12%]">
-                            Status</th>
+                            {{ $t('employee.status') }}</th>
                         <th
                             class="py-2.5 px-3 text-right mono text-[10px] font-bold tracking-[0.14em] uppercase w-[18%]">
-                            Actions</th>
+                            {{ $t('common.actions') }}</th>
                     </tr>
                 </thead>
                 <tbody v-if="filteredCount > 0" class="divide-y divide-emerald-50 bg-white">
@@ -127,14 +177,14 @@ onMounted(() => { initEmployee() })
                                         data.first_name }} {{ data.last_name || '' }}</p>
                                     <p
                                         class="mono text-[10px] tracking-wide text-slate-400 mt-1 truncate max-w-[16rem]">
-                                        #{{ data.id }} • {{ data.address || '— no address' }}</p>
+                                        #{{ data.id }} • {{ data.address || '- no address' }}</p>
                                 </div>
                             </div>
                         </td>
                         <td class="py-3 px-3">
                             <span
                                 class="inline-flex px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 mono text-[11px] font-bold">{{
-                                    data.departement || '—' }}</span>
+                                    data.departement || '-' }}</span>
                         </td>
                         <td class="py-3 px-3">
                             <span v-if="data.schedule_id"
@@ -145,19 +195,22 @@ onMounted(() => { initEmployee() })
                                 }}</span>
                             </span>
                             <span v-else
-                                class="inline-flex px-2.5 py-1 rounded-full bg-slate-50 border border-slate-200 text-slate-400 mono text-[11px]">—
+                                class="inline-flex px-2.5 py-1 rounded-full bg-slate-50 border border-slate-200 text-slate-400 mono text-[11px]">-
                                 no schedule</span>
                         </td>
                         <td class="py-3 px-3 text-center">
                             <span class="inline-flex px-2.5 py-1 rounded-full mono text-[11px] font-bold border"
                                 :class="String(data.status) === '0' ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-slate-800 text-white border-slate-800'">{{
-                                    String(data.status) === '0' ? 'Active' : 'Inactive' }}</span>
+                                    String(data.status) === '0' ? $t('common.active') : $t('employee.statusInactive')
+                                }}</span>
                         </td>
                         <td class="py-3 px-3 text-right whitespace-nowrap">
                             <button v-if="canEdit" @click="callbackEdit(data.id)"
-                                class="px-3 py-1.5 rounded-full bg-white border-2 border-emerald-100 text-emerald-700 mono text-[11px] font-bold hover:bg-emerald-600 hover:text-white hover:border-emerald-600 transition">Edit</button>
+                                class="px-3 py-1.5 rounded-full bg-white border-2 border-emerald-100 text-emerald-700 mono text-[11px] font-bold hover:bg-emerald-600 hover:text-white hover:border-emerald-600 transition">{{
+                                    $t('common.edit') }}</button>
                             <button v-if="canDelete" @click="callbackDelete(data.id)"
-                                class="ml-1.5 px-3 py-1.5 rounded-full bg-white border border-red-200 text-red-600 mono text-[11px] font-bold hover:bg-red-600 hover:text-white transition">Delete</button>
+                                class="ml-1.5 px-3 py-1.5 rounded-full bg-white border border-red-200 text-red-600 mono text-[11px] font-bold hover:bg-red-600 hover:text-white transition">{{
+                                    $t('common.delete') }}</button>
                         </td>
                     </tr>
                 </tbody>
@@ -176,12 +229,10 @@ onMounted(() => { initEmployee() })
                                     </svg>
                                 </div>
                                 <p class="mono text-xs font-bold tracking-[0.14em] text-emerald-700">{{
-                                    (search || deptFilter || statusFilter !== '') ? 'NOT FOUND' : 'NO EMPLOYEES YET' }}
-                                </p>
-                                <p class="text-sm text-slate-500 max-w-md">{{ (search || deptFilter || statusFilter !==
-                                    '') ?
-                                    'Try a different keyword, or reset the filters.' : 'Add your first employee in the'_
-                                'form on the right — pick a daily / weekly / monthly schedule.' }}</p>
+                                    (props.search || props.deptFilter || props.statusFilter !== '') ?
+                                        $t('employee.notFoundTitle') : $t('employee.noneYet') }}</p>
+                                <p class="text-sm text-slate-500 max-w-md">{{ $t('employee.tryKeyword') }}</p>
+                                <p class="text-sm text-slate-500">{{ $t('employee.pickScheduleHint') }}</p>
                             </div>
                         </td>
                     </tr>
@@ -205,38 +256,40 @@ onMounted(() => { initEmployee() })
                     </div>
                     <span class="px-2 py-1 rounded-full mono text-[10px] font-bold border"
                         :class="String(data.status) === '0' ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-slate-800 text-white border-slate-800'">{{
-                            String(data.status) === '0' ? 'Active' : 'Inactive' }}</span>
+                            String(data.status) === '0' ? $t('common.active') : $t('employee.statusInactive') }}</span>
                 </div>
                 <div class="mt-3 flex flex-wrap gap-1.5">
                     <span
                         class="px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 mono text-[11px] font-bold">{{
-                            data.departement || '—' }}</span>
+                            data.departement || '-' }}</span>
                     <span v-if="data.schedule_id"
                         class="px-2.5 py-1 rounded-full bg-white border border-emerald-200 text-emerald-700 mono text-[11px] font-bold">{{
                             scheduleNameFor(data.schedule_id) }} • {{ scheduleBadgeFor(data.schedule_id) }}</span>
                     <span v-else
-                        class="px-2.5 py-1 rounded-full bg-slate-50 border border-slate-200 text-slate-500 mono text-[11px]">—
+                        class="px-2.5 py-1 rounded-full bg-slate-50 border border-slate-200 text-slate-500 mono text-[11px]">-
                         no schedule</span>
                 </div>
                 <p v-if="data.address" class="mt-2 mono text-xs text-slate-600 line-clamp-2">{{ data.address }}</p>
                 <div class="mt-3 flex gap-2">
                     <button v-if="canEdit" @click="callbackEdit(data.id)"
-                        class="flex-1 py-2 rounded-xl bg-white border-2 border-emerald-100 text-emerald-700 mono text-xs font-bold hover:bg-emerald-50">Edit</button>
+                        class="flex-1 py-2 rounded-xl bg-white border-2 border-emerald-100 text-emerald-700 mono text-xs font-bold hover:bg-emerald-50">{{
+                            $t('common.edit') }}</button>
                     <button v-if="canDelete" @click="callbackDelete(data.id)"
-                        class="flex-1 py-2 rounded-xl bg-white border border-red-200 text-red-600 mono text-xs font-bold hover:bg-red-50">Delete</button>
+                        class="flex-1 py-2 rounded-xl bg-white border border-red-200 text-red-600 mono text-xs font-bold hover:bg-red-50">{{
+                            $t('common.delete') }}</button>
                 </div>
             </div>
         </div>
         <div v-else class="md:hidden p-10 text-center">
-            <p class="mono text-xs font-bold tracking-[0.14em] text-emerald-700">NO DATA</p>
-            <p class="text-sm text-slate-500 mt-1">Adjust the filters, or add an employee.</p>
+            <p class="mono text-xs font-bold tracking-[0.14em] text-emerald-700">{{ $t('employee.noData') }}</p>
+            <p class="text-sm text-slate-500 mt-1">{{ $t('employee.emptyFiltered') }}</p>
         </div>
 
         <div v-if="filteredCount > 0"
             class="px-4 py-2.5 bg-white/90 backdrop-blur border-t border-emerald-100 flex items-center justify-between mono text-[11px]">
-            <span class="text-emerald-700/60">{{ filteredCount }} of {{ total }} employees</span>
-            <span class="hidden sm:inline text-slate-400">Click Edit to change the schedule • Delete asks for
-                confirmation</span>
+            <span class="text-emerald-700/60">{{ $t('employee.countShownTotal', { shown: filteredCount, total: total })
+            }}</span>
+            <span class="hidden sm:inline text-slate-400">{{ $t('employee.footerHint') }}</span>
         </div>
     </div>
 </template>

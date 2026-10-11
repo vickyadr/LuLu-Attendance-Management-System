@@ -4,6 +4,8 @@ import { useAuthStore } from '~/store/auth';
 import { useShiftStore } from '~/store/shift';
 import { useNotifyStore } from '~/store/notify';
 
+const { t } = useI18n()
+
 const auth = useAuthStore(),
     // Writes are gated per action; /shift/* maps to the 'shift' page server-side.
     canAdd = computed(() => auth.hasActionAccess('shift', 'can_add')),
@@ -78,7 +80,7 @@ function applyPreset(p) {
 async function add_shift() {
     if (!canAdd.value) {
         // UI hides the control; this stops a programmatic call reaching a 403.
-        notify.warning('No access', 'You do not have permission to do that');
+        notify.warning(t('common.noAccess'), t('device.noPermission'));
         return
     }
     submitting.value = true
@@ -101,18 +103,18 @@ async function add_shift() {
             validator.start_enroll = response.data?.start_enroll || ''
             validator.start_time = response.data?.start_time || ''
         }
-        notify[response.code == 200 ? 'success' : 'error']('Add Shift', response.message)
+        notify[response.code == 200 ? 'success' : 'error'](t('shift.addTitle'), response.message)
         if (response.code == 200) { shift.name = ''; /* keep times */ }
     } catch (e) {
         const msg = e?.data?.message || e?.message || 'Connection failed'
-        notify.error('Connection failed', msg)
+        notify.error(t('common.connFailed'), msg)
     } finally { submitting.value = false }
 }
 
 async function edit_shift() {
     if (!canEdit.value) {
         // UI hides the control; this stops a programmatic call reaching a 403.
-        notify.warning('No access', 'You do not have permission to do that');
+        notify.warning(t('common.noAccess'), t('device.noPermission'));
         return
     }
     submitting.value = true
@@ -137,24 +139,24 @@ async function edit_shift() {
             validator.start_enroll = response.data?.start_enroll || ''
             validator.start_time = response.data?.start_time || ''
         }
-        notify[response.code == 200 ? 'success' : 'error']('Edit Shift', response.message)
+        notify[response.code == 200 ? 'success' : 'error'](t('shift.editTitle'), response.message)
     } catch (e) {
-        notify.error('Connection failed', e?.data?.message || e?.message || 'Connection failed')
+        notify.error(t('common.connFailed'), e?.data?.message || e?.message || t('common.connFailed'))
     } finally { submitting.value = false }
 }
 
 async function del_shift(id) {
     if (!canDelete.value) {
         // UI hides the control; this stops a programmatic call reaching a 403.
-        notify.warning('No access', 'You do not have permission to do that');
+        notify.warning(t('common.noAccess'), t('device.noPermission'));
         return
     }
     try {
         const response = await apiFetch(`${config.public.apiBase}/shift/delete/${id}`, { method: 'GET', headers: auth.confHeaders() })
         if (response.code == 200) shift_store.removeList(id)
-        notify[response.code == 200 ? 'success' : 'error']('Delete Shift', response.message)
+        notify[response.code == 200 ? 'success' : 'error'](t('shift.deleteTitle'), response.message)
     } catch (e) {
-        notify.error('Delete failed', e?.data?.message || e?.message)
+        notify.error(t('common.deleteFailed'), e?.data?.message || e?.message)
     }
 }
 
@@ -209,32 +211,34 @@ defineExpose({ del_shift, edit_shift, fillForm })
             class="px-5 py-3 border-b border-emerald-100 bg-gradient-to-r from-emerald-50/60 to-lime-50/40 flex items-center justify-between tech-grid-soft">
             <div class="flex items-center gap-2">
                 <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                <h3 class="text-sm font-bold tracking-wide text-green-900 uppercase mono">{{ isEdit ? 'Edit Shift' :
-                    'Create Shift' }}</h3>
-                <span class="hidden sm:inline-flex chip chip-emerald mono !text-[9px]">WORK HOURS • PUNCH WINDOW</span>
+                <h3 class="text-sm font-bold tracking-wide text-green-900 uppercase mono">{{ isEdit ?
+                    $t('shift.editTitleShort') : $t('shift.createTitleShort') }}</h3>
+                <span class="hidden sm:inline-flex chip chip-emerald mono !text-[9px]">{{ $t('shift.formChip') }}</span>
             </div>
             <span
                 class="mono text-[10px] tracking-widest px-2 py-1 rounded-full border text-emerald-700 bg-white border-emerald-200"
-                :class="isEdit ? '!bg-amber-500 !text-white !border-amber-500' : ''">{{ isEdit ? 'EDIT MODE' : 'CREATE'
-                }}</span>
+                :class="isEdit ? '!bg-amber-500 !text-white !border-amber-500' : ''">{{ isEdit ?
+                    $t('common.editModeLong') : $t('common.create') }}</span>
         </div>
 
         <form @submit.prevent="shift_action" class="px-5 py-4 space-y-4">
             <!-- Nama -->
             <div>
                 <label for="shift_name_new"
-                    class="block text-xs font-semibold tracking-widest uppercase text-emerald-700/70 mb-1.5 ml-1">Shift
-                    Name <span class="text-red-500">*</span></label>
+                    class="block text-xs font-semibold tracking-widest uppercase text-emerald-700/70 mb-1.5 ml-1">{{
+                        $t('shift.shiftName') }} <span class="text-red-500">*</span></label>
                 <input id="shift_name_new" v-model="shift.name" type="text" required
-                    placeholder="e.g. Morning 08–17, Afternoon, Night, Warehouse A Shift"
+                    :placeholder="$t('shift.shiftNamePh')"
                     class="w-full px-3.5 h-11 rounded-xl border-2 border-emerald-100 bg-white focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 outline-none text-sm text-green-900 placeholder:text-green-900/30 transition">
                 <p v-if="validator.name" class="mt-1.5 text-xs font-medium text-red-500 ml-1">{{ validator.name }}</p>
-                <p v-else class="mt-1.5 mono text-[10px] tracking-wide text-emerald-700/40 ml-1">Unique name</p>
+                <p v-else class="mt-1.5 mono text-[10px] tracking-wide text-emerald-700/40 ml-1">{{
+                    $t('shift.uniqueName') }}</p>
             </div>
 
             <!-- Presets -->
             <div class="rounded-xl bg-white border border-emerald-100 p-2.5">
-                <p class="mono text-[10px] font-bold tracking-[0.14em] text-emerald-700 mb-2">QUICK PRESETS</p>
+                <p class="mono text-[10px] font-bold tracking-[0.14em] text-emerald-700 mb-2">{{
+                    $t('shift.quickPresets') }}</p>
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     <button v-for="p in presets" :key="p.label" type="button" @click="applyPreset(p)"
                         class="text-left rounded-xl border-2 px-3 py-2.5 hover:border-emerald-300 hover:bg-emerald-50/60 transition bg-white border-emerald-100">
@@ -248,16 +252,16 @@ defineExpose({ del_shift, edit_shift, fillForm })
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                     <label for="shift_start"
-                        class="block text-xs font-semibold tracking-widest uppercase text-emerald-700/70 mb-1.5 ml-1">Clock
-                        In <span class="text-red-500">*</span></label>
+                        class="block text-xs font-semibold tracking-widest uppercase text-emerald-700/70 mb-1.5 ml-1">{{
+                            $t('shift.clockIn') }} <span class="text-red-500">*</span></label>
                     <input id="shift_start" v-model="shift.start_time_str" type="time" step="60"
                         class="w-full px-3.5 h-11 rounded-xl border-2 border-emerald-100 bg-white focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 outline-none text-sm text-green-900 mono">
                     <p v-if="validator.start_time" class="mt-1 text-xs text-red-500">{{ validator.start_time }}</p>
                 </div>
                 <div>
                     <label for="shift_end"
-                        class="block text-xs font-semibold tracking-widest uppercase text-emerald-700/70 mb-1.5 ml-1">Clock
-                        Out <span class="text-red-500">*</span></label>
+                        class="block text-xs font-semibold tracking-widest uppercase text-emerald-700/70 mb-1.5 ml-1">{{
+                            $t('shift.clockOut') }} <span class="text-red-500">*</span></label>
                     <input id="shift_end" v-model="shift.end_time_str" type="time" step="60"
                         class="w-full px-3.5 h-11 rounded-xl border-2 border-emerald-100 bg-white focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 outline-none text-sm text-green-900 mono">
                     <p v-if="validator.end_time" class="mt-1 text-xs text-red-500">{{ validator.end_time }}</p>
@@ -267,24 +271,24 @@ defineExpose({ del_shift, edit_shift, fillForm })
             <!-- Enroll window -->
             <div class="hud-frame glass rounded-2xl border border-emerald-100 p-3.5">
                 <div class="flex items-center justify-between mb-3">
-                    <span class="mono text-[10px] font-bold tracking-[0.14em] text-emerald-700">PUNCH WINDOW
-                        (TOLERANCE)</span>
+                    <span class="mono text-[10px] font-bold tracking-[0.14em] text-emerald-700">{{
+                        $t('shift.punchWindow') }}</span>
                     <span class="mono text-[10px] tracking-wide text-emerald-700/50">Work duration {{ durationLabel
                         }}</span>
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-xs font-medium text-green-900 mb-1 ml-1">Earliest clock-in <span
-                                class="text-emerald-700/60 font-normal">— before shift start</span></label>
+                        <label class="block text-xs font-medium text-green-900 mb-1 ml-1">{{ $t('shift.earliestIn') }}
+                            <span class="text-emerald-700/60 font-normal">- before shift start</span></label>
                         <div class="relative">
                             <select v-model.number="shift.start_enroll_min"
                                 class="w-full px-3.5 h-11 pr-10 rounded-xl border-2 border-emerald-100 bg-white focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 outline-none text-sm text-green-900">
-                                <option :value="0">0 min — exactly on time</option>
-                                <option :value="15">15 min before</option>
-                                <option :value="30">30 min before</option>
-                                <option :value="60">60 min before</option>
-                                <option :value="90">90 min before</option>
-                                <option :value="120">2 h before</option>
+                                <option :value="0">{{ $t('shift.presetOnTime') }}</option>
+                                <option :value="15">{{ $t('shift.presetMin15Before') }}</option>
+                                <option :value="30">{{ $t('shift.presetMin30Before') }}</option>
+                                <option :value="60">{{ $t('shift.presetMin60Before') }}</option>
+                                <option :value="90">{{ $t('shift.presetMin90Before') }}</option>
+                                <option :value="120">{{ $t('shift.presetHr2Before') }}</option>
                             </select>
                         </div>
                         <p v-if="validator.start_enroll" class="mt-1 text-xs text-red-500">{{ validator.start_enroll }}
@@ -293,17 +297,17 @@ defineExpose({ del_shift, edit_shift, fillForm })
                             shift.start_enroll_min*60) }} → {{ fmtHM(startSec) }}</p>
                     </div>
                     <div>
-                        <label class="block text-xs font-medium text-green-900 mb-1 ml-1">Latest clock-out <span
-                                class="text-emerald-700/60 font-normal">— after shift end</span></label>
+                        <label class="block text-xs font-medium text-green-900 mb-1 ml-1">{{ $t('shift.latestOut') }}
+                            <span class="text-emerald-700/60 font-normal">- after shift end</span></label>
                         <div class="relative">
                             <select v-model.number="shift.end_enroll_min"
                                 class="w-full px-3.5 h-11 pr-10 rounded-xl border-2 border-emerald-100 bg-white focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 outline-none text-sm text-green-900">
-                                <option :value="0">0 min — exactly on time</option>
-                                <option :value="15">15 min after</option>
-                                <option :value="30">30 min after</option>
-                                <option :value="60">60 min after</option>
-                                <option :value="90">90 min after</option>
-                                <option :value="120">2 h after</option>
+                                <option :value="0">{{ $t('shift.presetOnTime') }}</option>
+                                <option :value="15">{{ $t('shift.presetMin15After') }}</option>
+                                <option :value="30">{{ $t('shift.presetMin30After') }}</option>
+                                <option :value="60">{{ $t('shift.presetMin60After') }}</option>
+                                <option :value="90">{{ $t('shift.presetMin90After') }}</option>
+                                <option :value="120">{{ $t('shift.presetHr2After') }}</option>
                             </select>
                         </div>
                         <p v-if="validator.end_enroll" class="mt-1 text-xs text-red-500">{{ validator.end_enroll }}</p>
@@ -314,8 +318,8 @@ defineExpose({ del_shift, edit_shift, fillForm })
 
                 <!-- timeline preview -->
                 <div class="mt-4 rounded-xl bg-emerald-50/50 border border-emerald-100 px-3 py-3">
-                    <p class="mono text-[10px] font-bold tracking-[0.14em] text-emerald-700 mb-2">24-HOUR TIMELINE
-                        PREVIEW</p>
+                    <p class="mono text-[10px] font-bold tracking-[0.14em] text-emerald-700 mb-2">{{
+                        $t('shift.timelinePreview') }}</p>
                     <div class="relative h-8 rounded-full bg-white border border-emerald-100 overflow-hidden flex">
                         <!-- whole day bar -->
                         <div
@@ -354,12 +358,14 @@ defineExpose({ del_shift, edit_shift, fillForm })
                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                     </svg>
-                    {{ submitting ? 'Menyimpan...' : (isEdit ? 'Save Changes' : 'Save Shift') }}
+                    {{ submitting ? $t('common.saving') : (isEdit ? $t('common.saveChanges') : $t('shift.saveShift')) }}
                 </button>
                 <button v-if="isEdit" type="button" @click="callbackDoneEdit()"
-                    class="rounded-xl px-6 h-11 text-sm font-medium bg-white border-2 border-slate-200 text-slate-700 hover:bg-slate-50">Cancel</button>
+                    class="rounded-xl px-6 h-11 text-sm font-medium bg-white border-2 border-slate-200 text-slate-700 hover:bg-slate-50">{{
+                        $t('common.cancel') }}</button>
                 <button v-else type="button" @click="shift.name = ''"
-                    class="rounded-xl px-6 h-11 text-sm font-medium bg-white border-2 border-emerald-100 text-emerald-700 hover:bg-emerald-50">Reset</button>
+                    class="rounded-xl px-6 h-11 text-sm font-medium bg-white border-2 border-emerald-100 text-emerald-700 hover:bg-emerald-50">{{
+                        $t('common.reset') }}</button>
             </div>
         </form>
     </div>

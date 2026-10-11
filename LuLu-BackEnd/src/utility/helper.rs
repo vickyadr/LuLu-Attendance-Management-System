@@ -38,7 +38,7 @@ pub fn ts_week(seconds: i64, tz: i32) -> u32 {
 mod tests {
     use super::*;
 
-    /// 2026-10-08T00:00:00Z — the report day the E2E script uses.
+    /// 2026-10-08T00:00:00Z - the report day the E2E script uses.
     const DAY: i64 = 1_791_417_600;
 
     /// 2026-10-08 is a Thursday, ISO week 41.
@@ -80,6 +80,9 @@ mod tests {
         }
     }
 
+    /// The regression that mattered: these values come straight off a URL and
+    /// `from_timestamp` returns `None` for them, so the old `unwrap()` panicked
+    /// and killed the worker.
     #[test]
     fn out_of_range_timestamps_do_not_panic() {
         for bad in [
@@ -101,6 +104,9 @@ mod tests {
         }
     }
 
+    /// `tz` is only ever 0 today (every caller in `h_report.rs` passes 0) and the
+    /// original arithmetic is preserved: truncate the UTC day, then add the
+    /// offset. Pinned so a future change is deliberate rather than accidental.
     #[test]
     fn tz_offset_is_added_after_truncating_the_utc_day() {
         assert_eq!(ts_at_hour(DAY, 7, 0), DAY + 7 * 3_600);

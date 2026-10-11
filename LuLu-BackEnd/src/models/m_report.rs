@@ -37,6 +37,8 @@ pub struct Reports {
 
     #[serde(rename = "overtime")]
     pub overtime_time: i64,
+    #[serde(rename = "holiday_name", skip_serializing_if = "Option::is_none")]
+    pub holiday_name: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize, sqlx::FromRow)]

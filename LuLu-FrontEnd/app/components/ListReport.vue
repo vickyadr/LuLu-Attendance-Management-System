@@ -20,13 +20,21 @@ function statusTags(issue) {
     const tags = []
     const isAbsen = check.isNull(issue.start) && check.isNull(issue.end)
     if (issue.late_time > 0) tags.push('late')
-
+    // Early/overtime are checkout-based: compare actual OUT against shift end
+    // in the device's own timezone (not working_time vs duration - a late
+    // arrival already shrinks working_time even when checkout is on time).
     if (!isAbsen && !check.isNull(issue.end)) {
         const tz = Number(issue.tz) || 0
         const endRef = (Number(issue.date) || 0) - tz * 3600 + (issue.shift_end ?? 0)
+        // The early threshold follows the configured tolerance; the overtime tag uses
+        // the `overtime` value the backend already computed with the same tolerance.
         if (Number(issue.end) < endRef - overtimeTol.value) tags.push('early')
     }
     if (Number(issue.overtime) > 0) tags.push('overtime')
+    // A row counted on an included holiday: worked, but at a different pay rate.
+    // Tagging it separately from late/overtime keeps payroll able to filter on the
+    // DAY rather than on how this individual behaved.
+    if (issue.holiday_name) tags.push('holiday')
     if (!isAbsen && check.isNull(issue.end)) tags.push('early')
     if (isAbsen) tags.push('puncht')
     if (tags.length === 0 && !isAbsen) tags.push('present')
@@ -58,7 +66,7 @@ function avatarBg(item) {
 }
 function fmtDate(ts) { return format.stamp_to_naive_date(ts) }
 function fmtTime(ts, tz) {
-    if (check.isNull(ts)) return '—'
+    if (check.isNull(ts)) return '-'
     const n = Number(tz)
     // Device TZ render: enroll timestamps are UTC epochs, shift by the
     // device's own timezone and read back with UTC getters (like LiveTable).
@@ -78,7 +86,7 @@ function fmtWday(ts) {
     try { return format.stamp_to_weekday(ts, false, true) } catch { return '' }
 }
 function fmtDur(sec) {
-    if (check.isNull(sec)) return '—'
+    if (check.isNull(sec)) return '-'
     return format.sec_to_naive(sec)
 }
 function shiftDur(issue) {
@@ -87,6 +95,8 @@ function shiftDur(issue) {
     return Math.max(0, e >= s ? e - s : e - s + 86400)
 }
 function overtimeSec(issue) {
+    // The backend already computes overtime seconds using `overtime_tolerance_sec`
+    // from the settings table, so the frontend does not recompute it.
     return Number(issue.overtime) || 0
 }
 </script>
@@ -99,21 +109,21 @@ function overtimeSec(issue) {
                 <tr class="bg-gradient-to-r from-emerald-600 to-green-600 text-white">
                     <th
                         class="py-2.5 px-3 text-left mono text-[10px] font-bold tracking-[0.14em] uppercase border-r border-white/15">
-                        Employees</th>
+                        {{ $t('report.colEmployee') }}</th>
                     <th
                         class="py-2.5 px-3 text-left mono text-[10px] font-bold tracking-[0.14em] uppercase border-r border-white/15">
-                        Date</th>
+                        {{ $t('report.colDate') }}</th>
                     <th
                         class="py-2.5 px-3 text-left mono text-[10px] font-bold tracking-[0.14em] uppercase border-r border-white/15">
-                        Shift</th>
+                        {{ $t('report.colShift') }}</th>
                     <th
                         class="py-2.5 px-3 text-left mono text-[10px] font-bold tracking-[0.14em] uppercase border-r border-white/15">
-                        Punch</th>
+                        {{ $t('report.colPunch') }}</th>
                     <th
                         class="py-2.5 px-3 text-left mono text-[10px] font-bold tracking-[0.14em] uppercase border-r border-white/15">
-                        Status</th>
-                    <th class="py-2.5 px-3 text-right mono text-[10px] font-bold tracking-[0.14em] uppercase">Duration
-                    </th>
+                        {{ $t('report.colStatus') }}</th>
+                    <th class="py-2.5 px-3 text-right mono text-[10px] font-bold tracking-[0.14em] uppercase">{{
+                        $t('report.colDuration') }}</th>
                 </tr>
             </thead>
             <tbody v-if="contents && contents.length" class="divide-y divide-emerald-50 bg-white">
@@ -126,11 +136,11 @@ function overtimeSec(issue) {
                                 :style="{ background: avatarBg(issue) }">{{ initials(issue) }}</div>
                             <div class="min-w-0">
                                 <div class="text-sm font-bold text-green-900 leading-none truncate">{{ issue.first_name
-                                }} {{ issue.last_name }}</div>
+                                    }} {{ issue.last_name }}</div>
                                 <div class="mt-1 flex items-center gap-1.5">
                                     <span
                                         class="inline-flex px-1.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-100 text-emerald-700 mono text-[10px] font-bold tracking-wide">{{
-                                            issue.departement || '—' }}</span>
+                                            issue.departement || '-' }}</span>
                                     <span class="mono text-[10px] text-slate-400">#{{ issue.id }}</span>
                                 </div>
                             </div>
@@ -151,22 +161,22 @@ function overtimeSec(issue) {
                         <div class="inline-flex flex-col gap-1">
                             <span
                                 class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-600 text-white mono text-[10px] font-bold tracking-wide">
-                                {{ issue.shift_name || '—' }}
+                                {{ issue.shift_name || '-' }}
                                 <span v-if="issue.schedule_name" class="hidden lg:inline opacity-80">• {{
                                     issue.schedule_name }}</span>
                             </span>
-                            <span class="mono text-[11px] text-slate-600">{{ format.sec_to_naive(issue.shift_start) }} —
+                            <span class="mono text-[11px] text-slate-600">{{ format.sec_to_naive(issue.shift_start) }} -
                                 {{ format.sec_to_naive(issue.shift_end) }}</span>
                             <span class="mono text-[10px] text-emerald-700/40">Shift {{ fmtDur(shiftDur(issue))
-                            }}</span>
+                                }}</span>
                         </div>
                     </td>
                     <!-- Enroll In/Out -->
                     <td class="py-3 px-3">
                         <div class="space-y-1.5 min-w-[140px]">
                             <div class="flex items-center gap-2 mono text-xs">
-                                <span
-                                    class="w-7 mono text-[10px] font-bold tracking-widest text-emerald-700/60">IN</span>
+                                <span class="w-7 mono text-[10px] font-bold tracking-widest text-emerald-700/60">{{
+                                    $t('report.colIn') }}</span>
                                 <span
                                     class="inline-flex items-center gap-1.5 px-2 py-1 rounded-full border text-xs font-bold"
                                     :class="check.isNull(issue.start) ? 'bg-slate-50 border-slate-200 text-slate-400' : (issue.late_time > 0 ? 'bg-red-50 border-red-200 text-red-700' : 'bg-emerald-50 border-emerald-200 text-emerald-700')">
@@ -176,8 +186,8 @@ function overtimeSec(issue) {
                                 </span>
                             </div>
                             <div class="flex items-center gap-2 mono text-xs">
-                                <span
-                                    class="w-7 mono text-[10px] font-bold tracking-widest text-emerald-700/60">OUT</span>
+                                <span class="w-7 mono text-[10px] font-bold tracking-widest text-emerald-700/60">{{
+                                    $t('report.colOut') }}</span>
                                 <span
                                     class="inline-flex items-center gap-1.5 px-2 py-1 rounded-full border text-xs font-bold"
                                     :class="check.isNull(issue.end) ? 'bg-slate-50 border-slate-200 text-slate-400' : 'bg-white border-emerald-100 text-green-900'">
@@ -197,16 +207,23 @@ function overtimeSec(issue) {
                     <td class="py-3 px-3">
                         <div class="flex flex-wrap gap-1 max-w-[180px]">
                             <span v-if="hasTag(issue, 'late')"
-                                class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-red-50 border border-red-200 text-red-700 mono text-[10px] font-bold">Late</span>
+                                class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-red-50 border border-red-200 text-red-700 mono text-[10px] font-bold">{{
+                                    $t('report.statusLate') }}</span>
                             <span v-if="hasTag(issue, 'early')"
-                                class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-700 mono text-[10px] font-bold">Early
-                                Leave</span>
+                                class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-700 mono text-[10px] font-bold">{{
+                                    $t('report.statusEarlyLeave') }}</span>
                             <span v-if="hasTag(issue, 'puncht')"
-                                class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-slate-800 text-white mono text-[10px] font-bold">Absent</span>
+                                class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-slate-800 text-white mono text-[10px] font-bold">{{
+                                    $t('report.statusAbsent') }}</span>
                             <span v-if="hasTag(issue, 'overtime')"
-                                class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 mono text-[10px] font-bold">Overtime</span>
+                                class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 mono text-[10px] font-bold">{{
+                                    $t('report.statusOvertime') }}</span>
                             <span v-if="hasTag(issue, 'present')"
-                                class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-white border border-emerald-200 text-emerald-700 mono text-[10px] font-bold">Present</span>
+                                class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-white border border-emerald-200 text-emerald-700 mono text-[10px] font-bold">{{
+                                    $t('report.statusPresent') }}</span>
+                            <span v-if="hasTag(issue, 'holiday')"
+                                class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-800 mono text-[10px] font-bold">{{
+                                    $t('report.statusHoliday') }}</span>
                         </div>
                     </td>
                     <!-- Details -->
@@ -240,9 +257,9 @@ function overtimeSec(issue) {
                                     <path d="M9 16l2 2 4-4" />
                                 </svg>
                             </div>
-                            <p class="mono text-xs font-bold tracking-widest text-emerald-700">NO DATA</p>
-                            <p class="text-sm text-slate-500 max-w-md">Pick a date range above or change the filters.
-                                Data appears once the devices sync.</p>
+                            <p class="mono text-xs font-bold tracking-widest text-emerald-700">{{ $t('employee.noData')
+                                }}</p>
+                            <p class="text-sm text-slate-500 max-w-md">{{ $t('report.emptyHint') }}</p>
                         </div>
                     </td>
                 </tr>
@@ -261,21 +278,21 @@ function overtimeSec(issue) {
                             <p class="text-sm font-bold text-green-900 leading-none">{{ issue.first_name }} {{
                                 issue.last_name }}</p>
                             <p class="mono text-[10px] text-slate-400 mt-1">#{{ issue.id }} • {{ issue.departement ||
-                                '—' }}</p>
+                                '-' }}</p>
                         </div>
                     </div>
                     <span class="px-2 py-1 rounded-full bg-emerald-600 text-white mono text-[10px] font-bold">{{
-                        issue.shift_name || '—' }}</span>
+                        issue.shift_name || '-' }}</span>
                 </div>
                 <div class="mt-3 grid grid-cols-2 gap-2 mono text-xs">
                     <div class="rounded-xl bg-emerald-50/60 border border-emerald-100 px-3 py-2">
-                        <p class="mono text-[10px] tracking-widest text-emerald-700/50">DATE</p>
+                        <p class="mono text-[10px] tracking-widest text-emerald-700/50">{{ $t('report.colDate') }}</p>
                         <p class="font-bold text-green-900">{{ fmtDate(issue.date) }}</p>
                         <p class="text-[11px] text-slate-500">{{ fmtWday(issue.date) }}</p>
                     </div>
                     <div class="rounded-xl bg-white border border-emerald-100 px-3 py-2">
-                        <p class="mono text-[10px] tracking-widest text-emerald-700/50">SHIFT</p>
-                        <p class="font-bold text-green-900">{{ format.sec_to_naive(issue.shift_start) }} — {{
+                        <p class="mono text-[10px] tracking-widest text-emerald-700/50">{{ $t('report.colShift') }}</p>
+                        <p class="font-bold text-green-900">{{ format.sec_to_naive(issue.shift_start) }} - {{
                             format.sec_to_naive(issue.shift_end) }}</p>
                         <p class="text-[11px] text-slate-500">{{ issue.schedule_name || '' }}</p>
                     </div>
@@ -290,20 +307,27 @@ function overtimeSec(issue) {
                 </div>
                 <div class="mt-2 flex flex-wrap gap-1">
                     <span v-if="hasTag(issue, 'late')"
-                        class="px-2 py-1 rounded-full bg-red-50 border border-red-200 text-red-700 mono text-[10px] font-bold">Late</span>
+                        class="px-2 py-1 rounded-full bg-red-50 border border-red-200 text-red-700 mono text-[10px] font-bold">{{
+                            $t('report.statusLate') }}</span>
                     <span v-if="hasTag(issue, 'early')"
-                        class="px-2 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-700 mono text-[10px] font-bold">Early
-                        Leave</span>
+                        class="px-2 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-700 mono text-[10px] font-bold">{{
+                            $t('report.statusEarlyLeave') }}</span>
                     <span v-if="hasTag(issue, 'puncht')"
-                        class="px-2 py-1 rounded-full bg-slate-800 text-white mono text-[10px] font-bold">Absent</span>
+                        class="px-2 py-1 rounded-full bg-slate-800 text-white mono text-[10px] font-bold">{{
+                            $t('report.statusAbsent') }}</span>
                     <span v-if="hasTag(issue, 'overtime')"
-                        class="px-2 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 mono text-[10px] font-bold">Overtime</span>
+                        class="px-2 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 mono text-[10px] font-bold">{{
+                            $t('report.statusOvertime') }}</span>
                     <span v-if="hasTag(issue, 'present')"
-                        class="px-2 py-1 rounded-full bg-white border border-emerald-200 text-emerald-700 mono text-[10px] font-bold">Present</span>
+                        class="px-2 py-1 rounded-full bg-white border border-emerald-200 text-emerald-700 mono text-[10px] font-bold">{{
+                            $t('report.statusPresent') }}</span>
+                    <span v-if="hasTag(issue, 'holiday')"
+                        class="px-2 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-800 mono text-[10px] font-bold">{{
+                            $t('report.statusHoliday') }}</span>
                 </div>
                 <div class="mt-2 flex items-center justify-between mono text-xs border-t border-emerald-50 pt-2">
-                    <span class="text-slate-500">Worked <b class="text-green-900">{{ fmtDur(issue.working_time)
-                    }}</b></span>
+                    <span class="text-slate-500">{{ $t('report.colWorked') }} <b class="text-green-900">{{
+                        fmtDur(issue.working_time) }}</b></span>
                     <span class="flex items-center gap-1.5">
                         <span v-if="overtimeSec(issue) > 0"
                             class="px-2 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 mono text-[10px] font-bold">Overtime
@@ -316,14 +340,14 @@ function overtimeSec(issue) {
             </div>
         </div>
         <div v-else class="md:hidden p-10 text-center">
-            <p class="mono text-xs font-bold tracking-widest text-emerald-700">NO DATA</p>
-            <p class="text-sm text-slate-500 mt-1">Change the date range or the filters.</p>
+            <p class="mono text-xs font-bold tracking-widest text-emerald-700">{{ $t('employee.noData') }}</p>
+            <p class="text-sm text-slate-500 mt-1">{{ $t('report.empty') }}</p>
         </div>
 
         <div v-if="contents && contents.length"
             class="sticky bottom-0 bg-white/90 backdrop-blur border-t border-emerald-100 px-4 py-2.5 flex items-center justify-between mono text-[11px]">
             <span class="text-emerald-700/60">{{ contents.length }} rows • filtered from {{ (list.contents || []).length
-            }} total</span>
+                }} total</span>
         </div>
     </div>
 </template>

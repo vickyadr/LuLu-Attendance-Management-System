@@ -8,6 +8,7 @@ const
     auth = useAuthStore(),
     notify = useNotifyStore();
 
+const { t, locale } = useI18n();
 const loading = ref(false);
 const show_password = ref(false);
 const remember = ref(true);
@@ -21,12 +22,12 @@ const login = async () => {
     try { if (remember.value && user.user_id.trim()) localStorage.setItem('lulu:last_user_id', user.user_id.trim()); else if (!remember.value) localStorage.removeItem('lulu:last_user_id'); } catch (e) { }
     await auth.attemptLogin({ nickname: user.user_id, password: user.password, cookies: true }).then((response) => {
         if (response.code == 200) {
-            notify.success('Login successful', 'Redirecting…')
+            notify.success(t('login.successTitle'), t('login.redirecting'))
             setTimeout(() => { navigateTo("/", { replace: true }); }, 1200)
         } else {
             validation.user_id = response.data.nickname;
             validation.password = response.data.password;
-            notify.error('Login failed', response.message)
+            notify.error(t('login.failedTitle'), response.message)
         }
     }).finally(() => { loading.value = false })
 }
@@ -40,10 +41,10 @@ const canSubmit = computed(() => user.user_id.trim().length >= 2 && user.passwor
 const hasUser = computed(() => user.user_id.trim().length > 0);
 const hasPass = computed(() => user.password.length > 0);
 const submitTitle = computed(() => {
-    if (loading.value) return 'Signing in…';
-    if (!hasUser.value) return 'Enter your User ID';
-    if (user.password.length < 3) return 'Password minimal 3 karakter';
-    return 'Sign in (Enter)';
+    if (loading.value) return t('login.signingIn');
+    if (!hasUser.value) return t('login.userIdPlaceholder');
+    if (user.password.length < 3) return t('login.passwordMinChars');
+    return `${t('login.signIn')} (↵)`;
 });
 function clearUser() {
     user.user_id = ''; validation.user_id = undefined; capsOn.value = false;
@@ -54,17 +55,17 @@ function onPassBlur() { capsOn.value = false; }
 
 const greeting = computed(() => {
     const h = new Date().getHours();
-    if (h < 11) return 'Good morning';
-    if (h < 15) return 'Good afternoon';
-    if (h < 18) return 'Good evening';
-    return 'Good night';
+    if (h < 11) return t('greeting.morning');
+    if (h < 15) return t('greeting.afternoon');
+    if (h < 18) return t('greeting.evening');
+    return t('greeting.night');
 });
 const nowStr = ref('');
 let clockIv = null;
 function tickClock() {
     try {
         const d = new Date();
-        nowStr.value = new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(d) + ' WIB';
+        nowStr.value = new Intl.DateTimeFormat(locale.value, { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(d) + ' WIB';
     } catch { nowStr.value = ''; }
 }
 function onCardMove(e) {
@@ -98,7 +99,7 @@ watch(remember, (v) => { try { localStorage.setItem('lulu:remember', v ? '1' : '
 <template>
     <div
         class="min-h-[100dvh] flex flex-col items-center justify-center bg-[#f6fdf7] relative overflow-x-hidden selection:bg-emerald-200 selection:text-emerald-900 px-4 py-4 sm:px-6 sm:py-6">
-        <!-- ===== CREATIVE MESH — clipped (orbs don't inflate document height) ===== -->
+        <!-- ===== CREATIVE MESH - clipped (orbs don't inflate document height) ===== -->
         <div class="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
             <div class="absolute inset-0 bg-gradient-to-br from-emerald-50 via-white to-teal-50"></div>
             <div class="absolute inset-0 tech-grid-soft opacity-[0.08] sm:opacity-[0.14]"></div>
@@ -119,9 +120,9 @@ watch(remember, (v) => { try { localStorage.setItem('lulu:remember', v ? '1' : '
             </div>
         </div>
 
-        <!-- ===== CENTERED CARD — compact vertical on mobile ===== -->
+        <!-- ===== CENTERED CARD - compact vertical on mobile ===== -->
         <div class="relative w-full max-w-[420px] flex flex-col items-center">
-            <!-- brand chip above card — compact -->
+            <!-- brand chip above card - compact -->
             <div
                 class="mb-1 sm:mb-3 inline-flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full bg-white border border-emerald-100 shadow-sm">
                 <span
@@ -129,7 +130,7 @@ watch(remember, (v) => { try { localStorage.setItem('lulu:remember', v ? '1' : '
                     <img src="/android-chrome-512x512.png" alt="LuLu" class="w-full h-full object-cover" />
                 </span>
                 <span class="display text-[12px] font-extrabold tracking-tight text-green-900">LuLu</span>
-                <span class="mono text-[10px] tracking-[0.16em] text-emerald-700/50">ATTENDANCE</span>
+                <span class="mono text-[10px] tracking-[0.16em] text-emerald-700/50">{{ $t('nav.subtitle') }}</span>
             </div>
 
             <div id="login-card" @mousemove="onCardMove"
@@ -149,9 +150,9 @@ watch(remember, (v) => { try { localStorage.setItem('lulu:remember', v ? '1' : '
                         <div>
                             <h1
                                 class="display text-[16px] sm:text-[22px] font-extrabold tracking-tight text-green-900 leading-none">
-                                Welcome back</h1>
+                                {{ $t('login.welcomeBack') }}</h1>
                             <p class="text-[11.5px] sm:text-[13px] leading-relaxed text-emerald-800/55 mt-0.5 sm:mt-1">
-                                Sign in with your registered User ID.</p>
+                                {{ $t('login.hint') }}</p>
                         </div>
                         <span
                             class="hidden sm:grid w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-100 place-content-center text-emerald-600">
@@ -170,19 +171,19 @@ watch(remember, (v) => { try { localStorage.setItem('lulu:remember', v ? '1' : '
                     <form @submit.prevent="login" class="mt-2 sm:mt-6 space-y-0" novalidate>
                         <div>
                             <label for="user_name"
-                                class="mono text-[11px] font-bold tracking-[0.12em] uppercase text-emerald-800">User
-                                ID</label>
+                                class="mono text-[11px] font-bold tracking-[0.12em] uppercase text-emerald-800">{{
+                                $t('login.userId') }}</label>
                             <div class="relative mt-1.5 sm:mt-2 group">
                                 <input v-model.trim="user.user_id" id="user_name" type="text" required
                                     autocomplete="username" autocorrect="off" spellcheck="false" inputmode="text"
-                                    enterkeyhint="next" placeholder="Enter your User ID" :disabled="loading"
+                                    enterkeyhint="next" :placeholder="$t('login.userIdPlaceholder')" :disabled="loading"
                                     :aria-invalid="!!validation.user_id"
                                     :aria-describedby="validation.user_id ? 'err-user' : undefined"
                                     @keydown.enter.prevent="() => { if (canSubmit) login(); else document.getElementById('user_password')?.focus(); }"
                                     :class="['w-full rounded-xl border bg-white px-4 pr-[52px] text-[16px] sm:text-[15px] font-medium text-green-900 placeholder:text-emerald-800/35 focus:outline-none focus:bg-white transition disabled:bg-gray-50 h-[36px] sm:h-12', validation.user_id ? 'border-red-300 focus:border-red-400 focus:ring-4 focus:ring-red-500/10 shake' : hasUser ? 'border-emerald-300 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10' : 'border-emerald-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10']">
                                 <button v-if="hasUser && !loading" type="button" @click="clearUser" tabindex="-1"
                                     class="absolute right-1 top-1/2 -translate-y-1/2 grid h-8 w-8 sm:h-11 sm:w-11 place-content-center rounded-xl text-emerald-600/60 hover:text-emerald-700 hover:bg-emerald-50 active:scale-95 transition"
-                                    aria-label="Clear User ID">
+                                    :aria-label="$t('login.clearUserId')">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none"
                                         viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -204,7 +205,8 @@ watch(remember, (v) => { try { localStorage.setItem('lulu:remember', v ? '1' : '
 
                         <div class="mt-0.5 sm:mt-1">
                             <label for="user_password"
-                                class="mono text-[11px] font-bold tracking-[0.12em] uppercase text-emerald-800">Password</label>
+                                class="mono text-[11px] font-bold tracking-[0.12em] uppercase text-emerald-800">{{
+                                $t('login.password') }}</label>
                             <div class="relative mt-1.5 sm:mt-2">
                                 <input v-model="user.password" id="user_password"
                                     :type="show_password ? 'text' : 'password'" required autocomplete="current-password"
@@ -216,7 +218,7 @@ watch(remember, (v) => { try { localStorage.setItem('lulu:remember', v ? '1' : '
                                     :class="['w-full rounded-xl border bg-white px-4 pr-[52px] text-[16px] sm:text-[15px] font-medium text-green-900 placeholder:text-emerald-800/35 focus:outline-none focus:bg-white transition disabled:bg-gray-50 h-[36px] sm:h-12', validation.password ? 'border-red-300 focus:border-red-400 focus:ring-4 focus:ring-red-500/10 shake' : hasPass ? 'border-emerald-300 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10' : 'border-emerald-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10']">
                                 <button type="button" @click="show_password = !show_password" :disabled="loading"
                                     class="absolute right-1 top-1/2 -translate-y-1/2 grid h-8 w-8 sm:h-11 sm:w-11 place-content-center rounded-xl text-emerald-700 hover:bg-emerald-50 active:scale-95 transition disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
-                                    :aria-label="show_password ? 'Hide password' : 'Show password'"
+                                    :aria-label="show_password ? $t('login.hidePassword') : $t('login.showPassword')"
                                     :aria-pressed="show_password ? 'true' : 'false'">
                                     <svg v-if="!show_password" xmlns="http://www.w3.org/2000/svg" class="w-5 h-5"
                                         fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.7">
@@ -249,7 +251,7 @@ watch(remember, (v) => { try { localStorage.setItem('lulu:remember', v ? '1' : '
                                         <path stroke-linecap="round" stroke-linejoin="round"
                                             d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
                                     </svg>
-                                    Caps Lock is on
+                                    {{ $t('login.capsLockOn') }}
                                 </p>
                             </div>
                         </div>
@@ -258,7 +260,7 @@ watch(remember, (v) => { try { localStorage.setItem('lulu:remember', v ? '1' : '
                             <label
                                 class="inline-flex items-center gap-2 sm:gap-2.5 cursor-pointer select-none min-h-[28px] sm:min-h-[44px] -ml-1 px-1 rounded-lg focus-within:ring-2 focus-within:ring-emerald-500/20">
                                 <input v-model="remember" type="checkbox" class="peer sr-only"
-                                    aria-label="Remember User ID" />
+                                    :aria-label="$t('login.rememberUserId')" />
                                 <span class="grid h-5 w-5 place-content-center rounded-md border-2 transition"
                                     :class="remember ? 'bg-emerald-600 border-emerald-600 text-white' : 'bg-white border-emerald-200'">
                                     <svg v-if="remember" xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="none"
@@ -267,13 +269,15 @@ watch(remember, (v) => { try { localStorage.setItem('lulu:remember', v ? '1' : '
                                     </svg>
                                 </span>
                                 <span class="text-[13px] font-medium leading-none"
-                                    :class="remember ? 'text-green-900' : 'text-emerald-800/70'">Remember me</span>
+                                    :class="remember ? 'text-green-900' : 'text-emerald-800/70'">{{
+                                    $t('login.rememberMe') }}</span>
                             </label>
                             <span class="mono text-[11px]"
                                 :class="canSubmit ? 'text-emerald-600 font-medium' : 'text-emerald-700/40'">
-                                <span v-if="canSubmit" class="inline-flex items-center gap-1">Press <kbd
+                                <span v-if="canSubmit" class="inline-flex items-center gap-1">{{ $t('login.pressEnterA')
+                                    }}<kbd
                                         class="rounded-md border border-emerald-200 bg-white px-1.5 py-0.5 text-[11px] font-bold shadow-sm">↵</kbd>
-                                    to sign in</span>
+                                    {{ $t('login.pressEnterB') }}</span>
                                 <span v-else class="hidden sm:inline">&nbsp;</span>
                             </span>
                         </div>
@@ -293,9 +297,9 @@ watch(remember, (v) => { try { localStorage.setItem('lulu:remember', v ? '1' : '
                                     <span class="w-1.5 h-1.5 rounded-full bg-white animate-bounce"
                                         style="animation-delay:280ms"></span>
                                 </span>
-                                Signing in…
+                                {{ $t('login.signingIn') }}
                             </span>
-                            <span v-else class="relative inline-flex items-center gap-2">Sign in <svg
+                            <span v-else class="relative inline-flex items-center gap-2">{{ $t('login.signIn') }} <svg
                                     xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
                                     stroke="currentColor" stroke-width="2">
                                     <path stroke-linecap="round" stroke-linejoin="round"
@@ -310,7 +314,7 @@ watch(remember, (v) => { try { localStorage.setItem('lulu:remember', v ? '1' : '
             </div>
 
             <p class="mono text-center text-[9px] sm:text-[10px] tracking-[0.14em] text-emerald-700/30 mt-1 sm:mt-4">{{
-                greeting }} • {{ nowStr || '—' }} • © 2026 LuLu</p>
+                greeting }} • {{ nowStr || '-' }} • © 2026 LuLu</p>
         </div>
     </div>
 

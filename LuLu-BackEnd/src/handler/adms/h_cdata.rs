@@ -15,11 +15,36 @@ use std::collections::HashMap;
 
 #[get("/cdata")]
 pub async fn get_cdata(pool: web::Data<AppState>, data: web::Query<GetCData>) -> impl Responder {
-    log::info!("CDATA: {:?}", data.sn.as_deref().unwrap_or("No SN"));
+    let sn = data.sn.as_deref().unwrap_or("");
+    log::info!("CDATA: {:?}", if sn.is_empty() { "No SN" } else { sn });
+
+    let handler_id: Option<i32> =
+        match sqlx::query_scalar::<_, i32>(r#"SELECT device_handler_id FROM devices WHERE device_sn = $1"#)
+            .bind(sn)
+            .fetch_optional(&pool.db)
+            .await
+        {
+            Ok(v) => v,
+            Err(e) => {
+                log::error!("cdata handler lookup failed for {sn}: {e}");
+                return HttpResponse::InternalServerError()
+                    .content_type("text/plain")
+                    .body("");
+            }
+        };
+
+    let Some(handler_id) = handler_id else {
+        log::warn!("cdata refused: {sn} is not a registered device");
+        return HttpResponse::Forbidden().content_type("text/plain").body("");
+    };
+
+    if handler_id == 5 {
+        return HttpResponse::Forbidden().content_type("text/plain").body("");
+    }
 
     let tz =
         sqlx::query_scalar::<_, i32>(r#"SELECT device_timezone FROM devices WHERE device_sn = $1"#)
-            .bind(data.sn.as_deref().unwrap_or(""))
+            .bind(sn)
             .fetch_one(&pool.db.clone())
             .await
             .unwrap_or(0);
@@ -53,7 +78,6 @@ pub async fn post_cdata(
 ) -> impl Responder {
     let mut data: HashMap<String, String> = HashMap::new();
 
-
     let data_body = String::from_utf8_lossy(&body).into_owned();
     log::info!("POST CDATA: {:?}", data_body);
 
@@ -74,6 +98,56 @@ pub async fn post_cdata(
             .into_response();
     }
 
+    let push_handler: Option<i32> =
+        match sqlx::query_scalar::<_, i32>(r#"SELECT device_handler_id FROM devices WHERE device_sn = $1"#)
+            .bind(get.sn.as_deref().unwrap_or(""))
+            .fetch_optional(&pool.db)
+            .await
+        {
+            Ok(v) => v,
+            Err(e) => {
+                log::error!("cdata push lookup failed for {:?}: {e}", get.sn);
+                return HttpResponse::InternalServerError()
+                    .content_type("text/plain")
+                    .body("");
+            }
+        };
+
+    match push_handler {
+        Some(5) => {
+            return HttpResponse::Forbidden()
+                .content_type("text/plain")
+                .body("");
+        }
+        None => {
+            log::warn!("cdata push refused: {:?} is not a registered device", get.sn);
+            return HttpResponse::Forbidden()
+                .content_type("text/plain")
+                .body("");
+        }
+        Some(_) => {}
+    }
+
+    let disabled: Option<i32> =
+        match sqlx::query_scalar::<_, i32>(r#"SELECT device_state FROM devices WHERE device_sn = $1"#)
+            .bind(get.sn.as_deref().unwrap_or(""))
+            .fetch_optional(&pool.db)
+            .await
+        {
+            Ok(v) => v,
+            Err(e) => {
+                log::error!("cdata state lookup failed for {:?}: {e}", get.sn);
+                return HttpResponse::InternalServerError()
+                    .content_type("text/plain")
+                    .body("");
+            }
+        };
+
+    if disabled == Some(3) {
+        return HttpResponse::Forbidden()
+            .content_type("text/plain")
+            .body("");
+    }
 
     let (text, is_operlog) = if get.table.as_ref().unwrap() == "OPERLOG" {
         (data_operlog(pool, get, data_body).await, true)
@@ -155,12 +229,10 @@ async fn data_attlog(
             continue;
         }
 
-
         let log: Vec<&str> = logs.split("\t").collect();
         if log.len() < 4 {
             continue;
         }
-
 
         let op_code: Option<i32> = log[3].trim().parse::<i32>().ok();
         let enroll_type: i32 = match log[3].trim() {
@@ -248,7 +320,7 @@ async fn data_attlog(
     if log_recorded == 0 {
         if log_failed > 0 {
             bail!(
-                "None of the {} uploaded row(s) could be stored — check the server log",
+                "None of the {} uploaded row(s) could be stored - check the server log",
                 log_failed
             );
         }
@@ -406,7 +478,6 @@ async fn data_operlog(
             continue;
         }
 
-
         let data_type = row_table(log[0]);
 
         match data_type {
@@ -480,7 +551,6 @@ async fn data_operlog(
                 if !check {
                     continue; // Skip if the user does not exist
                 }
-
 
                 let query = sqlx::query(
                     r#"UPDATE employee SET employee_fname=$1, update_at=$2 WHERE employee_id=$3"#,
@@ -604,8 +674,6 @@ mod tests {
         );
     }
 
-    /// The original off-by-one read the flag (`0`) as the user id and then
-    /// dropped the punch on `user_id <= 0`.
     #[test]
     fn punch_row_never_takes_the_flag_column_as_the_user() {
         let row = cols(PUNCH);
@@ -632,8 +700,6 @@ mod tests {
         }
     }
 
-    /// OPLOG 9 and 13 are accepted by the vendor's own server and have no
-    /// documented meaning here. The row must survive with its raw code.
     #[test]
     fn unknown_operation_code_is_kept_not_dropped() {
         for code in [9, 13, 77] {

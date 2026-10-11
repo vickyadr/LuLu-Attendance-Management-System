@@ -20,4 +20,7 @@ pub struct Devices {
     pub device_state: i32,
     #[serde(rename = "last_sync")]
     pub device_online: i64,
+
+    #[serde(rename = "ip")]
+    pub device_ip: Option<String>,
 }

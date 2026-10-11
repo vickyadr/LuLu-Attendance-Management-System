@@ -8,7 +8,7 @@ import { ref, onUnmounted } from 'vue'
  * instance, reconnects on drop, and exposes a reactive `status` so the UI can
  * say what the socket is actually doing instead of a hardcoded label.
  *
- * `onEvent` receives the raw parsed frame. Callers decide what to do — the live
+ * `onEvent` receives the raw parsed frame. Callers decide what to do - the live
  * table refetches, a toast might just announce.
  */
 export function useLiveFeed(onEvent: (data: any) => void) {

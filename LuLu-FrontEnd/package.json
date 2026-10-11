@@ -11,6 +11,7 @@
     "postinstall": "nuxt prepare"
   },
   "dependencies": {
+    "@nuxtjs/i18n": "^10.6.0",
     "@vue/devtools-api": "^8.2.1",
     "ofetch": "^1.4.1",
     "pinia": "^4.0.3",

@@ -38,7 +38,7 @@ pub async fn settings_list(
     .fetch_one(&pool.db)
     .await;
 
-    // A missing table is a failed migration, not a client error — serve the defaults.
+    // A missing table is a failed migration, not a client error - serve the defaults.
     let (late, overtime) = match row {
         Ok(r) => (r.get::<i64, _>("late_tol"), r.get::<i64, _>("overtime_tol")),
         Err(_) => (DEFAULT_LATE_TOL, DEFAULT_OVERTIME_TOL),

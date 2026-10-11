@@ -1,0 +1,2 @@
+ALTER TABLE public.holiday
+    ADD COLUMN IF NOT EXISTS holiday_included BOOLEAN NOT NULL DEFAULT FALSE;

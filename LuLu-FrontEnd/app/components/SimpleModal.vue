@@ -104,14 +104,16 @@ function a() { window.alert('a') }
 </script>
 
 <template>
-
+  <!-- v-if, bukan v-show: v-show gagal override class .block Tailwind
+       (display:block menang atas inline display:none) -> backdrop selalu
+       menutupi halaman, bahkan form login. Unmount total saat isShow=false. -->
   <div v-if="props.options.isShow"
     class="fixed inset-0 z-[100] grid place-content-center bg-green-950/40 backdrop-blur-sm p-4"
     @click.self="clickCancel">
     <div
-      class="hud-frame w-full min-w-md rounded-[1.25rem] bg-white p-6 shadow-[0_20px_60px_rgba(5,46,22,.25)] border border-emerald-100 overflow-hidden">
+      class="hud-frame w-full max-w-md max-h-[90vh] overflow-y-auto no-scrollbar rounded-[1.25rem] bg-white p-6 shadow-[0_20px_60px_rgba(5,46,22,.25)] border border-emerald-100">
       <span class="hud-corner hud-corner-tl"></span><span class="hud-corner hud-corner-br"></span>
-      <div class="mono text-[10px] tracking-[0.14em] text-emerald-700/40 mb-1">CONFIRM ACTION</div>
+      <div class="mono text-[10px] tracking-[0.14em] text-emerald-700/40 mb-1">{{ $t('modal.confirmAction') }}</div>
       <h2 id="modalTitle" class="display text-xl font-extrabold text-green-900 sm:text-2xl">{{ props.options.title }}</h2>
 
       <div class="mt-4">
@@ -125,12 +127,12 @@ function a() { window.alert('a') }
           v-show="(props.options.use_cancel == false && props.options.use_ok == false) || props.options.use_cancel"
           v-on:click="clickCancel" type="button"
           class="rounded-xl bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 border border-emerald-100 hover:bg-emerald-100 transition-colors">
-          Cancel
+          {{ $t('common.cancel') }}
         </button>
 
         <button v-show="props.options.use_ok" v-on:click="clickOk" type="button"
           class="rounded bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-700">
-          Ok
+          {{ $t('modal.ok') }}
         </button>
       </footer>
     </div>

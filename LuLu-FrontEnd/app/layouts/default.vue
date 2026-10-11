@@ -2,12 +2,32 @@
 import { useAuthStore } from '~/store/auth';
 import {
   faGaugeHigh, faChartColumn, faUserGroup, faFingerprint, faClock,
+  faPlaneDeparture,
   faSliders, faArrowRightFromBracket, faXmark,
-  faChevronLeft, faChevronRight, faChevronDown, faUsers,
+  faChevronLeft, faChevronRight, faChevronDown, faUsers, faGlobe, faCheck,
 } from '@fortawesome/free-solid-svg-icons'
 import { SMData } from '~/components/SimpleModal.vue';
 
 const route = useRoute();
+// Locale switcher: the list of locales comes from the i18n module, so adding
+// a language to nuxt.config.ts automatically adds it to the dropdown.
+const { locale, locales, setLocale } = useI18n();
+const showLocaleMenu = ref(false);
+const localeMenuRef = ref(null);
+const localeLabel = computed(() => locales.value.find(l => l.code === locale.value)?.name || locale.value);
+function toggleLocaleMenu() { showLocaleMenu.value = !showLocaleMenu.value; if (showLocaleMenu.value) showUserMenu.value = false; }
+function closeLocaleMenu() { showLocaleMenu.value = false }
+async function pickLocale(code) {
+  closeLocaleMenu();
+  setLocale(code);
+  try { localStorage.setItem('lulu:locale', code); } catch { }
+}
+onMounted(() => {
+  try {
+    const saved = localStorage.getItem('lulu:locale');
+    if (saved && locales.value.some(l => l.code === saved) && saved !== locale.value) setLocale(saved);
+  } catch { }
+});
 const openMenu = ref(false);
 const showUserMenu = ref(false);
 const userMenuRef = ref(null);
@@ -16,15 +36,20 @@ const auth = useAuthStore();
 
 function toggleMenu() { openMenu.value = !openMenu.value; if (openMenu.value) showUserMenu.value = false; }
 function closeMenu() { openMenu.value = false }
-function toggleUserMenu() { showUserMenu.value = !showUserMenu.value }
+function toggleUserMenu() { showUserMenu.value = !showUserMenu.value; if (showUserMenu.value) closeLocaleMenu(); }
 function closeUserMenu() { showUserMenu.value = false }
 function go(path) { closeMenu(); closeUserMenu(); navigateTo(path, { replace: true }) }
-watch(() => route.path, () => { closeMenu(); closeUserMenu(); });
-function onKey(e) { if (e.key === 'Escape') { closeMenu(); closeUserMenu(); } }
+watch(() => route.path, () => { closeMenu(); closeUserMenu(); closeLocaleMenu(); });
+function onKey(e) { if (e.key === 'Escape') { closeMenu(); closeUserMenu(); closeLocaleMenu(); } }
 function onDocClick(e) {
-  if (!showUserMenu.value) return;
-  const el = userMenuRef.value;
-  if (el && !el.contains(e.target)) closeUserMenu();
+  if (showUserMenu.value) {
+    const el = userMenuRef.value;
+    if (el && !el.contains(e.target)) closeUserMenu();
+  }
+  if (showLocaleMenu.value) {
+    const el = localeMenuRef.value;
+    if (el && !el.contains(e.target)) closeLocaleMenu();
+  }
 }
 onMounted(() => {
   window.addEventListener('keydown', onKey);
@@ -36,17 +61,18 @@ onBeforeUnmount(() => {
   document.removeEventListener('click', onDocClick);
 });
 
-// ——— Dual-mode sidebar: expanded (248px) vs compact (72px) ———
+// --- Dual-mode sidebar: expanded (248px) vs compact (72px) ---
 const sidebarCompact = ref(false);
 function toggleSidebar() { sidebarCompact.value = !sidebarCompact.value; try { localStorage.setItem('lulu:sidebar-compact', sidebarCompact.value ? '1' : '0'); } catch { } }
 watch(sidebarCompact, (v) => { try { localStorage.setItem('lulu:sidebar-compact', v ? '1' : '0'); } catch { } });
 
 const NAV = [
-  { path: '/', label: 'Dashboard', icon: faGaugeHigh, pageKey: 'dashboard' },
-  { path: '/employee', label: 'Employees', icon: faUserGroup, pageKey: 'employee' },
-  { path: '/shift', label: 'Shifts', icon: faClock, pageKey: 'shift' },
-  { path: '/report', label: 'Reports', icon: faChartColumn, pageKey: 'report' },
-  { path: '/controller', label: 'Devices', icon: faFingerprint, pageKey: 'controller' },
+  { path: '/', label: 'nav.dashboard', icon: faGaugeHigh, pageKey: 'dashboard' },
+  { path: '/employee', label: 'nav.employees', icon: faUserGroup, pageKey: 'employee' },
+  { path: '/shift', label: 'nav.shifts', icon: faClock, pageKey: 'shift' },
+  { path: '/report', label: 'nav.reports', icon: faChartColumn, pageKey: 'report' },
+  { path: '/controller', label: 'nav.devices', icon: faFingerprint, pageKey: 'controller' },
+  { path: '/leave', label: 'nav.leave', icon: faPlaneDeparture, pageKey: 'leave' },
 ]
 const isActive = (p) => route.path === p || (p !== '/' && route.path.startsWith(p + '/'))
 const isActiveOn = isActive
@@ -56,14 +82,18 @@ const visibleNav = computed(() => NAV.filter(n => auth.hasPageAccess(n.pageKey))
 
 const initials = computed(() => auth.initials)
 const userName = computed(() => auth.displayName)
-const pageTitle = computed(() => NAV.find(n => n.path === route.path)?.label
-  || (route.path.startsWith('/settings') ? 'Settings' : 'LuLu Attendance'))
+const { t } = useI18n()
+const pageTitle = computed(() => {
+  const hit = NAV.find(n => n.path === route.path)
+  if (hit) return t(hit.label)
+  return route.path.startsWith('/settings') ? t('nav.settings') : t('nav.pageTitleFallback')
+})
 
 function actCancel() { sm_data.clear() }
 function actOk() { sm_data.clear(); auth.logout() }
 function modalLogout() {
   closeUserMenu();
-  sm_data.setText("Log out", "Log out of LuLu Attendance?")
+  sm_data.setText(t("nav.logOut"), t("login.logOutConfirm"))
   sm_data.showOKCancel()
 }
 </script>
@@ -87,14 +117,14 @@ function modalLogout() {
         </div>
       </div>
 
-      <!-- Nav — x-hidden prevents horizontal scroll in compact -->
+      <!-- Nav - x-hidden prevents horizontal scroll in compact -->
       <nav class="relative flex-1 overflow-y-auto overflow-x-hidden py-4 space-y-1 min-w-0"
         :class="sidebarCompact ? 'px-2' : 'px-3'" aria-label="Main">
         <p v-show="!sidebarCompact" class="mono text-[10px] font-bold tracking-[0.18em] text-emerald-200/40 px-3 pb-2">
-          MENU</p>
+          {{ $t('nav.menu') }}</p>
         <template v-for="n in visibleNav" :key="n.path">
           <a :href="n.path" @click.prevent="go(n.path)" :aria-current="isActive(n.path) ? 'page' : undefined"
-            :title="sidebarCompact ? n.label : undefined"
+            :title="sidebarCompact ? $t(n.label) : undefined"
             class="group flex items-center rounded-xl text-sm font-semibold transition-all duration-150 cursor-pointer relative min-w-0"
             :class="[
               sidebarCompact ? 'justify-center px-2 py-2.5' : 'gap-3 px-3 py-2.5',
@@ -103,45 +133,45 @@ function modalLogout() {
                 : 'text-emerald-50/90 hover:text-white hover:bg-white/10'
             ]">
             <font-awesome :icon="n.icon" class="text-[15px] w-5 text-center shrink-0" />
-            <span v-show="!sidebarCompact" class="truncate">{{ n.label }}</span>
+            <span v-show="!sidebarCompact" class="truncate">{{ $t(n.label) }}</span>
             <span v-if="sidebarCompact"
               class="pointer-events-none hidden group-hover:block absolute left-[calc(100%+10px)] top-1/2 -translate-y-1/2 whitespace-nowrap px-2.5 py-1.5 rounded-lg bg-green-950 text-white text-xs font-semibold shadow-xl z-50">
-              {{ n.label }}
+              {{ $t(n.label) }}
             </span>
           </a>
         </template>
 
         <div class="my-4 h-px bg-white/10"></div>
         <a v-if="auth.hasPageAccess('users')" href="/users" @click.prevent="go('/users')"
-          :title="sidebarCompact ? 'Users' : undefined"
+          :title="sidebarCompact ? $t('nav.users') : undefined"
           class="group flex items-center rounded-xl text-sm font-semibold transition-all duration-150 cursor-pointer relative min-w-0"
           :class="[
             sidebarCompact ? 'justify-center px-2 py-2.5' : 'gap-3 px-3 py-2.5',
             isActive('/users') ? 'bg-white/15 text-white' : 'text-emerald-50/90 hover:text-white hover:bg-white/10'
           ]">
           <font-awesome :icon="faUsers" class="text-[15px] w-5 text-center shrink-0" />
-          <span v-show="!sidebarCompact">Users</span>
+          <span v-show="!sidebarCompact">{{ $t('nav.users') }}</span>
           <span v-if="sidebarCompact"
             class="pointer-events-none hidden group-hover:block absolute left-[calc(100%+10px)] top-1/2 -translate-y-1/2 whitespace-nowrap px-2.5 py-1.5 rounded-lg bg-green-950 text-white text-xs font-semibold shadow-xl z-50">
-            Users
+            {{ $t('nav.users') }}
           </span>
         </a>
-        <a href="/settings" @click.prevent="go('/settings')" :title="sidebarCompact ? 'Settings' : undefined"
+        <a href="/settings" @click.prevent="go('/settings')" :title="sidebarCompact ? $t('nav.settings') : undefined"
           class="group flex items-center rounded-xl text-sm font-semibold transition-all duration-150 cursor-pointer relative min-w-0"
           :class="[
             sidebarCompact ? 'justify-center px-2 py-2.5' : 'gap-3 px-3 py-2.5',
             isActive('/settings') ? 'bg-white/15 text-white' : 'text-emerald-50/90 hover:text-white hover:bg-white/10'
           ]">
           <font-awesome :icon="faSliders" class="text-[15px] w-5 text-center shrink-0" />
-          <span v-show="!sidebarCompact">Settings</span>
+          <span v-show="!sidebarCompact">{{ $t('nav.settings') }}</span>
           <span v-if="sidebarCompact"
             class="pointer-events-none hidden group-hover:block absolute left-[calc(100%+10px)] top-1/2 -translate-y-1/2 whitespace-nowrap px-2.5 py-1.5 rounded-lg bg-green-950 text-white text-xs font-semibold shadow-xl z-50">
-            Settings
+            {{ $t('nav.settings') }}
           </span>
         </a>
       </nav>
 
-      <!-- Middle toggle — floating di tengah seam (pattern umum: pill chevron centered on edge) -->
+      <!-- Middle toggle - floating di tengah seam (pattern umum: pill chevron centered on edge) -->
       <button type="button" @click="toggleSidebar" :aria-label="sidebarCompact ? 'Expand sidebar' : 'Collapse sidebar'"
         :title="sidebarCompact ? 'Expand' : 'Collapse'"
         class="absolute top-1/2 -translate-y-1/2 -right-3 z-[60] w-7 h-7 grid place-content-center rounded-full bg-white border border-emerald-200 text-emerald-700 shadow-[0_2px_10px_rgba(2,44,34,.22)] hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-800 active:scale-95 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2">
@@ -164,13 +194,38 @@ function modalLogout() {
             <h1 class="display text-base sm:text-lg font-extrabold tracking-tight text-green-900 truncate">{{ pageTitle
               }}
             </h1>
-            <p class="hidden sm:block mono text-[10px] tracking-[0.14em] text-emerald-700/50">LULU ATTENDANCE SYSTEM</p>
+            <p class="hidden sm:block mono text-[10px] tracking-[0.14em] text-emerald-700/50">LULU {{
+              $t('brand.systemName')
+              }}</p>
           </div>
 
           <div class="ml-auto flex items-center gap-2 sm:gap-3 min-w-0">
-            <!-- Notifications — history of everything the app has told you -->
+            <!-- Notifications - history of everything the app has told you -->
             <NotifyBell />
-            <!-- User — 1x klik muncul logout, klik lagi / klik menu hidden -->
+            <!-- Language - picks a locale file, no reload needed -->
+            <div ref="localeMenuRef" class="relative shrink-0">
+              <button type="button" @click.stop="toggleLocaleMenu" :aria-expanded="showLocaleMenu ? 'true' : 'false'"
+                aria-haspopup="menu" :aria-label="localeLabel"
+                class="flex items-center gap-1.5 rounded-xl px-2 py-1.5 text-emerald-800 hover:bg-emerald-50 active:bg-emerald-100 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500">
+                <font-awesome :icon="faGlobe" class="w-4 h-4" />
+                <span class="mono text-[11px] font-bold tracking-wider uppercase">{{ locale }}</span>
+                <font-awesome :icon="faChevronDown" class="w-2.5 h-2.5 text-emerald-700/40 transition"
+                  :class="showLocaleMenu ? 'rotate-180' : ''" />
+              </button>
+              <div v-if="showLocaleMenu"
+                class="absolute right-0 top-full mt-2 min-w-[11rem] rounded-xl bg-white border border-emerald-100 shadow-[0_12px_32px_-12px_rgba(2,44,34,.28)] overflow-hidden z-50 py-1"
+                role="menu">
+                <button v-for="l in locales" :key="l.code" type="button" role="menuitem"
+                  @click.stop="pickLocale(l.code)"
+                  class="flex w-full items-center justify-between gap-3 px-4 py-2.5 text-sm transition text-left"
+                  :class="l.code === locale ? 'bg-emerald-50 font-semibold text-emerald-900' : 'text-emerald-800 hover:bg-emerald-50/60'">
+                  <span class="truncate">{{ l.name }}</span>
+                  <font-awesome v-if="l.code === locale" :icon="faCheck"
+                    class="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                </button>
+              </div>
+            </div>
+            <!-- User - 1x klik muncul logout, klik lagi / klik menu hidden -->
             <div ref="userMenuRef" class="relative flex items-center min-w-0">
               <button type="button" @click.stop="toggleUserMenu" :aria-expanded="showUserMenu ? 'true' : 'false'"
                 aria-haspopup="menu" aria-label="User menu"
@@ -184,7 +239,7 @@ function modalLogout() {
                 <font-awesome :icon="faChevronDown" class="hidden sm:block w-3 h-3 text-emerald-700/40 transition"
                   :class="showUserMenu ? 'rotate-180' : ''" />
               </button>
-              <!-- Dropdown logout — di atas header jadi tidak tertutup cookie banner -->
+              <!-- Dropdown logout - di atas header jadi tidak tertutup cookie banner -->
               <div v-if="showUserMenu"
                 class="absolute right-0 top-full mt-2 w-56 rounded-xl bg-white border border-emerald-100 shadow-[0_12px_32px_-12px_rgba(2,44,34,.28)] overflow-hidden z-50"
                 role="menu" aria-label="User menu">
@@ -194,7 +249,7 @@ function modalLogout() {
                 <button @click.stop="modalLogout" type="button" role="menuitem"
                   class="flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-emerald-900 hover:bg-red-50 hover:text-red-600 transition text-left">
                   <font-awesome :icon="faArrowRightFromBracket" class="w-4 h-4 shrink-0" />
-                  <span>Log out</span>
+                  <span>{{ $t('nav.logOut') }}</span>
                 </button>
               </div>
             </div>
@@ -220,32 +275,33 @@ function modalLogout() {
             </button>
           </div>
           <div class="flex-1 overflow-y-auto overflow-x-hidden px-3 py-4 space-y-1">
-            <p class="mono text-[10px] font-bold tracking-[0.18em] text-emerald-200/40 px-3 pb-2">MENU</p>
+            <p class="mono text-[10px] font-bold tracking-[0.18em] text-emerald-200/40 px-3 pb-2">{{ $t('nav.menu') }}
+            </p>
             <a v-for="n in visibleNav" :key="n.path" :href="n.path" @click.prevent="go(n.path)"
               class="flex items-center gap-3 px-3 py-3 rounded-xl font-semibold text-sm transition cursor-pointer"
               :class="isActive(n.path) ? 'bg-emerald-600 text-white shadow-sm' : 'text-white/90 hover:bg-white/10 border border-transparent'">
               <font-awesome :icon="n.icon" class="w-4 h-4 shrink-0" />
-              <span class="truncate">{{ n.label }}</span>
+              <span class="truncate">{{ $t(n.label) }}</span>
             </a>
             <div class="my-3 h-px bg-white/10"></div>
             <a v-if="auth.hasPageAccess('users')" href="/users" @click.prevent="go('/users')"
               class="flex items-center gap-3 px-3 py-3 rounded-xl font-semibold text-sm transition cursor-pointer"
               :class="isActive('/users') ? 'bg-white/15 text-white' : 'text-white/90 hover:bg-white/10 border border-transparent'">
               <font-awesome :icon="faUsers" class="w-4 h-4 shrink-0" />
-              <span>Users</span>
+              <span>{{ $t('nav.users') }}</span>
             </a>
             <a href="/settings" @click.prevent="go('/settings')"
               class="flex items-center gap-3 px-3 py-3 rounded-xl font-semibold text-sm transition cursor-pointer"
               :class="isActive('/settings') ? 'bg-white/15 text-white' : 'text-white/90 hover:bg-white/10 border border-transparent'">
               <font-awesome :icon="faSliders" class="w-4 h-4 shrink-0" />
-              <span>Settings</span>
+              <span>{{ $t('nav.settings') }}</span>
             </a>
           </div>
           <div class="border-t border-white/10 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shrink-0">
             <button @click="closeMenu(); modalLogout()" type="button"
               class="flex w-full items-center gap-3 px-3 py-3 rounded-xl font-semibold text-sm text-red-300 hover:bg-red-500/10 transition cursor-pointer">
               <font-awesome :icon="faArrowRightFromBracket" class="w-4 h-4 shrink-0" />
-              <span>Log out</span>
+              <span>{{ $t('nav.logOut') }}</span>
             </button>
           </div>
         </nav>

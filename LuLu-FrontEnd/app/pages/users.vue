@@ -6,10 +6,13 @@ import { faUsers, faPlus, faEdit, faTrash, faShieldAlt, faCheck, faX } from '@fo
 const auth = useAuthStore()
 const notify = useNotifyStore()
 const config = useRuntimeConfig()
+const { t } = useI18n()
 
-useHead({ title: 'LuLu — Users' })
+useHead({ title: 'LuLu - Users' })
 definePageMeta({ middleware: ['get-auth'], layout: 'default' })
 
+// Editing other people's accounts needs the same action permission the server
+// enforces, so the UI never offers a button that would come back 403.
 const canAdd = computed(() => auth.hasActionAccess('users', 'can_add'))
 const canEdit = computed(() => auth.hasActionAccess('users', 'can_edit'))
 const canDelete = computed(() => auth.hasActionAccess('users', 'can_delete'))
@@ -39,16 +42,17 @@ const permissionsUser = ref(null)
 const permissionsSaving = ref(false)
 
 const ACTIONS = ['can_view', 'can_add', 'can_edit', 'can_delete']
-const ACTION_LABELS = { can_view: 'View', can_add: 'Add', can_edit: 'Edit', can_delete: 'Delete' }
+const ACTION_LABELS = { can_view: $t('user.labelView'), can_add: $t('common.add'), can_edit: $t('common.edit'), can_delete: $t('common.delete') }
 
 const ALL_PAGES = [
-    { key: 'dashboard', label: 'Dashboard' },
-    { key: 'employee', label: 'Employees' },
-    { key: 'shift', label: 'Shifts' },
-    { key: 'report', label: 'Reports' },
-    { key: 'controller', label: 'Devices' },
-    { key: 'settings', label: 'Settings' },
-    { key: 'users', label: 'Users' },
+    { key: 'dashboard', label: $t('user.pageDashboard') },
+    { key: 'employee', label: $t('user.pageEmployee') },
+    { key: 'shift', label: $t('user.pageShift') },
+    { key: 'report', label: $t('user.pageReport') },
+    { key: 'controller', label: $t('user.pageController') },
+    { key: 'settings', label: $t('user.pageSettings') },
+    { key: 'users', label: $t('user.pageUsers') },
+    { key: 'leave', label: $t('user.pageLeave') },
 ]
 
 async function fetchUsers() {
@@ -61,24 +65,24 @@ async function fetchUsers() {
         if (resp.code === 200) {
             users.value = resp.data || []
         } else {
-            notify.error('Could not load users', resp.message || '')
+            notify.error(t('user.loadFailed'), resp.message || '')
         }
     } catch (e) {
-        notify.error('Network error', 'Is the backend running?')
+        notify.error(t('user.networkError'), t('user.backendRunning'))
     }
     loading.value = false
 }
 
 function openAddModal() {
     modalMode.value = 'add'
-    modalTitle.value = 'Add User'
+    modalTitle.value = t('user.addTitle')
     form.value = { user_nickname: '', nickname: '', password: '', fname: '', lname: '' }
     showModal.value = true
 }
 
 function openEditModal(user) {
     modalMode.value = 'edit'
-    modalTitle.value = 'Edit User'
+    modalTitle.value = t('user.editTitle')
     form.value = {
         user_nickname: user.user_nickname,
         nickname: user.user_nickname,
@@ -122,23 +126,24 @@ async function saveUser() {
             const was = modalMode.value === 'add'
             showModal.value = false
             await fetchUsers()
-            notify.success(was ? 'User added' : 'User updated', form.value.nickname)
+            notify.success(was ? t('user.added') : t('user.updated'), form.value.nickname)
         } else {
-            notify.error('Save failed', resp.message || '')
+            notify.error(t('user.saveFailed'), resp.message || '')
         }
     } catch (e) {
-        notify.error('Network error')
+        notify.error(t('user.networkError'))
     }
     saving.value = false
 }
 
 async function deleteUser(user) {
-
+    // The server answers 400 "Cannot delete yourself", but offering the click and
+    // then refusing it reads as a failure. Hide the control instead.
     if (user.user_nickname === auth.user?.nickname) {
-        notify.warning('Cannot delete your own account', user.user_nickname)
+        notify.warning(t('user.deleteSelfLong'), user.user_nickname)
         return
     }
-    if (!confirm(`Delete user "${user.user_nickname}"?`)) return
+    if (!confirm(t('user.confirmDelete', { name: user.user_nickname }))) return
 
     try {
         const resp = await apiFetch(`${config.public.apiBase}/user/delete`, {
@@ -148,16 +153,18 @@ async function deleteUser(user) {
         })
         if (resp.code === 200) {
             await fetchUsers()
-            notify.success('User deleted', user.user_nickname)
+            notify.success(t('user.deleted'), user.user_nickname)
         } else {
-            notify.error('Delete failed', resp.message || '')
+            notify.error(t('user.deleteFailed'), resp.message || '')
         }
     } catch (e) {
-        notify.error('Network error')
+        notify.error(t('user.networkError'))
     }
 }
 
-
+// The API returns the full flag set, but a user can also have no row for a page
+// at all, and a brand new user has none of them. Normalise to all-false first so
+// the grid never reads a missing key as "granted".
 function blankPerm() {
     return { can_view: false, can_add: false, can_edit: false, can_delete: false }
 }
@@ -184,6 +191,8 @@ function openPermissionsModal(user) {
     showPermissionsModal.value = true
 }
 
+// View is the master switch: a page you cannot read is not a page you can write
+// to, so ticking an action ticks view, and unticking view clears the rest.
 function toggleView(pageKey) {
     const perm = editingPermissions.value[pageKey]
     const next = !perm.can_view
@@ -213,7 +222,7 @@ function toggleAll(pageKey) {
 // Editing your own permissions is allowed (renaming, password), but revoking your
 // own access to user management would be a one-way door: there is no admin level
 // and no superuser to restore it. Both view and edit must survive, because this
-// very page saves through an endpoint gated on can_edit — dropping that flag
+// very page saves through an endpoint gated on can_edit - dropping that flag
 // would succeed once and then lock you out of every later permission change.
 // can_add and can_delete stay freely editable; nothing becomes unreachable.
 // The server refuses both cases with 400 too; this just avoids offering the click.
@@ -221,10 +230,10 @@ const editingSelf = computed(() => permissionsUser.value?.user_nickname === auth
 const selfLockoutReason = computed(() => {
     if (!editingSelf.value) return ''
     if (editingPermissions.value.users?.can_view !== true) {
-        return 'You cannot remove your own user management access — that would lock every account out.'
+        return 'You cannot remove your own user management access - that would lock every account out.'
     }
     if (editingPermissions.value.users?.can_edit !== true) {
-        return 'You cannot remove your own edit access to user management — you would not be able to change any permission again, including this one.'
+        return 'You cannot remove your own edit access to user management - you would not be able to change any permission again, including this one.'
     }
     return ''
 })
@@ -232,7 +241,7 @@ const selfLockoutBlocked = computed(() => selfLockoutReason.value !== '')
 
 async function savePermissions() {
     if (selfLockoutBlocked.value) {
-        notify.warning('Permission not saved', selfLockoutReason.value)
+        notify.warning(t('user.permSaveFailed'), selfLockoutReason.value)
         return
     }
     permissionsSaving.value = true
@@ -256,12 +265,12 @@ async function savePermissions() {
             const who = permissionsUser.value.user_nickname
             showPermissionsModal.value = false
             await fetchUsers()
-            notify.success('Permissions updated', who)
+            notify.success(t('user.permUpdated'), who)
         } else {
-            notify.error('Save failed', resp.message || '')
+            notify.error(t('user.saveFailed'), resp.message || '')
         }
     } catch (e) {
-        notify.error('Network error')
+        notify.error(t('user.networkError'))
     }
     permissionsSaving.value = false
 }
@@ -308,17 +317,18 @@ onMounted(() => {
                     <font-awesome :icon="faUsers" class="w-[18px] h-[18px]" />
                 </div>
                 <div class="min-w-0">
-                    <h1 class="display text-lg font-extrabold text-green-900 tracking-tight">User Management</h1>
+                    <h1 class="display text-lg font-extrabold text-green-900 tracking-tight">{{ $t('user.subtitle') }}
+                    </h1>
                     <div class="mt-2 flex flex-wrap items-center gap-2 mono text-[10px]">
                         <span class="chip chip-emerald">{{ users.length }} users</span>
-                        <span class="chip chip-emerald">MANAGE ACCESS</span>
+                        <span class="chip chip-emerald">{{ $t('user.manageAccess') }}</span>
                     </div>
                 </div>
             </div>
             <button v-if="canAdd" @click="openAddModal"
-                class="btn-emerald px-5 h-11 rounded-xl text-sm font-bold inline-flex items-center gap-2 transition shrink-0">
+                class="btn-emerald px-5 h-11 rounded-xl text-sm font-bold inline-flex items-center justify-center gap-2 transition shrink-0 w-full sm:w-auto">
                 <font-awesome :icon="faPlus" class="w-4 h-4" />
-                <span class="hidden sm:inline">Add User</span>
+                <span>{{ $t('user.addTitle') }}</span>
             </button>
         </div>
 
@@ -326,7 +336,7 @@ onMounted(() => {
         <div class="hud-frame glass rounded-2xl border border-emerald-100 overflow-hidden">
             <div class="px-4 py-2.5 bg-white/60 border-b border-emerald-100 flex items-center justify-between gap-2">
                 <span class="mono text-[10px] font-bold tracking-[0.14em] text-emerald-700 flex items-center gap-2">
-                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> USER LIST
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> {{ $t('user.listTitle') }}
                 </span>
                 <span class="mono text-[11px] text-emerald-700/60">{{ users.length }} shown • {{ users.length }}
                     total</span>
@@ -345,16 +355,16 @@ onMounted(() => {
                         <tr class="bg-gradient-to-r from-emerald-600 to-green-600 text-white">
                             <th
                                 class="py-2.5 px-3 text-left mono text-[10px] font-bold tracking-[0.14em] uppercase border-r border-white/15 w-[22%]">
-                                Nickname</th>
+                                {{ $t('user.colNickname') }}</th>
                             <th
                                 class="py-2.5 px-3 text-left mono text-[10px] font-bold tracking-[0.14em] uppercase border-r border-white/15 w-[28%]">
-                                Name</th>
+                                {{ $t('user.colName') }}</th>
                             <th
                                 class="py-2.5 px-3 text-left mono text-[10px] font-bold tracking-[0.14em] uppercase border-r border-white/15">
-                                Access</th>
+                                {{ $t('user.colAccess') }}</th>
                             <th
                                 class="py-2.5 px-3 text-right mono text-[10px] font-bold tracking-[0.14em] uppercase w-[18%]">
-                                Actions</th>
+                                {{ $t('user.colActions') }}</th>
                         </tr>
                     </thead>
                     <tbody v-if="users.length > 0" class="divide-y divide-emerald-50 bg-white">
@@ -369,7 +379,7 @@ onMounted(() => {
                                     </span>
                                     <div class="min-w-0">
                                         <p class="font-bold text-green-900 leading-none truncate">{{ user.user_nickname
-                                        }}</p>
+                                            }}</p>
                                         <p class="mono text-[10px] text-slate-400 mt-1 truncate">ID #{{ user.user_id }}
                                         </p>
                                     </div>
@@ -398,18 +408,18 @@ onMounted(() => {
                                 <div class="inline-flex items-center gap-1">
                                     <button @click="openPermissionsModal(user)"
                                         class="w-8 h-8 rounded-xl bg-white border-2 border-emerald-100 text-emerald-600 hover:bg-emerald-600 hover:text-white hover:border-emerald-600 flex items-center justify-center transition shadow-sm"
-                                        title="Permissions">
+                                        :title="$t('user.permissionsTitle')">
                                         <FontAwesome :icon="faShieldAlt" class="w-3 h-3" />
                                     </button>
                                     <button v-if="canEdit" @click="openEditModal(user)"
                                         class="w-8 h-8 rounded-xl bg-white border-2 border-emerald-100 text-emerald-600 hover:bg-emerald-600 hover:text-white hover:border-emerald-600 flex items-center justify-center transition shadow-sm"
-                                        title="Edit">
+                                        :title="$t('common.edit')">
                                         <FontAwesome :icon="faEdit" class="w-3 h-3" />
                                     </button>
                                     <button v-if="canDelete && user.user_nickname !== auth.user?.nickname"
                                         @click="deleteUser(user)"
                                         class="w-8 h-8 rounded-xl bg-white border-2 border-red-100 text-red-500 hover:bg-red-500 hover:text-white hover:border-red-500 flex items-center justify-center transition shadow-sm"
-                                        title="Hapus">
+                                        :title="$t('common.delete')">
                                         <FontAwesome :icon="faTrash" class="w-3 h-3" />
                                     </button>
                                 </div>
@@ -429,9 +439,9 @@ onMounted(() => {
                                             <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
                                         </svg>
                                     </div>
-                                    <p class="mono text-xs font-bold tracking-[0.14em] text-emerald-700">NO USERS</p>
-                                    <p class="text-sm text-slate-500 max-w-md">Add an account, then grant it the pages
-                                        it needs.</p>
+                                    <p class="mono text-xs font-bold tracking-[0.14em] text-emerald-700">{{
+                                        $t('user.noUsers') }}</p>
+                                    <p class="text-sm text-slate-500 max-w-md">{{ $t('user.addHint') }}</p>
                                 </div>
                             </td>
                         </tr>
@@ -453,7 +463,7 @@ onMounted(() => {
                             <div class="min-w-0">
                                 <p class="font-bold text-sm text-green-900 truncate">{{ user.user_nickname }}</p>
                                 <p class="mono text-[10px] text-slate-400 mt-1">#{{ user.user_id }} • {{ user.user_fname
-                                }} {{ user.user_lname }}</p>
+                                    }} {{ user.user_lname }}</p>
                             </div>
                         </div>
                         <span class="shrink-0 inline-flex px-2 py-1 rounded-full border mono text-[10px] font-bold"
@@ -465,24 +475,26 @@ onMounted(() => {
                         permSummary(user).join(' · ') }}</p>
                     <div class="mt-3 flex gap-2">
                         <button @click="openPermissionsModal(user)"
-                            class="flex-1 py-2.5 rounded-xl bg-white border-2 border-emerald-100 text-emerald-600 mono text-xs font-bold">Access</button>
+                            class="flex-1 py-2.5 rounded-xl bg-white border-2 border-emerald-100 text-emerald-600 mono text-xs font-bold">{{
+                            $t('user.colAccess') }}</button>
                         <button v-if="canEdit" @click="openEditModal(user)"
-                            class="flex-1 py-2.5 rounded-xl bg-emerald-600 text-white mono text-xs font-bold shadow-sm">Edit</button>
+                            class="flex-1 py-2.5 rounded-xl bg-emerald-600 text-white mono text-xs font-bold shadow-sm">{{
+                            $t('common.edit') }}</button>
                         <button v-if="canDelete && user.user_nickname !== auth.user?.nickname" @click="deleteUser(user)"
-                            class="flex-1 py-2.5 rounded-xl bg-white border-2 border-red-100 text-red-600 mono text-xs font-bold">Delete</button>
+                            class="flex-1 py-2.5 rounded-xl bg-white border-2 border-red-100 text-red-600 mono text-xs font-bold">{{
+                            $t('common.delete') }}</button>
                     </div>
                 </div>
             </div>
             <div v-else-if="!loading" class="md:hidden p-10 text-center">
-                <p class="mono text-xs font-bold tracking-[0.14em] text-emerald-700">NO USERS</p>
-                <p class="text-sm text-slate-500 mt-1">Add an account, then grant it the pages it needs.</p>
+                <p class="mono text-xs font-bold tracking-[0.14em] text-emerald-700">{{ $t('user.noUsers') }}</p>
+                <p class="text-sm text-slate-500 mt-1">{{ $t('user.addHint') }}</p>
             </div>
 
             <div
                 class="px-4 py-2.5 bg-white/90 backdrop-blur border-t border-emerald-100 flex items-center justify-between mono text-[10px]">
                 <span class="text-emerald-700/60">{{ users.length }} of {{ users.length }} users</span>
-                <span class="hidden sm:inline text-slate-400">Click the shield to change page access • Delete asks for
-                    confirmation</span>
+                <span class="hidden sm:inline text-slate-400">{{ $t('user.footerHint') }}</span>
             </div>
         </div>
 
@@ -495,17 +507,17 @@ onMounted(() => {
 
                 <div class="space-y-3">
                     <div>
-                        <label
-                            class="mono text-[11px] font-bold tracking-[0.12em] uppercase text-emerald-800">Nickname</label>
+                        <label class="mono text-[11px] font-bold tracking-[0.12em] uppercase text-emerald-800">{{
+                            $t('user.colNickname') }}</label>
                         <input v-model="form.nickname" type="text"
                             class="w-full px-3.5 h-11 rounded-xl border-2 border-emerald-100 bg-white focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 outline-none text-sm text-green-900 transition mt-1"
-                            placeholder="username">
+                            :placeholder="$t('user.phNickname')">
                     </div>
 
                     <div>
                         <label class="mono text-[11px] font-bold tracking-[0.12em] uppercase text-emerald-800">
-                            Password <span v-if="modalMode === 'edit'" class="text-emerald-500">(leave blank to
-                                keep)</span>
+                            {{ $t('login.password') }} <span v-if="modalMode === 'edit'" class="text-emerald-500">(leave
+                                blank to keep)</span>
                         </label>
                         <input v-model="form.password" type="password"
                             class="w-full px-3.5 h-11 rounded-xl border-2 border-emerald-100 bg-white focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 outline-none text-sm text-green-900 transition mt-1"
@@ -514,18 +526,18 @@ onMounted(() => {
 
                     <div class="grid grid-cols-2 gap-3">
                         <div>
-                            <label class="mono text-[11px] font-bold tracking-[0.12em] uppercase text-emerald-800">First
-                                Name</label>
+                            <label class="mono text-[11px] font-bold tracking-[0.12em] uppercase text-emerald-800">{{
+                                $t('employee.firstName') }}</label>
                             <input v-model="form.fname" type="text"
                                 class="w-full px-3.5 h-11 rounded-xl border-2 border-emerald-100 bg-white focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 outline-none text-sm text-green-900 transition mt-1"
-                                placeholder="First">
+                                :placeholder="$t('user.phFirst')">
                         </div>
                         <div>
-                            <label class="mono text-[11px] font-bold tracking-[0.12em] uppercase text-emerald-800">Last
-                                Name</label>
+                            <label class="mono text-[11px] font-bold tracking-[0.12em] uppercase text-emerald-800">{{
+                                $t('employee.lastName') }}</label>
                             <input v-model="form.lname" type="text"
                                 class="w-full px-3.5 h-11 rounded-xl border-2 border-emerald-100 bg-white focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 outline-none text-sm text-green-900 transition mt-1"
-                                placeholder="Last">
+                                :placeholder="$t('user.phLast')">
                         </div>
                     </div>
                 </div>
@@ -535,10 +547,11 @@ onMounted(() => {
                         class="btn-emerald px-6 h-11 rounded-xl text-sm font-bold inline-flex items-center gap-2 disabled:opacity-40 transition">
                         <span v-if="saving"
                             class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-                        {{ saving ? 'Saving…' : 'Save' }}
+                        {{ saving ? 'Saving…' : $t('common.save') }}
                     </button>
                     <button @click="showModal = false"
-                        class="px-6 h-11 rounded-xl text-sm font-bold text-emerald-700 hover:bg-emerald-50 transition">Cancel</button>
+                        class="px-6 h-11 rounded-xl text-sm font-bold text-emerald-700 hover:bg-emerald-50 transition">{{
+                            $t('common.cancel') }}</button>
                 </div>
             </div>
         </div>
@@ -554,7 +567,7 @@ onMounted(() => {
                         <font-awesome :icon="faShieldAlt" class="w-5 h-5 text-white" />
                     </div>
                     <div>
-                        <h3 class="display text-lg font-extrabold text-green-900">Page Permissions</h3>
+                        <h3 class="display text-lg font-extrabold text-green-900">{{ $t('user.pagePermissions') }}</h3>
                         <p class="text-xs text-emerald-600">{{ permissionsUser?.user_nickname }}</p>
                     </div>
                 </div>
@@ -574,11 +587,11 @@ onMounted(() => {
                         <div class="flex items-center justify-between gap-3">
                             <span class="text-sm font-medium text-green-900">{{ page.label }}</span>
                             <div class="flex items-center gap-1.5">
-                                <button @click="toggleAll(page.key)" title="Toggle all actions"
+                                <button @click="toggleAll(page.key)" :title="$t('user.toggleAll')"
                                     class="px-2 h-7 rounded-lg text-[10px] font-bold tracking-wider transition" :class="ACTIONS.every(a => editingPermissions[page.key][a])
                                         ? 'bg-emerald-500 text-white'
                                         : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'">
-                                    ALL
+                                    {{ $t('common.all') }}
                                 </button>
                                 <button v-for="(action, i) in ACTIONS" :key="action"
                                     @click="action === 'can_view' ? toggleView(page.key) : toggleAction(page.key, action)"
@@ -603,10 +616,11 @@ onMounted(() => {
                         class="btn-emerald px-6 h-11 rounded-xl text-sm font-bold inline-flex items-center gap-2 disabled:opacity-40 transition">
                         <span v-if="permissionsSaving"
                             class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-                        {{ permissionsSaving ? 'Saving…' : 'Save' }}
+                        {{ permissionsSaving ? 'Saving…' : $t('common.save') }}
                     </button>
                     <button @click="showPermissionsModal = false"
-                        class="px-6 h-11 rounded-xl text-sm font-bold text-emerald-700 hover:bg-emerald-50 transition">Cancel</button>
+                        class="px-6 h-11 rounded-xl text-sm font-bold text-emerald-700 hover:bg-emerald-50 transition">{{
+                            $t('common.cancel') }}</button>
                 </div>
             </div>
         </div>

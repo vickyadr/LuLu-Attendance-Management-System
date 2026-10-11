@@ -10,12 +10,14 @@ const
     config = useRuntimeConfig(),
     check = useChecker(),
     auth = useAuthStore(),
-    compShift = ref(),
-    compSchedule = ref(),
+    compShiftList = ref(),
+    compShiftForm = ref(),
+    compScheduleList = ref(),
+    compScheduleForm = ref(),
     edit_mode = ref({ shift: false }),
     sm_data = new SMData();
 
-useHead({ title: "LuLu — Shifts & Schedules" });
+useHead({ title: "LuLu - Shifts & Schedules" });
 definePageMeta({ middleware: ["get-auth"], layout: 'default' });
 
 function cbDelShift(data) {
@@ -24,7 +26,8 @@ function cbDelShift(data) {
     sm_data.showOKCancel();
 }
 function cbEditShift(data) {
-    compShift.value?.fillForm(data)
+    compShiftList.value?.reload?.()
+    compShiftForm.value?.fillForm(data)
     form_tab.value = 'shift'
     edit_mode.value.shift = true
     // scroll to form on mobile
@@ -32,7 +35,7 @@ function cbEditShift(data) {
 }
 function actOk() {
     const del_shift = sm_data.getHelper("del-shift")
-    if (!check.isNull(del_shift)) compShift.value?.del_shift(del_shift.id)
+    if (!check.isNull(del_shift)) compShiftForm.value?.del_shift(del_shift.id)
     sm_data.clear()
 }
 function actCancel() { sm_data.clear() }
@@ -41,7 +44,11 @@ function onScheduleDone() { /* after create schedule, stay on schedule tab */ }
 </script>
 
 <template>
-
+    <!-- The desktop layout keeps <main> scrolling (see layouts/default.vue), but this
+         page pins its own height: the schedule list gets an inner scrollbar and the
+         right column (shift list + form) stays put while you scroll through
+         schedules. Without a bounded height the grid just grows and the whole page
+         scrolls, which drags the right-hand cards out of view. -->
     <div class="flex flex-col gap-4 lg:flex-1 lg:min-h-0">
         <!-- Page header -->
         <div
@@ -58,15 +65,15 @@ function onScheduleDone() { /* after create schedule, stay on schedule tab */ }
                     </svg>
                 </div>
                 <div>
-                    <h1 class="display text-lg font-extrabold text-green-900 tracking-tight">Shifts & Work Schedules
+                    <h1 class="display text-lg font-extrabold text-green-900 tracking-tight">{{ $t('shift.subtitle') }}
                     </h1>
                     <div class="mt-2 flex flex-wrap gap-1.5 mono text-[10px] tracking-widest">
-                        <span class="chip chip-emerald">1. CREATE SHIFT</span>
+                        <span class="chip chip-emerald">{{ $t('shift.stepCreate') }}</span>
                         <span class="text-emerald-700/40">→</span>
-                        <span class="chip chip-emerald">2. BUILD THE SCHEDULE</span>
+                        <span class="chip chip-emerald">{{ $t('shift.stepBuild') }}</span>
                         <span class="text-emerald-700/40">→</span>
-                        <span class="chip bg-white border-emerald-200 text-emerald-700 border">3. ASSIGN TO
-                            EMPLOYEES</span>
+                        <span class="chip bg-white border-emerald-200 text-emerald-700 border">{{ $t('shift.stepAssign')
+                        }}</span>
                     </div>
                 </div>
             </div>
@@ -76,32 +83,39 @@ function onScheduleDone() { /* after create schedule, stay on schedule tab */ }
 
         <!-- Main grid: left schedules (self-scrolling), right shifts+form (pinned) -->
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start lg:items-stretch lg:flex-1 lg:min-h-0">
-            <!-- LEFT: Schedule list (takes 7 cols) -->
+            <!-- LEFT: Schedule list (takes 7 cols) - the inner list (ListSchedule)
+                 already has flex-1 + overflow-auto, so bounding this column pins the
+                 scroll here instead of pushing the whole page. -->
             <div class="lg:col-span-7 xl:col-span-7 lg:h-full lg:min-h-0 flex flex-col">
                 <div
                     class="glass rounded-2xl border border-emerald-100 shadow-sm overflow-hidden flex flex-col lg:h-full lg:min-h-0">
-                    <ListSchedule ref="compSchedule" />
+                    <ListSchedule ref="compScheduleList" />
                 </div>
             </div>
 
-            <!-- RIGHT: Shift list + Form tabs (5 cols) -->
+            <!-- RIGHT: Shift list + Form tabs (5 cols). This column scrolls on its own so
+                 the left schedule list can scroll without dragging these cards
+                 along, and the page height stays fixed. -->
             <div
                 class="lg:col-span-5 xl:col-span-5 lg:h-full lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain space-y-4">
-                <!-- Shift list card -->
+                <!-- Shift list card. The inner list flexes with the column instead of
+                     a hard 320px cap: with a short viewport the form below would sit
+                     far under the fold, and the user has to scroll to reach it. -->
                 <div
                     class="glass rounded-2xl border border-emerald-100 shadow-sm overflow-hidden flex flex-col lg:min-h-0">
                     <div
                         class="px-4 py-3 border-b border-emerald-100 bg-gradient-to-r from-emerald-50/60 to-white flex items-center justify-between shrink-0">
                         <h2 class="mono text-xs font-bold tracking-[0.14em] text-emerald-700 flex items-center gap-2">
-                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> SHIFT LIST
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> {{ $t('shift.shiftList') }}
                         </h2>
                     </div>
                     <div class="lg:max-h-[220px] lg:min-h-0 overflow-auto">
-                        <ListShift v-on:delete="cbDelShift" v-on:edit="cbEditShift" />
+                        <ListShift ref="compShiftList" v-on:delete="cbDelShift" v-on:edit="cbEditShift" />
                     </div>
                 </div>
 
-                <!-- Form tabs -->
+                <!-- Form tabs. When the viewport is short the column scrolls past them; the
+                     shift list above is capped for exactly that reason. -->
                 <div id="shift-form-anchor"
                     class="glass rounded-2xl border border-emerald-100 shadow-sm overflow-hidden lg:min-h-0">
                     <div class="flex border-b border-emerald-100 bg-white/60">
@@ -114,7 +128,7 @@ function onScheduleDone() { /* after create schedule, stay on schedule tab */ }
                                 <rect x="3" y="4" width="18" height="18" rx="2" />
                                 <path d="M16 2v4M8 2v4M3 10h18" />
                             </svg>
-                            CREATE SCHEDULE
+                            {{ $t('shift.createSchedule') }}
                         </button>
                         <button
                             :class="form_tab === 'shift' ? 'bg-emerald-600 text-white shadow-sm' : 'bg-white text-emerald-700 hover:bg-emerald-50'"
@@ -125,22 +139,23 @@ function onScheduleDone() { /* after create schedule, stay on schedule tab */ }
                                 <circle cx="12" cy="12" r="9" />
                                 <path d="M12 8v4l3 2" />
                             </svg>
-                            {{ edit_mode.shift ? 'EDIT SHIFT' : 'CREATE SHIFT' }}
+                            {{ edit_mode.shift ? $t('shift.editTitleUp') : $t('shift.createTitleUp') }}
                         </button>
                     </div>
                     <div v-if="edit_mode.shift"
                         class="px-4 py-2 bg-amber-50 border-b border-amber-200 flex items-center justify-between">
-                        <span class="mono text-[10px] font-bold tracking-widest text-amber-700">EDIT MODE</span>
-                        <button @click="shiftEditDone(); compShift?.fillForm && (compShift.fillForm({ id: 0 }))"
-                            class="mono text-[10px] px-2.5 py-1 rounded-full bg-white border border-amber-200 text-amber-700 hover:bg-amber-50">Cancel
-                            edit</button>
+                        <span class="mono text-[10px] font-bold tracking-widest text-amber-700">{{ $t('shift.editMode')
+                        }}</span>
+                        <button @click="shiftEditDone(); compShiftForm?.fillForm && (compShiftForm.fillForm({ id: 0 }))"
+                            class="mono text-[10px] px-2.5 py-1 rounded-full bg-white border border-amber-200 text-amber-700 hover:bg-amber-50">{{
+                                $t('common.cancelEdit') }}</button>
                     </div>
 
                     <div v-show="form_tab === 'schedule'" class="bg-white">
                         <FormSchedule ref="compScheduleForm" @done="onScheduleDone" />
                     </div>
                     <div v-show="form_tab === 'shift'" class="bg-white">
-                        <FormShift ref="compShift" @done-edit="shiftEditDone" />
+                        <FormShift ref="compShiftForm" @done-edit="shiftEditDone" />
                     </div>
                 </div>
 

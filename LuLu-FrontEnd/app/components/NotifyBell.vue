@@ -5,6 +5,9 @@ import {
     faTriangleExclamation, faTrashCan, faCheckDouble,
 } from '@fortawesome/free-solid-svg-icons'
 
+// The notification history next to the signed-in user. Reads the same store the
+// toasts push into, so the bell is a record of what actually happened rather
+// than a second, separately maintained feed.
 const notify = useNotifyStore()
 
 const open = ref(false)
@@ -23,6 +26,8 @@ const ICON_TONE = {
     warning: 'text-amber-600',
 }
 
+// Same relative time on both sides of the app; day boundaries matter because the
+// history survives across days in localStorage.
 function relTime(at) {
     const s = Math.floor((Date.now() - at) / 1000)
     if (s < 60) return 'just now'
@@ -37,7 +42,7 @@ function relTime(at) {
 
 function toggle() {
     open.value = !open.value
-
+    // Opening is the read receipt: the badge is about "unseen since last look".
     if (open.value) notify.markAllRead()
 }
 
@@ -64,7 +69,7 @@ onBeforeUnmount(() => {
 <template>
     <div ref="rootRef" class="relative shrink-0">
         <button type="button" @click.stop="toggle" :aria-expanded="open ? 'true' : 'false'" aria-haspopup="true"
-            aria-label="Notifications"
+            :aria-label="$t('notify.title')"
             class="relative w-9 h-9 grid place-content-center rounded-xl text-emerald-700 hover:bg-emerald-50 active:bg-emerald-100 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500">
             <font-awesome :icon="faBell" class="w-4 h-4" />
             <!-- Badge is aria-hidden; the button's label carries the count for AT. -->
@@ -74,17 +79,21 @@ onBeforeUnmount(() => {
             </span>
         </button>
 
-        <div v-if="open"
-            class="absolute right-0 top-full mt-2 w-[min(22rem,calc(100vw-2rem))] rounded-2xl bg-white border border-emerald-100 shadow-[0_12px_32px_-12px_rgba(2,44,34,.28)] overflow-hidden z-50">
+        <!-- Fixed to the viewport on mobile: the bell is not the last item in the
+             header row, so bell-anchored `right-0` pushed the panel past the left
+             edge. Anchored to the bell again from `sm` up. -->
+        <div v-if="open" class="fixed right-3 top-[4.5rem] z-50 w-[min(22rem,calc(100vw-1.5rem))]
+                    rounded-2xl bg-white border border-emerald-100 shadow-[0_12px_32px_-12px_rgba(2,44,34,.28)] overflow-hidden
+                    sm:absolute sm:right-0 sm:top-full sm:mt-2 sm:w-[min(22rem,calc(100vw-2rem))]">
             <div class="flex items-center gap-2 px-4 py-3 bg-emerald-50/60 border-b border-emerald-100">
                 <font-awesome :icon="faBell" class="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                <p class="text-xs font-bold text-green-900">Notifications</p>
+                <p class="text-xs font-bold text-green-900">{{ $t('notify.title') }}</p>
                 <span class="ml-auto mono text-[10px] text-emerald-700/60">{{ notify.history.length }}</span>
             </div>
 
             <div class="max-h-[60vh] overflow-y-auto">
                 <p v-if="!notify.orderedHistory.length" class="px-4 py-8 text-center text-xs text-emerald-700/60">
-                    No notifications yet
+                    {{ $t('notify.empty') }}
                 </p>
                 <div v-for="n in notify.orderedHistory" :key="n.id"
                     class="flex items-start gap-2.5 px-4 py-3 border-b border-emerald-50 last:border-b-0"
@@ -106,12 +115,12 @@ onBeforeUnmount(() => {
                 <button type="button" @click="notify.markAllRead"
                     class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-emerald-700 hover:bg-emerald-100 transition">
                     <font-awesome :icon="faCheckDouble" class="w-3 h-3" />
-                    <span>Mark all read</span>
+                    <span>{{ $t('notify.markAllRead') }}</span>
                 </button>
                 <button type="button" @click="notify.clearHistory"
                     class="ms-auto flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-red-600 hover:bg-red-50 transition">
                     <font-awesome :icon="faTrashCan" class="w-3 h-3" />
-                    <span>Clear</span>
+                    <span>{{ $t('common.clear') }}</span>
                 </button>
             </div>
         </div>

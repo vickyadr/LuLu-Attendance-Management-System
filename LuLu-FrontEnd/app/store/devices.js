@@ -13,6 +13,7 @@ export const useDeviceStore = defineStore("devices", () => {
         location:'',
         handler: 0,
         timezone: 0,
+        ip: '',
     }) {
         contents.value.push(data);
     }
@@ -25,6 +26,7 @@ export const useDeviceStore = defineStore("devices", () => {
         location:'',
         handler: 0,
         timezone: 0,
+        ip: '',
     }) {
         if (check.isNull(data.id))
             return;
@@ -43,6 +45,8 @@ export const useDeviceStore = defineStore("devices", () => {
             data.h_id = contents.value[index].h_id;
         if (check.isNull(data.timezone))
             data.timezone = contents.value[index].timezone;
+        if (check.isNull(data.ip))
+            data.ip = contents.value[index].ip;
 
         contents.value[index] = data;
     }

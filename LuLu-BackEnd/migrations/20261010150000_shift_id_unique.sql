@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX IF NOT EXISTS shifts_shift_id_key ON public.shifts(shift_id);

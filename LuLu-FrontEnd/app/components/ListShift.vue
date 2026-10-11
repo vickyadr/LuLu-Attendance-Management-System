@@ -1,7 +1,5 @@
 <script setup>
 import { useAuthStore } from '~/store/auth';
-const canEdit = computed(() => auth.hasActionAccess('shift', 'can_edit'))
-const canDelete = computed(() => auth.hasActionAccess('shift', 'can_delete'))
 import { useChecker } from '#imports';
 import { useShiftStore } from '~/store/shift';
 import { faPen, faTrash, faGrip } from '@fortawesome/free-solid-svg-icons';
@@ -13,6 +11,11 @@ const
     check = useChecker(),
     emit = defineEmits(['edit', 'delete']),
     contents = computed(() => list.contents);
+
+// Declared after `auth` exists: a computed referencing `auth` above its
+// declaration throws on first access, not at definition time.
+const canEdit = computed(() => auth.hasActionAccess('shift', 'can_edit'))
+const canDelete = computed(() => auth.hasActionAccess('shift', 'can_delete'))
 
 function callbackEdit(row) { emit('edit', row) }
 function callbackDelete(row) { emit('delete', row) }
@@ -67,15 +70,15 @@ defineExpose({ reload: getListShift })
                         </th>
                         <th
                             class="py-2.5 px-3 text-left mono text-[10px] font-bold tracking-[0.14em] uppercase border-r border-white/15">
-                            Shift</th>
+                            {{ $t('shift.colShift') }}</th>
                         <th
                             class="py-2.5 px-3 text-center mono text-[10px] font-bold tracking-[0.14em] uppercase border-r border-white/15">
-                            Work Hours</th>
+                            {{ $t('shift.colWorkHours') }}</th>
                         <th
                             class="py-2.5 px-3 text-center mono text-[10px] font-bold tracking-[0.14em] uppercase border-r border-white/15 hidden lg:table-cell">
-                            Punch Window</th>
-                        <th class="py-2.5 px-3 text-center mono text-[10px] font-bold tracking-[0.14em] uppercase">
-                            Actions</th>
+                            {{ $t('shift.colPunchWindow') }}</th>
+                        <th class="py-2.5 px-3 text-center mono text-[10px] font-bold tracking-[0.14em] uppercase">{{
+                            $t('common.actions') }}</th>
                     </tr>
                 </thead>
                 <tbody v-if="contents.length > 0" class="divide-y divide-emerald-50">
@@ -119,12 +122,12 @@ defineExpose({ reload: getListShift })
                             <div class="inline-flex items-center gap-1">
                                 <button v-if="canEdit" @click="callbackEdit(row)"
                                     class="w-7 h-7 rounded-lg bg-white border border-emerald-100 text-emerald-600 hover:bg-emerald-600 hover:text-white hover:border-emerald-600 flex items-center justify-center transition"
-                                    title="Edit">
+                                    :title="$t('common.edit')">
                                     <FontAwesome :icon="faPen" class="w-3 h-3" />
                                 </button>
                                 <button v-if="canDelete" @click="callbackDelete(row)"
                                     class="w-7 h-7 rounded-lg bg-white border border-red-100 text-red-500 hover:bg-red-500 hover:text-white hover:border-red-500 flex items-center justify-center transition"
-                                    title="Hapus">
+                                    :title="$t('common.delete')">
                                     <FontAwesome :icon="faTrash" class="w-3 h-3" />
                                 </button>
                             </div>
@@ -134,8 +137,8 @@ defineExpose({ reload: getListShift })
                 <tbody v-else>
                     <tr>
                         <td colspan="5" class="py-8 text-center">
-                            <p class="mono text-xs text-emerald-700/50">No shifts yet</p>
-                            <p class="text-xs text-slate-400 mt-1">Create a shift in the form at the bottom right</p>
+                            <p class="mono text-xs text-emerald-700/50">{{ $t('shift.emptyShort') }}</p>
+                            <p class="text-xs text-slate-400 mt-1">{{ $t('shift.formHint') }}</p>
                         </td>
                     </tr>
                 </tbody>
@@ -146,7 +149,7 @@ defineExpose({ reload: getListShift })
         <div class="sm:hidden p-2 space-y-2 max-h-[360px] overflow-auto">
             <div v-if="contents.length === 0"
                 class="py-8 text-center rounded-xl bg-emerald-50/40 border border-emerald-100 mono text-xs text-emerald-700/60">
-                No shifts yet — create one below</div>
+                {{ $t('shift.emptyHint') }}</div>
             <div v-for="row in contents" :key="row.id" draggable="true" @dragstart="(e) => handleDragStart(e, row)"
                 class="rounded-2xl border-2 border-emerald-100 bg-white p-3 flex items-center gap-3 active:border-emerald-300 active:bg-emerald-50/40">
                 <span class="w-2 h-10 rounded-full shrink-0" :class="shiftColor(row)"></span>
@@ -159,9 +162,11 @@ defineExpose({ reload: getListShift })
                 </div>
                 <div class="flex flex-col gap-1 shrink-0">
                     <button v-if="canEdit" @click="callbackEdit(row)"
-                        class="px-3 py-1.5 rounded-full bg-emerald-600 text-white mono text-[10px] font-bold">Edit</button>
+                        class="px-3 py-1.5 rounded-full bg-emerald-600 text-white mono text-[10px] font-bold">{{
+                            $t('common.edit') }}</button>
                     <button v-if="canDelete" @click="callbackDelete(row)"
-                        class="px-3 py-1.5 rounded-full bg-white border border-red-200 text-red-600 mono text-[10px]">Delete</button>
+                        class="px-3 py-1.5 rounded-full bg-white border border-red-200 text-red-600 mono text-[10px]">{{
+                            $t('common.delete') }}</button>
                 </div>
             </div>
         </div>

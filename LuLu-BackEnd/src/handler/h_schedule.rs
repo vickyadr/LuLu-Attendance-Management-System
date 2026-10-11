@@ -162,7 +162,6 @@ pub async fn schedule_add(
         shifts
     );
 
-
     let mut tx = match pool.db.begin().await {
         Ok(tx) => tx,
         Err(e) => {
@@ -232,7 +231,8 @@ pub async fn schedule_add(
             .await
         {
             log::error!("schedule dom {} insert err: {:?}", dom, e);
-
+            // Dropping the transaction here rolls the parent update and every
+            // earlier child back, so no orphan rows survive.
             return NoDataResponse::new(
                 format!("Failed to save schedule row {}", dom),
                 500
@@ -316,7 +316,7 @@ pub async fn schedule_edit(
     }
 
     NoDataResponse::new(
-        "Format edit tidak didukung — kirim id + shift".to_string(),
+        "Format edit tidak didukung - kirim id + shift".to_string(),
         400,
     )
     .into_response()

@@ -47,7 +47,12 @@ pub async fn shift_delete(
         .execute(&pool.db)
         .await
     {
-        Ok(_) => NoDataResponse::ok("Shift deleted !!!".to_string()).into_response(),
+        Ok(r) if r.rows_affected() == 1 => {
+            NoDataResponse::ok("Shift deleted !!!".to_string()).into_response()
+        }
+        // Either the id never existed, or the row was already gone in another
+        // tab. Either way there is nothing to report success about.
+        Ok(_) => NoDataResponse::new("Shift not found".to_string(), 404).into_response(),
         Err(_) => NoDataResponse::new("Shift not found".to_string(), 404).into_response(),
     }
 }

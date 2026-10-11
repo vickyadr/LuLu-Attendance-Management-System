@@ -1,4 +1,3 @@
-
 use crate::{
     models::{m_report::*, m_schedule::ScheduleHelper},
     utility::{
@@ -13,7 +12,7 @@ use actix_web::{
 };
 use chrono::Utc;
 use sqlx::Row;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 #[derive(Clone, Copy)]
 struct Tolerances {
@@ -38,11 +37,107 @@ async fn load_tolerances(db: &sqlx::PgPool) -> Tolerances {
             late_sec: r.get::<i64, _>("late_tol"),
             overtime_sec: r.get::<i64, _>("overtime_tol"),
         },
-        // Settings table missing (migration not applied) — keep the historical 60s behaviour.
+        // Settings table missing (migration not applied) - keep the historical 60s behaviour.
         Err(_) => Tolerances {
             late_sec: 60,
             overtime_sec: 60,
         },
+    }
+}
+
+#[derive(Clone, Debug, Default)]
+struct HolidaySet {
+    days: HashSet<i64>,
+    included: HashMap<i64, String>,
+}
+
+impl HolidaySet {
+    fn contains(&self, day_utc_midnight: i64) -> bool {
+        self.days.contains(&day_utc_midnight)
+    }
+
+    fn included_name(&self, day_utc_midnight: i64) -> Option<&str> {
+        self.included.get(&day_utc_midnight).map(String::as_str)
+    }
+}
+
+#[derive(Clone, Debug, Default)]
+struct LeaveSet {
+    days: HashMap<i32, HashSet<i64>>,
+}
+
+impl LeaveSet {
+    fn contains(&self, employee_id: i32, day_utc_midnight: i64) -> bool {
+        self.days
+            .get(&employee_id)
+            .is_some_and(|set| set.contains(&day_utc_midnight))
+    }
+}
+
+/// Load every APPROVED leave falling inside the requested range.
+async fn load_leaves(db: &sqlx::PgPool, start: i64, end: i64) -> LeaveSet {
+    let rows = sqlx::query(
+        r#"SELECT leave_employee_id, (EXTRACT(EPOCH FROM leave_date))::BIGINT AS day_epoch
+           FROM leave_requests
+           WHERE leave_status = 'approved'
+             AND leave_date >= to_timestamp($1) AT TIME ZONE 'UTC'
+             AND leave_date <= to_timestamp($2) AT TIME ZONE 'UTC'"#,
+    )
+    .bind(start)
+    .bind(end)
+    .fetch_all(db)
+    .await;
+
+    match rows {
+        Ok(rs) => {
+            let mut days: HashMap<i32, HashSet<i64>> = HashMap::new();
+            for r in rs {
+                days.entry(r.get::<i32, _>("leave_employee_id"))
+                    .or_default()
+                    .insert(r.get::<i64, _>("day_epoch"));
+            }
+            LeaveSet { days }
+        }
+
+        Err(e) => {
+            log::error!("failed to load leave requests: {}", e);
+            LeaveSet::default()
+        }
+    }
+}
+
+async fn load_holidays(db: &sqlx::PgPool, start: i64, end: i64) -> HolidaySet {
+    let rows = sqlx::query(
+        r#"SELECT (EXTRACT(EPOCH FROM holiday_date))::BIGINT AS day_epoch,
+                  holiday_name, COALESCE(holiday_included, FALSE) AS holiday_included
+           FROM holiday
+           WHERE holiday_date >= to_timestamp($1) AT TIME ZONE 'UTC'
+             AND holiday_date <= to_timestamp($2) AT TIME ZONE 'UTC'"#,
+    )
+    .bind(start)
+    .bind(end)
+    .fetch_all(db)
+    .await;
+
+    match rows {
+        Ok(rs) => {
+            let mut days = HashSet::new();
+            let mut included = HashMap::new();
+            for r in rs {
+                let day: i64 = r.get("day_epoch");
+                days.insert(day);
+
+                let flag: bool = r.try_get("holiday_included").unwrap_or(false);
+                if flag {
+                    included.insert(day, r.get::<String, _>("holiday_name"));
+                }
+            }
+            HolidaySet { days, included }
+        }
+        Err(e) => {
+            log::error!("failed to load holidays: {}", e);
+            HolidaySet::default()
+        }
     }
 }
 
@@ -62,10 +157,13 @@ pub async fn report_today(
 
     let tolerances = load_tolerances(&pool.db).await;
 
+    let holidays = load_holidays(&pool.db, today, today).await;
+    let leaves = load_leaves(&pool.db, today, today).await;
+
     // Then get reports data
     match get_reports_data(&pool.db, today, today).await {
         Ok(datas) => {
-            let reports = get_enroll_data(today, today, datas, schedule_list, tolerances);
+            let reports = get_enroll_data(today, today, datas, schedule_list, tolerances, &holidays, &leaves);
             GenericResponse::<Reports>::ok(reports, "OK".to_string()).into_response()
         }
         Err(e) => {
@@ -95,10 +193,13 @@ pub async fn report_range(
 
     let tolerances = load_tolerances(&pool.db).await;
 
+    let holidays = load_holidays(&pool.db, start_range, end_range).await;
+    let leaves = load_leaves(&pool.db, start_range, end_range).await;
+
     // Then get reports data
     match get_reports_data(&pool.db, start_range, end_range).await {
         Ok(datas) => {
-            let reports = get_enroll_data(start_range, end_range, datas, schedule_list, tolerances);
+            let reports = get_enroll_data(start_range, end_range, datas, schedule_list, tolerances, &holidays, &leaves);
             GenericResponse::<Reports>::ok(reports, "OK".to_string()).into_response()
         }
         Err(e) => {
@@ -129,7 +230,7 @@ async fn get_reports_data(
                   employee_lname, employee_address, employee_departement, employee_status,
                   employee_schedule_id, schedule_type
            FROM enrolls e
-           INNER JOIN employee emp ON emp.employee_id = e.enroll_employee_id
+           INNER JOIN employee emp ON emp.employee_device_uid = e.enroll_employee_id
            INNER JOIN devices d ON e.enroll_device_sn = d.device_sn
            INNER JOIN schedules s ON s.schedule_id = emp.employee_schedule_id
            WHERE e.enroll_time BETWEEN $1 AND $2
@@ -151,6 +252,8 @@ fn get_enroll_data(
     collection: Vec<ReportsHelper>,
     schedule_list: Vec<ScheduleHelper>,
     tolerances: Tolerances,
+    holidays: &HolidaySet,
+    leaves: &LeaveSet,
 ) -> Vec<Reports> {
     if collection.is_empty() {
         return Vec::new();
@@ -181,8 +284,15 @@ fn get_enroll_data(
     // get_shift_for_date / calculate_enrollment_window, which convert the local wall-clock
     // shift offsets to UTC epochs.
     for (_employee_id, enrollments) in employee_enrollments {
-        let employee_reports =
-            process_employee_enrollments(start, end, enrollments, &schedule_map, tolerances);
+        let employee_reports = process_employee_enrollments(
+            start,
+            end,
+            enrollments,
+            &schedule_map,
+            tolerances,
+            holidays,
+            leaves,
+        );
         results.extend(employee_reports);
     }
 
@@ -197,12 +307,24 @@ fn process_employee_enrollments(
     enrollments: Vec<&ReportsHelper>,
     schedule_map: &HashMap<(i32, i32), ScheduleHelper>,
     tolerances: Tolerances,
+    holidays: &HolidaySet,
+    leaves: &LeaveSet,
 ) -> Vec<Reports> {
     let mut daily_reports: HashMap<i64, Reports> = HashMap::new();
 
     // Process each day in the range. `current_date` is a UTC midnight and doubles as the
     // bucket key in `enroll_date`.
     for current_date in (start..=end).step_by(86400) {
+        if holidays.contains(current_date) && holidays.included_name(current_date).is_none() {
+            continue;
+        }
+
+        if let Some(enrollment) = enrollments.first()
+            && leaves.contains(enrollment.employee_id, current_date)
+        {
+            continue;
+        }
+
         if let Some(enrollment) = enrollments.first()
             && let Some(shift) = get_shift_for_date(current_date, enrollment, schedule_map)
         {
@@ -217,9 +339,13 @@ fn process_employee_enrollments(
                 .collect();
 
             if !day_enrollments.is_empty()
-                && let Some(report) =
+                && let Some(mut report) =
                     create_daily_report(current_date, enrollment, shift, &day_enrollments)
             {
+
+                if let Some(name) = holidays.included_name(current_date) {
+                    report.holiday_name = Some(name.to_string());
+                }
                 daily_reports.insert(current_date, report);
             }
         }
@@ -329,6 +455,7 @@ fn create_daily_report(
         working_time: 0,
         late_time: 0,
         overtime_time: 0,
+        holiday_name: None,
     })
 }
 
@@ -383,8 +510,7 @@ fn calculate_working_time(report: &mut Reports, tolerances: Tolerances) {
     } else if let Some(end_enroll) = report.end_enroll {
         report.working_time = end_enroll.saturating_sub(start_working);
     }
-
-
+    
     if let Some(end_enroll) = report.end_enroll
         && end_enroll > end_working
     {

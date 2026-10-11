@@ -16,4 +16,7 @@ pub struct ReceiverEmployee {
     pub status: Option<i32>,
     //#[serde(skip_serializing_if = "Option::is_none", rename = "schedule_id")]
     pub schedule_id: Option<i32>,
+    // Device user id from the machine. None leaves the stored link untouched.
+    #[serde(skip_serializing_if = "Option::is_none", rename = "device_uid")]
+    pub device_uid: Option<i32>,
 }
