@@ -193,7 +193,7 @@ pub fn policy() -> Cors {
         .allowed_origin_fn(move |origin, _| {
             origin.to_str().is_ok_and(|o| origin_allowed(o, &allowed))
         })
-        .allowed_methods(vec!["GET", "POST", "PATCH", "DELETE", "OPTIONS"])
+        .allowed_methods(vec!["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"])
         .allowed_headers(vec![
             header::CONTENT_TYPE,
             header::AUTHORIZATION,

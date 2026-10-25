@@ -2,9 +2,12 @@ use crate::handler::{
     adms::{h_cdata::*, h_devicecmd::*, h_getrequest::*},
     h_device::*,
     h_employee::*,
+    h_employee_deductions::*,
+    h_field::*,
     h_holiday::*,
     h_leave::*,
     h_login::*,
+    h_payroll::*,
     h_report::*,
     h_schedule::*,
     h_settings::*,
@@ -47,6 +50,7 @@ pub fn config(conf: &mut web::ServiceConfig) {
         .service(device_edit)
         .service(device_list)
         .service(device_pull)
+        .service(device_set_time)
         .service(schedule_add)
         .service(schedule_delete)
         .service(schedule_edit)
@@ -79,7 +83,59 @@ pub fn config(conf: &mut web::ServiceConfig) {
         .service(user_edit)
         .service(user_delete)
         .service(user_permissions_update)
-        .service(user_permissions_list);
+        .service(user_permissions_list)
+        .service(get_config)
+        .service(update_config)
+        .service(create_salary_template)
+        .service(list_salary_templates)
+        .service(get_salary_template)
+        .service(update_salary_template)
+        .service(assign_employee_salary)
+        .service(update_salary_rules)
+        .service(delete_employee_salary)
+        .service(list_employee_salaries)
+        .service(import_employee_salaries)
+        .service(copy_salary_rules)
+        .service(get_employee_salary)
+        .service(create_public_holiday)
+        .service(list_public_holidays)
+        .service(delete_public_holiday)
+        .service(create_deduction_template)
+        .service(list_deduction_templates)
+        .service(get_deduction_template)
+        .service(update_deduction_template)
+        .service(delete_deduction_template)
+        .service(assign_employee_deduction)
+        .service(list_employee_deductions)
+        .service(update_employee_deduction)
+        .service(delete_employee_deduction)
+        .service(upsert_employee_statutory)
+        .service(get_employee_statutory)
+        .service(crate::handler::payroll_api::generate_payslips)
+        .service(crate::handler::payroll_api::list_payslips)
+        .service(crate::handler::payroll_api::get_payslip)
+        .service(crate::handler::payroll_api::lock_payslip)
+        .service(crate::handler::payroll_api::delete_payslip)
+        .service(crate::handler::payroll_api::delete_draft_payslips_bulk)
+        .service(crate::handler::payroll_api::approve_daily_absence)
+        .service(crate::handler::payroll_api::reject_daily_absence)
+        .service(crate::handler::payroll_api::list_daily_absences)
+        // Field attendance: employee PWA + admin review, same page key `field`.
+        // Raw photo bodies are posted here, so the payload cap sits on this scope.
+        .service(
+            web::scope("/field")
+                .app_data(web::PayloadConfig::new(2 * 1024 * 1024 + 1024))
+                .service(field_me)
+                .service(field_open_day)
+                .service(field_upload_photo)
+                .service(field_list_days)
+                .service(field_review_day)
+                .service(field_photo_file)
+                .service(field_create_account)
+                .service(field_delete_photo)
+                .service(field_reset_password)
+                .service(field_list_accounts),
+        );
 
     let api = web::scope("/api")
         .service(login_act)
@@ -95,5 +151,5 @@ pub fn config(conf: &mut web::ServiceConfig) {
         .service(get_request)
         .service(post_device_cmd);
 
-    conf.service(api).service(iclock);
+    conf.service(api).service(iclock).service(field_app_page);
 }

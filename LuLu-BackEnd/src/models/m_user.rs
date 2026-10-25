@@ -10,6 +10,9 @@ pub struct User {
     pub user_password: String,
 }
 
+/// One page a user can act on. The four action flags are stored separately and
+/// all default to deny, so a page the user may read is never implicitly a page
+/// they may write to.
 #[derive(Debug, Deserialize, Serialize, sqlx::FromRow)]
 pub struct UserPermission {
     pub page_key: String,

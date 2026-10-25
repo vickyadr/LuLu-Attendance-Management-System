@@ -161,7 +161,7 @@ pub async fn shift_add(
                                             ).into_response(),
             Err(e) => {
                 log::error!("{}", e);
-                let code =  e.as_database_error().unwrap().message();
+                let code = e.as_database_error().map(|d| d.message()).unwrap_or("");
                 if code.contains("duplicate key value violates") {
                     return NoDataResponse::new(
                         "This shift name has been use!".to_string(),

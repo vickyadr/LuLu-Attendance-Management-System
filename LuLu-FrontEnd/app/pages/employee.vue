@@ -6,6 +6,7 @@ import { useEmployee } from '~/store/employee';
 import { useAuthStore } from '~/store/auth';
 import { useNotifyStore } from '~/store/notify';
 import { SMData } from '~/components/SimpleModal.vue';
+import { faUserPlus, faMagnifyingGlass, faXmark, faUsers, faUserClock, faRotate } from '@fortawesome/free-solid-svg-icons';
 
 definePageMeta({ middleware: ["get-auth"], layout: 'default' });
 useHead({ title: "LuLu - Employees & Schedules" });
@@ -17,6 +18,9 @@ const unregRef = ref()
 const employeeStore = useEmployee()
 const notify = useNotifyStore()
 const sm_data = new SMData()
+// The list tells us when its request failed, so the header cannot keep showing
+// "0 employees" as if the database were empty.
+const listError = ref(false)
 
 const search = ref('')
 const deptFilter = ref('')
@@ -43,13 +47,12 @@ async function loadUnregCount() {
     } catch { /* badge is cosmetic; leave it at 0 */ }
 }
 
-const depts = computed(() => {
-    const s = new Set((employeeStore.contents || []).map(x => x.departement).filter(Boolean))
-    return [...s].sort()
-})
-const total = computed(() => (employeeStore.contents || []).length)
-const aktif = computed(() => (employeeStore.contents || []).filter(x => String(x.status) === '0').length)
-const nonaktif = computed(() => total.value - aktif.value)
+// Counts and department options come from the list endpoint, which counts the
+// whole table; the page itself only holds 50 rows now.
+const depts = computed(() => employeeStore.meta.departments || [])
+const total = computed(() => employeeStore.meta.all_total || 0)
+const aktif = computed(() => employeeStore.meta.active || 0)
+const nonaktif = computed(() => employeeStore.meta.inactive || 0)
 
 // Import reports per-row failures as a list, not a single message: the operator
 // needs the row number to fix the file, and a toast that truncates would hide
@@ -58,13 +61,13 @@ function cbImport(res) {
     const d = res?.data?.[0] || res?.data || {}
     const errs = d.errors || []
     if (res?.code === 200 && errs.length === 0) {
-        notify.success(t('employee.importTitle'), `${d.inserted || 0} imported`)
+        notify.success(t('employee.importTitle'), t('employee.imported', { n: d.inserted || 0 }))
     } else if (res?.code === 200) {
         const head = errs.slice(0, 5).map(e => `${t('employee.importRow', { n: e.row })}: ${e.field} ${e.reason}`).join('\n')
         const more = errs.length > 5 ? `\n+${errs.length - 5} more` : ''
-        notify.warning(t('employee.importTitle'), `${d.inserted || 0} imported, ${errs.length} failed\n${head}${more}`, 0)
+        notify.warning(t('employee.importTitle'), t('employee.importedFailed', { n: d.inserted || 0, m: errs.length }) + `\n${head}${more}`, 0)
     } else {
-        notify.error(t('employee.importTitle'), res?.message || 'Import failed')
+        notify.error(t('employee.importTitle'), res?.message || t('common.importFailed'))
     }
 }
 
@@ -72,7 +75,7 @@ function cbEdit(id) {
     const all = employeeStore.contents || []
     const found = all.find(x => String(x.id) === String(id) || String(x.employee_id) === String(id))
     if (found) { compEmployee.value?.fillForm(found); compEmployee.value?.open() }
-    else showModal({ title: 'Edit', message: 'Employee not found' })
+    else showModal({ title: $t('common.edit'), message: $t('employee.notFound') })
 }
 // A row in the unregistered list is a person missing from the employee table, so
 // its number is exactly what the new-employee form needs: no looking it up, no
@@ -85,7 +88,9 @@ function cbNew() {
     compEmployee.value?.open()
 }
 function cbDelete(id) {
-    sm_data.setText("Delete Employee", `Employee #${id} will be deleted. Continue?`)
+    const emp = (employeeStore.contents || []).find(x => String(x.id) === String(id))
+    const name = emp ? `${emp.first_name || ''} ${emp.last_name || ''}`.trim() : ''
+    sm_data.setText(t('employee.deleteTitle'), t('employee.deleteBody', { name: name || `#${id}` }))
     sm_data.setHelper("del-employee", { id })
     sm_data.showOKCancel()
 }
@@ -100,158 +105,112 @@ async function handleOk() {
 function handleCancel() { sm_data.clear() }
 function clearFilters() { search.value = ''; deptFilter.value = ''; statusFilter.value = '' }
 
-const filteredCount = computed(() => {
-    let arr = employeeStore.contents || []
-    const q = (search.value || '').trim().toLowerCase()
-    if (q) arr = arr.filter(x => `${x.first_name || ''} ${x.last_name || ''} ${x.departement || ''}`.toLowerCase().includes(q))
-    if (deptFilter.value) arr = arr.filter(x => (x.departement || '') === deptFilter.value)
-    if (statusFilter.value !== '') arr = arr.filter(x => String(x.status) === String(statusFilter.value))
-    return arr.length
-})
+const filteredCount = computed(() => employeeStore.meta.total || 0)
 onMounted(() => loadUnregCount())
 </script>
 
 <template>
-    <div class="space-y-4">
-        <!-- Header -->
-        <div
-            class="hud-frame glass rounded-2xl border border-emerald-100 px-5 py-4 flex flex-col lg:flex-row lg:items-center gap-4 tech-grid-soft">
-            <span class="hud-corner hud-corner-tl hidden sm:block"></span>
-            <span class="hud-corner hud-corner-br hidden sm:block"></span>
-            <div class="flex items-start gap-3">
-                <div
-                    class="flex w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-600 to-emerald-700 text-white items-center justify-center shadow-sm">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8">
-                        <path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
-                        <circle cx="9" cy="7" r="4" />
-                        <path d="M22 11a3 3 0 00-3-3 3 3 0 00-3 3 3 3 0 003 3 3 3 0 003-3z" />
-                        <path d="M15 11h3" />
-                        <path d="M16.5 9.5v3" />
-                    </svg>
-                </div>
-                <div>
-                    <h1 class="display text-base sm:text-lg font-extrabold text-green-900 tracking-tight">{{
-                        $t('employee.listTitle') }}</h1>
-                    <div class="mt-2 flex flex-wrap items-center gap-2 mono text-[10px]">
-                        <span class="chip chip-emerald">{{ total }} {{ $t('employee.employeesUnit') }}</span>
-                        <span class="inline-flex items-center gap-1.5 text-emerald-700/40"><span
-                                class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> {{
-                                    $t('employee.statActiveInactive', { active: aktif, inactive: nonaktif }) }}</span>
-                    </div>
+    <div class="flex flex-col gap-4">
+
+        <!-- page head -->
+        <div class="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+            <div class="min-w-0">
+                <h1 class="display text-[20px] text-text">{{ $t('employee.title') }}</h1>
+                <div class="mt-1.5 flex flex-wrap items-center gap-1.5">
+                    <span v-if="!listError" class="chip chip-quiet">{{ total }} {{ $t('employee.employeesUnit')
+                        }}</span>
+                    <span v-if="!listError" class="chip chip-ok">
+                        <span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                        {{ $t('employee.statActiveInactive', { active: aktif, inactive: nonaktif }) }}
+                    </span>
+                    <span v-if="!listError" class="chip chip-quiet hidden sm:inline-flex">{{
+                        $t('employee.statRegistered', { total: total }) }}</span>
                 </div>
             </div>
-            <div class="lg:ml-auto flex items-center gap-2">
-                <div
-                    class="hidden sm:flex items-center gap-2 px-3 py-2 rounded-xl bg-white border border-emerald-100 mono text-[10px]">
-                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span> {{ $t('employee.statRegistered', {
-                        total:
-                    total }) }}
-                    <span class="w-px h-3 bg-emerald-100"></span>
-                    <span class="text-emerald-700">{{ aktif }} {{ $t('common.active').toUpperCase() }}</span>
-                </div>
-                <button v-if="canAdd" @click="cbNew()"
-                    class="btn-emerald rounded-xl px-5 h-11 text-sm font-bold mono tracking-widest inline-flex items-center gap-2 shadow-sm">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                        stroke-width="2.5">
-                        <path d="M12 5v14M5 12h14" />
-                    </svg>
+            <div class="sm:ml-auto">
+                <button v-if="canAdd" @click="cbNew()" class="btn btn-primary w-full sm:w-auto">
+                    <font-awesome :icon="faUserPlus" class="w-3.5 h-3.5" />
                     {{ $t('employee.addTitle') }}
                 </button>
             </div>
         </div>
 
-        <!-- Tabs: registered employees vs unregistered user ids -->
-        <div class="flex items-center gap-1.5 px-1">
-            <button @click="activeTab = 'registered'"
-                class="px-4 h-9 rounded-t-xl mono text-[11px] font-bold transition flex items-center gap-1.5 border-b-2"
-                :class="activeTab === 'registered'
-                    ? 'bg-white border-emerald-600 text-emerald-700'
-                    : 'bg-emerald-50/40 border-transparent text-emerald-700/50 hover:text-emerald-700 hover:bg-emerald-50'">
+        <!-- tabs: registered employees vs unregistered device user ids -->
+        <div
+            class="flex flex-wrap items-center gap-1.5 p-1 rounded-2xl border border-border bg-surface w-fit max-w-full">
+            <button @click="activeTab = 'registered'" class="btn !px-3 sm:!px-4"
+                :class="activeTab === 'registered' ? 'btn-primary' : 'btn-quiet'">
+                <font-awesome :icon="faUsers" class="w-3.5 h-3.5" />
                 {{ $t('employee.listTitle') }}
-                <span class="px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[10px]">{{ total }}</span>
+                <span class="num text-[11px] leading-none px-1.5 py-0.5 rounded-md"
+                    :class="activeTab === 'registered' ? 'bg-white/20' : 'bg-surface-raised'">{{ total }}</span>
             </button>
-            <button @click="activeTab = 'unregistered'"
-                class="px-4 h-9 rounded-t-xl mono text-[11px] font-bold transition flex items-center gap-1.5 border-b-2"
-                :class="activeTab === 'unregistered'
-                    ? 'bg-white border-amber-500 text-amber-800'
-                    : 'bg-amber-50 border-transparent text-amber-800 hover:text-amber-900 hover:bg-amber-100'">
+            <button @click="activeTab = 'unregistered'" class="btn !px-3 sm:!px-4"
+                :class="activeTab === 'unregistered' ? 'btn-primary' : 'btn-quiet'">
+                <font-awesome :icon="faUserClock" class="w-3.5 h-3.5" />
                 {{ $t('employee.unregTitle') }}
-                <span v-if="unregCount > 0"
-                    class="px-1.5 py-0.5 rounded-full bg-amber-200 text-amber-900 text-[10px] font-bold">{{ unregCount
-                    }}</span>
+                <span v-if="unregCount > 0" class="chip chip-warn">{{ unregCount }}</span>
             </button>
         </div>
 
-        <!-- Controls (registered tab only) -->
-        <div v-if="activeTab === 'registered'" class="glass rounded-2xl border border-emerald-100 px-4 py-3 space-y-3">
-            <div class="grid grid-cols-1 lg:grid-cols-12 gap-3 lg:items-center">
+        <!-- controls, registered tab only -->
+        <div v-if="activeTab === 'registered'" class="panel p-3 sm:p-4 space-y-3">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-2.5 lg:items-center">
                 <div class="lg:col-span-5 relative">
+                    <font-awesome :icon="faMagnifyingGlass"
+                        class="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none" />
                     <input v-model="search" type="text" :placeholder="$t('employee.searchPlaceholder')"
-                        class="w-full h-11 pl-9 pr-8 rounded-xl border-2 border-emerald-100 bg-white focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 outline-none text-sm leading-6 text-green-900 placeholder:text-green-900/30">
-                    <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-700/40"
-                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                        <path d="M21 21l-4.2-4.2" />
-                        <circle cx="11" cy="11" r="6" />
-                    </svg>
-                    <button v-if="search" @click="search = ''"
-                        class="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-emerald-50 text-emerald-700 flex items-center justify-center text-xs hover:bg-emerald-100">×</button>
+                        class="field has-icon-left has-icon-right" :aria-label="$t('employee.searchPlaceholder')">
+                    <button v-if="search" @click="search = ''" :aria-label="$t('common.clearSearch')"
+                        class="absolute right-1.5 top-1/2 -translate-y-1/2 w-9 h-9 grid place-content-center rounded-lg text-text-muted hover:bg-surface-raised transition">
+                        <font-awesome :icon="faXmark" class="w-3 h-3" />
+                    </button>
                 </div>
                 <div class="lg:col-span-3">
-                    <select v-model="deptFilter"
-                        class="w-full h-11 px-3 rounded-xl border-2 border-emerald-100 bg-white focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 outline-none text-sm text-green-900">
+                    <select v-model="deptFilter" class="field" :aria-label="$t('report.allDepartments')">
                         <option value="">{{ $t('report.allDepartments') }}</option>
                         <option v-for="d in depts" :key="d" :value="d">{{ d }}</option>
                     </select>
                 </div>
                 <div class="lg:col-span-2">
-                    <select v-model="statusFilter"
-                        class="w-full h-11 px-3 rounded-xl border-2 border-emerald-100 bg-white focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 outline-none text-sm text-green-900">
+                    <select v-model="statusFilter" class="field" :aria-label="$t('report.allStatuses')">
                         <option value="">{{ $t('report.allStatuses') }}</option>
                         <option value="0">{{ $t('common.active') }}</option>
                         <option value="1">{{ $t('employee.statusInactive') }}</option>
                     </select>
                 </div>
-                <div class="lg:col-span-2 flex gap-2">
-                    <button @click="clearFilters()"
-                        class="flex-1 h-11 px-3 rounded-xl bg-white border-2 border-slate-200 text-slate-700 text-sm font-medium hover:bg-slate-50 inline-flex items-center justify-center">{{
-                        $t('common.reset') }}</button>
-                    <button @click="listRef?.reload()"
-                        class="flex-1 lg:hidden h-11 px-3 rounded-xl bg-emerald-600 text-white text-sm font-bold mono inline-flex items-center justify-center">{{
-                        $t('common.load') }}</button>
+                <div class="lg:col-span-2 flex flex-col sm:flex-row gap-2">
+                    <button @click="clearFilters()" class="btn btn-secondary flex-1">{{ $t('common.reset') }}</button>
+                    <button @click="listRef?.reload()" class="btn btn-primary flex-1 lg:hidden">
+                        <font-awesome :icon="faRotate" class="w-3.5 h-3.5" />
+                        {{ $t('common.load') }}
+                    </button>
                 </div>
             </div>
-            <div v-if="search || deptFilter || statusFilter !== ''"
-                class="flex flex-wrap items-center gap-1.5 mono text-[11px]">
-                <span class="text-emerald-700/50">{{ $t('common.activeFilters') }}</span>
-                <span v-if="search"
-                    class="px-2 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700">Search: "{{
-                    search }}"</span>
-                <span v-if="deptFilter"
-                    class="px-2 py-1 rounded-full bg-white border border-emerald-200 text-emerald-700">{{ deptFilter
-                    }}</span>
-                <span v-if="statusFilter !== ''"
-                    class="px-2 py-1 rounded-full bg-white border border-emerald-200 text-emerald-700">{{
-                        statusFilter === '0' ? $t('common.active') : $t('employee.statusInactive') }}</span>
-                <span class="text-slate-400">- {{ filteredCount }} of {{ total }} rows</span>
+
+            <div v-if="search || deptFilter || statusFilter !== ''" class="flex flex-wrap items-center gap-1.5">
+                <span class="mono text-[10px] font-bold tracking-[0.12em] uppercase text-text-muted">{{
+                    $t('common.activeFilters') }}</span>
+                <span v-if="search" class="chip chip-quiet">"{{ search }}"</span>
+                <span v-if="deptFilter" class="chip chip-quiet">{{ deptFilter }}</span>
+                <span v-if="statusFilter !== ''" class="chip chip-quiet">{{ statusFilter === '0' ? $t('common.active') :
+                    $t('employee.statusInactive') }}</span>
+                <span class="mono text-[10.5px] text-text-muted">{{ filteredCount }} / {{ total }}</span>
             </div>
         </div>
 
-        <!-- Registered tab: list (form is a dialog, mounted once and shown on demand) -->
-        <div v-if="activeTab === 'registered'"
-            class="glass rounded-2xl border border-emerald-100 shadow-sm overflow-hidden bg-white/80">
+        <!-- registered tab: list. the form is a dialog, mounted once and shown on demand -->
+        <div v-if="activeTab === 'registered'" class="panel overflow-hidden">
             <ListEmployee ref="listRef" :search="search" :dept-filter="deptFilter" :status-filter="statusFilter"
-                @edit="cbEdit" @delete="cbDelete" @import="cbImport" />
+                @edit="cbEdit" @delete="cbDelete" @import="cbImport" @load-error="listError = $event" />
         </div>
 
-        <!-- Unregistered tab: user ids with punches but no employee row -->
-        <div v-if="activeTab === 'unregistered'"
-            class="glass rounded-2xl border border-amber-100 shadow-sm overflow-hidden bg-white/80">
+        <!-- unregistered tab: user ids with punches but no employee row -->
+        <div v-if="activeTab === 'unregistered'" class="panel overflow-hidden">
             <ListUnregistered ref="unregRef" @link="cbLink" />
         </div>
     </div>
 
     <FormEmployee ref="compEmployee" @done="() => { listRef?.reload(); unregRef?.reload(); loadUnregCount() }" />
-    <SimpleModal :options="sm_data.get()" @ok="handleOk" @cancel="handleCancel" v-show="sm_data.isShow()">
-        {{ sm_data.message() }}
-    </SimpleModal>
+    <SimpleModal :options="sm_data.get()" @ok="handleOk" @cancel="handleCancel" v-show="sm_data.isShow()" />
 </template>

@@ -1,3 +1,6 @@
+-- LuLu seed: snapshot data 2026-09-27 (post-clone changes). Idempotent: safe to re-run.
+-- Order respects FKs: users/handlers/shifts/schedules/devices/employee/enrolls/fingers/commands.
+
 -- ===== users.sql (1 rows) =====
 INSERT INTO public.users (user_id, user_password, user_nickname, user_fname, user_lname, create_at, update_at) VALUES (1, 'd1113925ef7dd33a1af3bdecd012aec3b8100e21eb0fec68e5218ceb6216ef5a', 'demo', 'DEMO', 'USER', 1753502971, 1753502971) ON CONFLICT DO NOTHING;
 

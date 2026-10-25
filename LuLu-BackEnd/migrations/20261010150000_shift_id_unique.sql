@@ -1,1 +1,13 @@
+-- Make shift_id the identity the delete path actually uses.
+--
+-- The table's primary key is shift_name, but every lookup that matters runs on
+-- shift_id: /shift/delete/{id}, the drag-and-drop assignment in the schedule
+-- list, and schedules.schedule_shift_id. Nothing stopped two rows from sharing
+-- one shift_id, and DELETE FROM shifts WHERE shift_id = $1 then removed every
+-- row carrying that id at once. One click, many rows gone, no error.
+--
+-- A unique index is enough: it rejects the second writer instead of allowing
+-- the ambiguous state to reach a delete. It is added only when absent, and it
+-- fails loudly if duplicates already exist, which is the correct outcome -- the
+-- duplicates have to be resolved by hand, not silently merged.
 CREATE UNIQUE INDEX IF NOT EXISTS shifts_shift_id_key ON public.shifts(shift_id);

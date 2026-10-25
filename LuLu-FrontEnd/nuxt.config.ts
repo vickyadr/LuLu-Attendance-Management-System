@@ -19,7 +19,7 @@ export default defineNuxtConfig({
         { rel: 'icon', type: 'image/png', sizes: '32x32', href: '/favicon-32x32.png' },
         { rel: 'icon', type: 'image/png', sizes: '96x96', href: '/lulu-96.png' },
         { rel: 'apple-touch-icon', sizes: '180x180', href: '/apple-touch-icon.png' },
-        { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap' },
+        { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap' },
       ],
     }
   },
@@ -27,6 +27,16 @@ export default defineNuxtConfig({
     'prerender:routes'({ routes }) {
       routes.clear()
     }
+  },
+  // Dev-only: keep the browser on a relative /api so the same build works on
+  // localhost and behind the LAN TLS proxy. Nitro forwards it to the backend.
+  nitro: {
+    devProxy: {
+      '/api': {
+        target: process.env.NUXT_DEV_API_TARGET || 'http://127.0.0.1:4343/api',
+        changeOrigin: true,
+      },
+    },
   },
   runtimeConfig: {
     public: {

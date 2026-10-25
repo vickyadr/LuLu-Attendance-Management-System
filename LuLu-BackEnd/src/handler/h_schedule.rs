@@ -21,7 +21,7 @@ pub async fn schedule_list(
         return resp;
     }
 
-    match sqlx::query_as::<_, Schedules>(r#"SELECT schedules.schedule_id as schedule_id, schedules.schedule_name, schedules.schedule_shift_id, COALESCE(shifts.shift_name,'Libur') as shift_name, COALESCE(shifts.shift_start_time,0) as shift_start_time, COALESCE(shifts.shift_end_time,0) as shift_end_time, schedules.schedule_type, schedules.schedule_dom, schedules.schedule_parrent FROM schedules LEFT JOIN shifts ON shifts.shift_id = schedules.schedule_shift_id ORDER BY schedule_parrent, schedule_dom"#)
+    match sqlx::query_as::<_, Schedules>(r#"SELECT schedules.schedule_id as schedule_id, schedules.schedule_name, schedules.schedule_shift_id, COALESCE(shifts.shift_name,'Libur') as shift_name, COALESCE(shifts.shift_start_time,0) as shift_start_time, COALESCE(shifts.shift_end_time,0) as shift_end_time, schedules.schedule_type, schedules.schedule_dom, schedules.schedule_parent FROM schedules LEFT JOIN shifts ON shifts.shift_id = schedules.schedule_shift_id ORDER BY schedule_parent, schedule_dom"#)
     .fetch_all(&pool.db)
     .await
     {
@@ -51,7 +51,7 @@ pub async fn schedule_delete(
         return resp;
     }
 
-    match sqlx::query(r#"DELETE FROM schedules WHERE schedule_parrent=$1"#)
+    match sqlx::query(r#"DELETE FROM schedules WHERE schedule_parent=$1"#)
         .bind(id)
         .execute(&pool.db)
         .await
@@ -162,6 +162,10 @@ pub async fn schedule_add(
         shifts
     );
 
+    // Parent row first (dom 1), then self-referential parent update, then the
+    // remaining doms. All three steps share one transaction: a failure on dom 4
+    // used to be logged and swallowed, committing a half-written schedule that
+    // no UI path can repair.
     let mut tx = match pool.db.begin().await {
         Ok(tx) => tx,
         Err(e) => {
@@ -171,7 +175,7 @@ pub async fn schedule_add(
         }
     };
 
-    let parrent_id = match sqlx::query_scalar::<_, i32>(r#"INSERT INTO schedules (schedule_name, schedule_shift_id, schedule_dom, schedule_parrent, schedule_type) VALUES ($1, $2, $3, $4, $5) RETURNING schedule_id"#)
+    let parent_id = match sqlx::query_scalar::<_, i32>(r#"INSERT INTO schedules (schedule_name, schedule_shift_id, schedule_dom, schedule_parent, schedule_type) VALUES ($1, $2, $3, $4, $5) RETURNING schedule_id"#)
                 .bind(body.name.clone())
                 .bind(shifts.first().unwrap())
                 .bind(1)
@@ -203,14 +207,14 @@ pub async fn schedule_add(
             }
         };
 
-    log::info!("SCHEDULE_ADD parent_id={}", parrent_id);
+    log::info!("SCHEDULE_ADD parent_id={}", parent_id);
 
-    if let Err(e) = sqlx::query("UPDATE schedules SET schedule_parrent = $1 WHERE schedule_id = $1")
-        .bind(parrent_id)
+    if let Err(e) = sqlx::query("UPDATE schedules SET schedule_parent = $1 WHERE schedule_id = $1")
+        .bind(parent_id)
         .execute(&mut *tx)
         .await
     {
-        log::error!("schedule parrent update err: {:?}", e);
+        log::error!("schedule parent update err: {:?}", e);
         return NoDataResponse::new("Internal error, please try again!".to_string(), 500)
             .into_response();
     }
@@ -221,11 +225,11 @@ pub async fn schedule_add(
             continue;
         }
         let dom = (idx + 1) as i32;
-        if let Err(e) = sqlx::query("INSERT INTO schedules (schedule_name, schedule_shift_id, schedule_dom, schedule_parrent, schedule_type) VALUES ($1, $2, $3, $4, $5)")
+        if let Err(e) = sqlx::query("INSERT INTO schedules (schedule_name, schedule_shift_id, schedule_dom, schedule_parent, schedule_type) VALUES ($1, $2, $3, $4, $5)")
             .bind(body.name.clone())
             .bind(shift_id)
             .bind(dom)
-            .bind(parrent_id)
+            .bind(parent_id)
             .bind(schedule_type)
             .execute(&mut *tx)
             .await

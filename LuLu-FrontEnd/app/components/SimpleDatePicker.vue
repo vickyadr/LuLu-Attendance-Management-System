@@ -6,11 +6,11 @@
       {{ $t('datepicker.range') }}
     </div>
     <div class="flex justify-center border-y-2 border-emerald-200 bg-white items-center gap-0.5 px-1">
-      <input v-model="inputStartDate" @blur="emitDateRange" @keydown="keyPressed"
+      <input v-model="inputStartDate" @blur="blurInput" @keydown="keyPressed"
         class="outline-none my-1 w-[92px] sm:w-24 text-center mono text-xs sm:text-[13px] py-1 rounded-lg focus:bg-emerald-50"
         placeholder="YYYY-MM-DD" maxlength="10" type="text" />
-      <FontAwesome :icon="faArrowRight" class="mx-0.5 h-3 text-emerald-700/40 shrink-0" />
-      <input v-model="inputEndDate" @blur="emitDateRange" @keydown="keyPressed"
+      <FontAwesome :icon="faArrowRight" class="mx-0.5 h-3 text-emerald-700 shrink-0" />
+      <input v-model="inputEndDate" @blur="blurInput" @keydown="keyPressed"
         class="outline-none my-1 w-[92px] sm:w-24 text-center mono text-xs sm:text-[13px] py-1 rounded-lg focus:bg-emerald-50"
         placeholder="YYYY-MM-DD" maxlength="10" type="text" />
     </div>
@@ -25,12 +25,14 @@
       <div v-if="isShow" class="fixed inset-0 z-[60] sm:hidden bg-black/20 backdrop-blur-[1px]" @click="isShow = false"
         aria-hidden="true"></div>
       <div v-show="isShow" ref="popupEl" :style="popupStyle" class="z-[70] bg-white border border-emerald-200 rounded-2xl shadow-[0_16px_40px_rgba(5,46,22,.18)] overflow-hidden
-               fixed sm:fixed w-[min(320px,calc(100vw-16px))] sm:w-[300px]
-               max-h-[min(440px,78vh)] flex flex-col" role="dialog" aria-modal="true" @click.stop>
+               fixed w-[min(320px,calc(100vw-16px))] sm:w-[300px]
+               max-sm:top-1/2 max-sm:left-1/2 max-sm:-translate-x-1/2 max-sm:-translate-y-1/2
+               max-h-[min(440px,78vh)] flex flex-col" role="dialog" aria-modal="true"
+        :aria-label="$t('datepicker.openCalendar')" @click.stop>
         <!-- Header nav -->
         <div class="flex justify-between items-center px-3 pt-3 pb-2 shrink-0">
           <button
-            class="w-7 h-7 flex items-center justify-center bg-slate-50 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-200 rounded-lg text-slate-600 hover:text-emerald-700 transition"
+            class="w-7 h-7 flex items-center justify-center bg-emerald-50 hover:bg-emerald-50 border border-emerald-200 hover:border-emerald-200 rounded-lg text-emerald-800 hover:text-emerald-700 transition"
             @click="previousMonth" :aria-label="$t('datepicker.prevMonth')">
             <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
               <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z" />
@@ -40,7 +42,7 @@
             {{ currentMonthYear }}
           </div>
           <button
-            class="w-7 h-7 flex items-center justify-center bg-slate-50 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-200 rounded-lg text-slate-600 hover:text-emerald-700 transition"
+            class="w-7 h-7 flex items-center justify-center bg-emerald-50 hover:bg-emerald-50 border border-emerald-200 hover:border-emerald-200 rounded-lg text-emerald-800 hover:text-emerald-700 transition"
             @click="nextMonth" :aria-label="$t('datepicker.nextMonth')">
             <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
               <path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z" />
@@ -50,7 +52,7 @@
 
         <!-- Day headers -->
         <div class="grid grid-cols-7 gap-0.5 px-2 pb-1">
-          <div class="text-center mono text-[10px] font-bold tracking-widest text-slate-400 py-1"
+          <div class="text-center mono text-[10px] font-bold tracking-widest text-emerald-700 py-1"
             v-for="day in dayNames" :key="day">{{ day }}</div>
         </div>
 
@@ -64,12 +66,12 @@
 
         <!-- Footer -->
         <div class="flex items-center gap-2 border-t border-emerald-100 px-3 py-2.5 bg-emerald-50/40 shrink-0">
-          <span class="mono text-[10px] tracking-widest text-emerald-700/50 hidden sm:inline">{{ startDate && endDate ?
+          <span class="mono text-[10px] tracking-widest text-emerald-700 hidden sm:inline">{{ startDate && endDate ?
             `${durationLabel}` : $t('datepicker.pick2') }}</span>
-          <span class="flex-1 sm:hidden mono text-[10px] text-emerald-700/60">{{ startDate && endDate ? durationLabel :
+          <span class="flex-1 sm:hidden mono text-[10px] text-emerald-700">{{ startDate && endDate ? durationLabel :
             $t('datepicker.pickRange') }}</span>
           <button
-            class="ml-auto px-3 py-1.5 rounded-full bg-white border border-slate-200 text-slate-700 mono text-xs font-bold hover:bg-slate-50"
+            class="ml-auto px-3 py-1.5 rounded-full bg-white border border-emerald-200 text-emerald-800 mono text-xs font-bold hover:bg-emerald-50"
             @click="clearSelection">
             {{ $t('common.reset') }}
           </button>
@@ -92,10 +94,13 @@ const props = defineProps({
   maxDate: { type: String, default: '' },
   initStartDate: { type: String, default: '' },
   initEndDate: { type: String, default: '' },
+  startDate: { type: String, default: '' },
+  endDate: { type: String, default: '' },
   useUtc: { type: Boolean, default: false }
 });
 const check = useChecker();
 const format = useFormater();
+const { t } = useI18n();
 const emit = defineEmits(['dateRangeSelected', 'dateRangeCleared']);
 
 const rootEl = ref(null)
@@ -104,8 +109,11 @@ const inputStartDate = ref(null);
 const inputEndDate = ref(null);
 const currentDate = ref(new Date());
 const _parseInit = (s) => s ? (parseLocalYMD(s) || new Date(s)) : null
-const startDate = ref(_parseInit(props.initStartDate));
-const endDate = ref(_parseInit(props.initEndDate));
+const startDate = ref(_parseInit(props.startDate || props.initStartDate));
+const endDate = ref(_parseInit(props.endDate || props.initEndDate));
+// Keep popup in sync when parent sets range (payroll Apply).
+watch(() => props.startDate, (s) => { const d = _parseInit(s); if (d) startDate.value = d; });
+watch(() => props.endDate, (s) => { const d = _parseInit(s); if (d) endDate.value = d; });
 const hoverDate = ref(null);
 const isSelectingEnd = ref(false);
 const isShow = ref(false);
@@ -122,7 +130,7 @@ const currentMonthYear = computed(() => {
 const durationLabel = computed(() => {
   if (!startDate.value || !endDate.value) return ''
   const d = calculateDuration(startDate.value, endDate.value)
-  return `${d} days`
+  return t('common.daysCount', { n: d })
 })
 
 const calendarDays = computed(() => {
@@ -183,10 +191,10 @@ const isDateInHoverRange = (date) => {
 const getDayClasses = (day) => {
   let classes = ['h-8', 'w-8', 'sm:h-[30px]', 'sm:w-[30px]', 'flex', 'items-center', 'justify-center', 'cursor-pointer', 'rounded-full', 'transition', 'relative', 'text-[13px]', 'font-medium', 'mx-auto'];
   if (!day.isCurrentMonth) classes.push('text-slate-300');
-  else classes.push('text-slate-700');
+  else classes.push('text-emerald-800');
   if (day.isToday) classes.push('font-bold', 'ring-1', 'ring-emerald-300', 'text-emerald-700');
   if (day.isDisabled) classes.push('text-slate-300', 'cursor-not-allowed');
-  else classes.push('hover:bg-slate-100');
+  else classes.push('hover:bg-emerald-100');
   if (startDate.value && isSameDay(day.fullDate, startDate.value)) {
     classes = classes.filter((c) => !c.includes('hover:bg-slate'));
     classes.push('!bg-emerald-600', '!text-white', 'font-bold', 'shadow-sm');
@@ -243,7 +251,6 @@ function syncFromInputs() {
   if (b) endDate.value = b
 }
 const emitDateRange = () => {
-  syncFromInputs()
   if (!startDate.value || !endDate.value) return;
   const result = {
     startDate: format.stamp_to_naive_date(startDate.value.getTime(), true),
@@ -272,6 +279,7 @@ const keyPressed = (ev) => {
     emitDateRange();
   }
 };
+const blurInput = () => { syncFromInputs(); emitDateRange(); };
 
 function updatePopupPosition() {
   if (!rootEl.value || !isShow.value) return

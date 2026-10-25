@@ -13,28 +13,52 @@ export const useLeaveStore = defineStore('leave', () => {
     const config = useRuntimeConfig()
 
     const items = ref([])
+    const meta = ref({ total: 0 })
     const employees = ref([])
     const employeesLoaded = ref(false)
     const loaded = ref(false)
     const saving = ref(false)
 
-    async function fetchLeaves({ from, to, employeeId } = {}) {
+    // Remember the last filters so a save/decision refetches the same page
+    // instead of silently dropping back to the unfiltered list.
+    let lastParams = {}
+
+    async function fetchLeaves({ from, to, employeeId, q, status, limit, offset } = {}) {
+        lastParams = { from, to, employeeId, q, status, limit, offset }
         try {
             const params = new URLSearchParams()
             if (from) params.set('from', from)
             if (to) params.set('to', to)
             if (employeeId) params.set('employee_id', String(employeeId))
+            if (q) params.set('q', q)
+            if (status) params.set('status', status)
+            if (limit) { params.set('limit', String(limit)); params.set('offset', String(offset || 0)) }
             const qs = params.toString()
             const resp = await apiFetch(`${config.public.apiBase}/leave/list${qs ? `?${qs}` : ''}`, {
                 method: 'GET',
                 headers: auth.confHeaders(),
             })
-            if (resp.code === 200 && Array.isArray(resp.data)) items.value = resp.data
+            if (resp.code === 200) {
+                const payload = Array.isArray(resp.data) && Array.isArray(resp.data[0]?.items)
+                    ? resp.data[0]
+                    : { items: Array.isArray(resp.data) ? resp.data : [] }
+                items.value = payload.items || []
+                meta.value = {
+                    total: payload.total ?? items.value.length,
+                    pending: payload.pending ?? 0,
+                    approved: payload.approved ?? 0,
+                    rejected: payload.rejected ?? 0,
+                }
+            }
         } catch (e) {
             console.warn('[leave] load failed', e)
         }
         loaded.value = true
         return items.value
+    }
+
+    async function reload() {
+        return fetchLeaves(lastParams)
     }
 
     // Create or correct a request. The backend upserts on (employee, date), so
@@ -48,7 +72,7 @@ export const useLeaveStore = defineStore('leave', () => {
                 headers: auth.confHeaders(),
                 body: { leave_employee_id, leave_date, leave_kind, leave_reason },
             })
-            if (resp.code === 200) await fetchLeaves()
+            if (resp.code === 200) await reload()
             return resp
         } finally {
             saving.value = false
@@ -65,7 +89,7 @@ export const useLeaveStore = defineStore('leave', () => {
                 headers: auth.confHeaders(),
                 body: { leave_id, leave_approve: !!approve },
             })
-            if (resp.code === 200) await fetchLeaves()
+            if (resp.code === 200) await reload()
             return resp
         } finally {
             saving.value = false
@@ -82,7 +106,7 @@ export const useLeaveStore = defineStore('leave', () => {
                 headers: auth.confHeaders(),
                 body: { leave_id },
             })
-            if (resp.code === 200) await fetchLeaves()
+            if (resp.code === 200) await reload()
             return resp
         } finally {
             saving.value = false
@@ -106,5 +130,5 @@ export const useLeaveStore = defineStore('leave', () => {
         return employees.value
     }
 
-    return { items, employees, employeesLoaded, loaded, saving, fetchLeaves, fetchEmployees, saveLeave, decide, cancelLeave }
+    return { items, meta, employees, employeesLoaded, loaded, saving, fetchLeaves, reload, fetchEmployees, saveLeave, decide, cancelLeave }
 })

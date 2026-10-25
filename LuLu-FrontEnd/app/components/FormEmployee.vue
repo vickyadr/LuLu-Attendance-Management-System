@@ -6,6 +6,7 @@ import { useNotifyStore } from '~/store/notify';
 import { useSchedule } from '~/store/schedule';
 import { useShiftStore } from '~/store/shift'
 import { OFF_DAY, OFF_DAY_LABEL, isOffDay } from '~/utils/labels';
+import { faXmark, faRotate, faLock, faTriangleExclamation, faCalendarDays } from '@fortawesome/free-solid-svg-icons';
 
 const { t } = useI18n()
 
@@ -18,13 +19,13 @@ const
     config = useRuntimeConfig(),
     check = useChecker(),
     emit = defineEmits(['done']),
-    validator = reactive({ first_name: '', departement: '', address: '', schedule_id: '', device_uid: '' }),
+    validator = reactive({ first_name: '', department: '', address: '', schedule_id: '', device_uid: '' }),
     form_data = reactive({
         id: 0,
         first_name: '',
         last_name: '',
         address: '',
-        departement: '',
+        department: '',
         status: 0,
         schedule_id: null,
         device_uid: null,
@@ -61,10 +62,10 @@ const canSubmit = computed(() => (form_data.id > 0 ? canEdit.value : canAdd.valu
 
 const submitting = ref(false)
 
-// schedule options: only parrent schedules
+// schedule options: only parent schedules
 const scheduleOptions = computed(() => {
     const all = schedule.contents || []
-    const parents = all.filter(s => s.parrent === s.id)
+    const parents = all.filter(s => s.parent === s.id)
     return parents
 })
 const shiftMap = computed(() => {
@@ -82,13 +83,13 @@ function scheduleBadge(s) {
     return `T${t}`
 }
 function scheduleDesc(s) {
-    // count doms for this parrent
+    // count doms for this parent
     const all = schedule.contents || []
-    const cnt = all.filter(x => x.parrent === s.parrent).length
-    return `${cnt} days • type ${s.type}`
+    const cnt = all.filter(x => x.parent === s.parent).length
+    return t('common.daysCount', { n: cnt })
 }
 function previewSchedule(s) {
-    const all = (schedule.contents || []).filter(x => x.parrent === s.parrent).sort((a, b) => a.dom - b.dom)
+    const all = (schedule.contents || []).filter(x => x.parent === s.parent).sort((a, b) => a.dom - b.dom)
     // map shift id to name
     return all.map(x => {
         const name = x.shift_name || (shiftMap.value[x.schedule_shift_id]?.name) || (x.schedule_shift_id === 0 ? OFF_DAY : '?')
@@ -119,12 +120,12 @@ onMounted(() => { ensureSchedules(); ensureShifts() })
 const deptOpen = ref(false)
 const deptIdx = ref(-1)
 const deptOptions = computed(() => {
-    const set = new Set((employee.contents || []).map(x => (x.departement || '').trim()).filter(Boolean))
+    const set = new Set((employee.contents || []).map(x => (x.department || '').trim()).filter(Boolean))
     const all = [...set].sort((a, b) => a.localeCompare(b))
-    const q = form_data.departement.trim().toLowerCase()
+    const q = form_data.department.trim().toLowerCase()
     const matched = q ? all.filter(d => d.toLowerCase().includes(q)) : all
     // An exact match has nothing left to pick, so keep it out of the list.
-    return matched.filter(d => d !== form_data.departement.trim())
+    return matched.filter(d => d !== form_data.department.trim())
 })
 const deptVisible = computed(() => deptOpen.value && deptOptions.value.length > 0)
 
@@ -133,10 +134,10 @@ const deptVisible = computed(() => deptOpen.value && deptOptions.value.length > 
 // way to open the list that typing already revealed.
 function deptTyped() {
     deptIdx.value = -1
-    deptOpen.value = form_data.departement.trim().length > 0
+    deptOpen.value = form_data.department.trim().length > 0
 }
 function deptPick(d) {
-    form_data.departement = d
+    form_data.department = d
     deptOpen.value = false
     deptIdx.value = -1
 }
@@ -148,7 +149,7 @@ function deptKey(e) {
         e.preventDefault()
         if (!deptVisible.value) {
             // Reopen only when there is a query; an empty field never lists.
-            if (form_data.departement.trim().length > 0) { deptOpen.value = true; deptIdx.value = -1 }
+            if (form_data.department.trim().length > 0) { deptOpen.value = true; deptIdx.value = -1 }
             return
         }
         if (!n) return
@@ -177,25 +178,25 @@ function uidInput(e) {
 }
 
 function validate() {
-    validator.first_name = ''; validator.departement = ''; validator.address = ''; validator.schedule_id = ''; validator.device_uid = ''
+    validator.first_name = ''; validator.department = ''; validator.address = ''; validator.schedule_id = ''; validator.device_uid = ''
     if (!form_data.first_name || form_data.first_name.trim().length < 3) validator.first_name = t('employee.errNameShort')
-    if (!form_data.departement || form_data.departement.trim().length < 3) validator.departement = t('employee.errDeptShort')
+    if (!form_data.department || form_data.department.trim().length < 3) validator.department = t('employee.errDeptShort')
     if (form_data.address && form_data.address.length >= 160) validator.address = t('employee.errMaxChars')
     if (form_data.schedule_id === null || form_data.schedule_id === '') validator.schedule_id = t('employee.pickSchedule')
     // Required so every employee always owns exactly one machine number: an
     // unlinked employee means their punches silently land in the unregistered
     // list, which is the exact failure this field exists to prevent.
     if (form_data.device_uid === null || form_data.device_uid === '' || Number(form_data.device_uid) < 1) validator.device_uid = t('employee.errUidRequired')
-    return !validator.first_name && !validator.departement && !validator.address && !validator.schedule_id && !validator.device_uid
+    return !validator.first_name && !validator.department && !validator.address && !validator.schedule_id && !validator.device_uid
 }
 
 function fillForm(data) {
-    // data from ListEmployee: id, first_name, last_name, departement, address, status, schedule_id, device_uid
+    // data from ListEmployee: id, first_name, last_name, department, address, status, schedule_id, device_uid
     form_data.id = data.id || data.employee_id || 0
     form_data.first_name = data.first_name || data.employee_fname || ''
     form_data.last_name = data.last_name || data.employee_lname || ''
     form_data.address = data.address || data.employee_address || ''
-    form_data.departement = data.departement || data.employee_departement || ''
+    form_data.department = data.department || data.employee_department || ''
     form_data.status = data.status ?? data.employee_status ?? 0
     form_data.schedule_id = data.schedule_id ?? data.employee_schedule_id ?? null
     form_data.device_uid = data.device_uid ?? data.employee_device_uid ?? null
@@ -204,8 +205,8 @@ function fillForm(data) {
 }
 
 function resetForm() {
-    form_data.id = 0; form_data.first_name = ''; form_data.last_name = ''; form_data.address = ''; form_data.departement = ''; form_data.status = 0; form_data.schedule_id = null; form_data.device_uid = null
-    validator.first_name = ''; validator.departement = ''; validator.address = ''; validator.schedule_id = ''; validator.device_uid = ''
+    form_data.id = 0; form_data.first_name = ''; form_data.last_name = ''; form_data.address = ''; form_data.department = ''; form_data.status = 0; form_data.schedule_id = null; form_data.device_uid = null
+    validator.first_name = ''; validator.department = ''; validator.address = ''; validator.schedule_id = ''; validator.device_uid = ''
     deptHide()
 }
 
@@ -224,8 +225,10 @@ async function submit() {
     const body = {
         id: isEditMode ? form_data.id : undefined,
         first_name: form_data.first_name.trim(),
-        last_name: form_data.last_name?.trim() || null,
-        departement: form_data.departement.trim(),
+        // employee_lname is NOT NULL in the schema, so an empty last name must go
+        // as an empty string. Sending null turned an optional field into a 500.
+        last_name: form_data.last_name?.trim() || '',
+        department: form_data.department.trim(),
         address: form_data.address?.trim() || '',
         status: Number(form_data.status) || 0,
         schedule_id: Number(form_data.schedule_id),
@@ -241,15 +244,18 @@ async function submit() {
             } catch { }
             const msg = response.message || (isEditMode ? t('employee.updated') : t('employee.created'))
             notify.success(isEditMode ? t('employee.editTitle') : t('employee.addTitle'), msg)
-            if (!isEditMode) resetForm()
-            else { resetForm(); emit('done') }
+            // Both paths emit: adding an employee with a device uid pulls that uid
+            // out of the unregistered list, and the add branch is the one the
+            // Register button uses, so an edit-only emit leaves that row on screen.
+            resetForm()
+            emit('done')
             // Successful save ends the interaction either way; leaving the dialog
             // open after an add would let the next submit post the same id twice.
             close()
         } else {
             if (response.data) {
                 validator.first_name = response.data.first_name || ''
-                validator.departement = response.data.departement || ''
+                validator.department = response.data.department || ''
                 validator.address = response.data.address || response.data.location || ''
                 validator.schedule_id = response.data.schedule_id || ''
             }
@@ -259,7 +265,7 @@ async function submit() {
         const msg = e?.data?.message || e?.message || 'Connection failed'
         if (e?.data?.data) {
             validator.first_name = e.data.data.first_name || ''
-            validator.departement = e.data.data.departement || ''
+            validator.department = e.data.data.department || ''
         }
         notify.error(t('common.connFailed'), msg)
     } finally { submitting.value = false }
@@ -298,172 +304,169 @@ defineExpose({ fillForm, del_employee, resetForm, open, close, isShow, openNew }
         v-if, not v-show: a hidden fixed overlay keeps swallowing clicks on the
         page underneath, because Tailwind's `fixed` wins over v-show's `display:none`.
     -->
-    <div v-if="show" class="fixed inset-0 z-[100] grid place-items-center bg-green-950/40 backdrop-blur-sm p-4"
+    <div v-if="show" class="fixed inset-0 z-[100] grid place-items-center bg-sidebar-top/55 backdrop-blur-sm p-3 sm:p-4"
         @click.self="!submitting && close()">
-        <div class="hud-frame w-full max-w-2xl max-h-[90vh] overflow-y-auto no-scrollbar rounded-[1.25rem] bg-white shadow-[0_20px_60px_rgba(5,46,22,.25)] border border-emerald-100"
-            role="dialog" aria-modal="true">
-            <span class="hud-corner hud-corner-tl"></span><span class="hud-corner hud-corner-br"></span>
-            <div class="text-left">
-                <div
-                    class="px-5 py-3 border-b border-emerald-100 bg-gradient-to-r from-emerald-50/60 to-lime-50/40 flex items-center justify-between tech-grid-soft">
-                    <div class="flex items-center gap-2">
-                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                        <h3 class="text-sm font-bold tracking-wide text-green-900 uppercase mono">{{ isEdit ?
-                            $t('employee.editTitle') : $t('employee.addTitle') }}</h3>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <button type="button" @click="close"
-                            class="w-7 h-7 rounded-lg border-2 border-emerald-100 bg-white text-emerald-700 hover:bg-emerald-50 transition"
-                            :aria-label="$t('common.cancel')" :disabled="submitting"><span
-                                aria-hidden="true">&times;</span></button>
-                    </div>
-                </div>
+        <div class="panel w-full max-w-2xl max-h-[92dvh] flex flex-col overflow-hidden shadow-tint-lg" role="dialog"
+            aria-modal="true">
 
-                <form @submit.prevent="submit" class="px-5 py-4 space-y-4">
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                        <div>
-                            <label
-                                class="block text-xs font-semibold tracking-widest uppercase text-emerald-700/70 mb-1.5 ml-1">{{
-                                $t('employee.deviceUid') }} <span class="text-red-500">*</span></label>
+            <!-- dialog head -->
+            <div class="panel-head shrink-0">
+                <span class="inline-flex items-center gap-2 min-w-0">
+                    <span class="w-1.5 h-1.5 rounded-full bg-primary shrink-0"></span>
+                    <span class="truncate">{{ isEdit ? $t('employee.editTitle') : $t('employee.addTitle') }}</span>
+                </span>
+                <div class="flex items-center gap-2 shrink-0">
+                    <span class="chip" :class="isEdit ? 'chip-warn' : 'chip-ok'">{{ isEdit ? $t('employee.editMode') :
+                        $t('employee.createMode') }}</span>
+                    <button type="button" @click="close"
+                        class="w-11 h-11 grid place-content-center rounded-xl border border-border bg-surface text-text-muted hover:bg-surface-raised transition"
+                        :aria-label="$t('common.cancel')" :disabled="submitting">
+                        <font-awesome :icon="faXmark" class="w-3.5 h-3.5" />
+                    </button>
+                </div>
+            </div>
+
+            <form @submit.prevent="submit" class="p-4 sm:p-5 space-y-4 overflow-y-auto min-h-0">
+
+                <!-- identity -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    <div>
+                        <label for="emp-uid-input" class="label">{{ $t('employee.deviceUid') }} <span
+                                class="text-danger">*</span></label>
+                        <div class="relative">
                             <input :value="form_data.device_uid ?? ''" id="emp-uid-input" type="text"
                                 inputmode="numeric" pattern="[0-9]*" maxlength="10" required
                                 :placeholder="$t('employee.deviceUidPh')" :disabled="isEdit" @input="uidInput"
-                                class="w-full px-3.5 h-11 rounded-xl border-2 border-emerald-100 bg-white focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 outline-none text-sm text-green-900 placeholder:text-green-900/30 disabled:bg-emerald-50/40 disabled:text-emerald-700/40 disabled:cursor-not-allowed">
-                            <p v-if="validator.device_uid" class="mt-1.5 text-xs font-medium text-red-500 ml-1">{{
-                                validator.device_uid }}</p>
-                            <p v-else-if="isEdit" class="mt-1.5 text-[11px] text-emerald-700/60 ml-1 mono">{{
-                                $t('employee.deviceUidLocked') }}</p>
+                                class="field mono has-icon-right"
+                                :class="isEdit ? '!bg-warn-bg !border-amber-200 !text-cat-amber cursor-not-allowed' : ''">
+                            <span v-if="isEdit"
+                                class="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded-md bg-amber-500 text-white grid place-content-center"
+                                :title="$t('employee.deviceUidLocked')">
+                                <font-awesome :icon="faLock" class="w-3 h-3" />
+                            </span>
                         </div>
-                        <div>
-                            <label
-                                class="block text-xs font-semibold tracking-widest uppercase text-emerald-700/70 mb-1.5 ml-1">{{
-                                $t('employee.firstName') }} <span class="text-red-500">*</span></label>
-                            <input v-model="form_data.first_name" type="text" required
-                                :placeholder="$t('employee.firstNamePh')"
-                                class="w-full px-3.5 h-11 rounded-xl border-2 border-emerald-100 bg-white focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 outline-none text-sm text-green-900 placeholder:text-green-900/30">
-                            <p v-if="validator.first_name" class="mt-1.5 text-xs font-medium text-red-500 ml-1">{{
-                                validator.first_name }}</p>
-                        </div>
-                        <div>
-                            <label
-                                class="block text-xs font-semibold tracking-widest uppercase text-emerald-700/70 mb-1.5 ml-1">{{
-                                $t('employee.lastName') }}</label>
-                            <input v-model="form_data.last_name" type="text" :placeholder="$t('employee.lastNamePh')"
-                                class="w-full px-3.5 h-11 rounded-xl border-2 border-emerald-100 bg-white focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 outline-none text-sm text-green-900 placeholder:text-green-900/30">
-                        </div>
-                        <div>
-                            <label
-                                class="block text-xs font-semibold tracking-widest uppercase text-emerald-700/70 mb-1.5 ml-1">{{
-                                $t('employee.department') }} <span class="text-red-500">*</span></label>
-                            <div class="relative">
-                                <input v-model="form_data.departement" type="text" required
-                                    :placeholder="$t('employee.deptPh')"
-                                    class="w-full px-3.5 h-11 rounded-xl border-2 border-emerald-100 bg-white focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 outline-none text-sm text-green-900 placeholder:text-green-900/30"
-                                    @blur="deptHide" @input="deptTyped" @keydown="deptKey">
-                                <!-- Suggestions from existing departments. Absolute so it never
-                             shifts the grid; mousedown.prevent keeps the click alive,
-                             since a blur-closing list unmounts before click fires. -->
-                                <div v-if="deptVisible"
-                                    class="absolute z-30 left-0 right-0 top-full mt-1 max-h-56 overflow-auto rounded-xl border-2 border-emerald-100 bg-white shadow-lg shadow-emerald-900/10">
-                                    <button v-for="(d, i) in deptOptions" :key="d" type="button" tabindex="-1"
-                                        class="dept-item w-full text-left px-3.5 py-2 text-sm text-green-900 transition-colors"
-                                        :class="{ 'is-active': i === deptIdx }" @mousedown.prevent="deptPick(d)">
-                                        <span class="truncate">{{ d }}</span>
-                                    </button>
-                                </div>
-                            </div>
-                            <p v-if="validator.departement" class="mt-1.5 text-xs font-medium text-red-500 ml-1">{{
-                                validator.departement }}</p>
-                            <p v-else-if="deptVisible" class="mt-1.5 text-[11px] text-emerald-700/60 ml-1 mono">↑↓ to
-                                pick • ENTER to use • ESC to close</p>
-                        </div>
-                        <div>
-                            <label
-                                class="block text-xs font-semibold tracking-widest uppercase text-emerald-700/70 mb-1.5 ml-1">{{
-                                $t('employee.status') }}</label>
-                            <select v-model.number="form_data.status"
-                                class="w-full px-3.5 h-11 rounded-xl border-2 border-emerald-100 bg-white focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 outline-none text-sm text-green-900">
-                                <option :value="0">{{ $t('common.active') }}</option>
-                                <option :value="1">{{ $t('employee.statusInactive') }}</option>
-                            </select>
-                        </div>
-                        <div class="lg:col-span-2">
-                            <label
-                                class="block text-xs font-semibold tracking-widest uppercase text-emerald-700/70 mb-1.5 ml-1">{{
-                                $t('employee.address') }}</label>
-                            <input v-model="form_data.address" type="text" :placeholder="$t('employee.addressPh')"
-                                class="w-full px-3.5 h-11 rounded-xl border-2 border-emerald-100 bg-white focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 outline-none text-sm text-green-900 placeholder:text-green-900/30">
-                            <p v-if="validator.address" class="mt-1.5 text-xs font-medium text-red-500 ml-1">{{
-                                validator.address }}</p>
-                        </div>
+                        <p v-if="validator.device_uid" role="alert" class="mt-1 text-[11.5px] font-medium text-danger">
+                            {{ validator.device_uid }}</p>
+                        <p v-else-if="isEdit" class="mt-1 mono text-[10px] text-cat-amber">{{
+                            $t('employee.deviceUidLocked') }}</p>
                     </div>
 
-                    <!-- Schedule picker -->
-                    <div class="hud-frame glass rounded-2xl border border-emerald-100 overflow-hidden">
-                        <div
-                            class="px-4 py-3 border-b border-emerald-100 bg-gradient-to-r from-emerald-50/60 to-white flex items-center justify-between">
-                            <span class="mono text-[10px] font-bold tracking-[0.14em] text-emerald-700">{{
-                                $t('employee.workSchedule') }} <span class="text-red-500">*</span></span>
-                        </div>
-                        <div class="p-3.5 space-y-3">
-                            <select v-model="form_data.schedule_id"
-                                class="w-full px-3.5 h-11 rounded-xl border-2 border-emerald-100 bg-white focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 outline-none text-sm text-green-900">
-                                <option :value="null" disabled>- {{ $t('employee.pickSchedule') }} -</option>
-                                <option v-for="s in scheduleOptions" :key="s.parrent" :value="s.parrent">{{ s.name }} -
-                                    {{ scheduleBadge(s) }} • {{ scheduleDesc(s) }}</option>
-                            </select>
-                            <p v-if="validator.schedule_id" class="text-xs font-medium text-red-500 ml-1">{{
-                                validator.schedule_id }}</p>
-                            <p v-else-if="scheduleOptions.length === 0"
-                                class="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5">
-                                {{ $t('employee.emptySchedulesFirst') }}</p>
+                    <div>
+                        <label for="emp-first-name" class="label">{{ $t('employee.firstName') }} <span
+                                class="text-danger">*</span></label>
+                        <input id="emp-first-name" v-model="form_data.first_name" type="text" required
+                            :placeholder="$t('employee.firstNamePh')" class="field">
+                        <p v-if="validator.first_name" role="alert" class="mt-1 text-[11.5px] font-medium text-danger">
+                            {{ validator.first_name }}</p>
+                    </div>
 
-                            <!-- Preview selected schedule -->
-                            <div v-if="form_data.schedule_id"
-                                class="rounded-xl bg-emerald-50/60 border border-emerald-100 px-3 py-2.5 space-y-2">
-                                <template
-                                    v-for="s in scheduleOptions.filter(x => String(x.parrent) === String(form_data.schedule_id))"
-                                    :key="s.parrent">
-                                    <p class="mono text-[10px] font-bold tracking-[0.14em] text-emerald-700">PREVIEW: {{
-                                        s.name }} - {{ scheduleBadge(s) }} • {{ scheduleDesc(s) }}</p>
-                                    <div class="flex flex-wrap gap-1.5">
-                                        <span v-for="p in previewSchedule(s)" :key="p.dom"
-                                            class="inline-flex items-center gap-1 px-2 py-1 rounded-full border text-[11px] mono"
-                                            :class="p.isLibur ? 'bg-slate-50 border-slate-200 text-slate-600' : 'bg-white border-emerald-200 text-emerald-700'">
-                                            <span class="w-1.5 h-1.5 rounded-full"
-                                                :class="p.isLibur ? 'bg-slate-400' : 'bg-emerald-500'"></span>
-                                            D{{ p.dom }}: {{ p.name }} <span v-if="!p.isLibur && p.start != null"
-                                                class="opacity-60">{{
-                                                    Math.floor(p.start/3600).toString().padStart(2,'0') }}:{{
-                                                    Math.floor((p.start%3600)/60).toString().padStart(2,'0') }}</span>
-                                        </span>
-                                    </div>
-                                </template>
+                    <div>
+                        <label for="emp-last-name" class="label">{{ $t('employee.lastName') }}</label>
+                        <input id="emp-last-name" v-model="form_data.last_name" type="text"
+                            :placeholder="$t('employee.lastNamePh')" class="field">
+                    </div>
+
+                    <div>
+                        <label for="emp-department" class="label">{{ $t('employee.department') }} <span
+                                class="text-danger">*</span></label>
+                        <div class="relative">
+                            <input id="emp-department" v-model="form_data.department" type="text" required
+                                :placeholder="$t('employee.deptPh')" class="field" @blur="deptHide" @input="deptTyped"
+                                @keydown="deptKey">
+                            <!-- Suggestions from existing departments. Absolute so it never
+                                 shifts the grid; mousedown.prevent keeps the click alive,
+                                 since a blur-closing list unmounts before click fires. -->
+                            <div v-if="deptVisible"
+                                class="absolute z-30 left-0 right-0 top-full mt-1 max-h-56 overflow-auto rounded-xl border border-border bg-surface shadow-tint-md">
+                                <button v-for="(d, i) in deptOptions" :key="d" type="button" tabindex="-1"
+                                    class="dept-item w-full text-left px-3.5 min-h-[44px] text-[13px] text-text transition-colors"
+                                    :class="{ 'is-active': i === deptIdx }" @mousedown.prevent="deptPick(d)">
+                                    <span class="truncate">{{ d }}</span>
+                                </button>
                             </div>
                         </div>
+                        <p v-if="validator.department" role="alert" class="mt-1 text-[11.5px] font-medium text-danger">
+                            {{ validator.department }}</p>
+                        <p v-else-if="deptVisible" class="mt-1 mono text-[10px] text-text-muted">↑↓ to pick • ENTER to
+                            use • ESC to close</p>
                     </div>
 
-                    <div class="flex flex-wrap items-center gap-3 pt-1">
-                        <button v-if="canSubmit" type="submit" :disabled="submitting"
-                            class="btn-emerald rounded-xl px-8 h-11 text-sm font-bold mono tracking-widest disabled:opacity-60 inline-flex items-center gap-2">
-                            <svg v-if="submitting" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
-                                    stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor"
-                                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-                            </svg>
-                            {{ submitting ? $t('common.saving') : (isEdit ? $t('employee.updateEmployee') :
-                                $t('employee.saveEmployee')) }}
-                        </button>
-                        <button type="button" @click="resetForm"
-                            class="rounded-xl px-8 h-11 text-sm font-medium bg-white border-2 border-emerald-100 text-emerald-700 hover:bg-emerald-50">{{
-                            $t('common.reset') }}</button>
-                        <button v-if="isEdit" type="button" @click="resetForm(); close(); emit('done')"
-                            class="rounded-xl px-6 h-11 text-sm font-medium bg-slate-50 border border-slate-200 text-slate-600 hover:bg-slate-100">{{
-                                $t('common.cancelEdit') }}</button>
+                    <div>
+                        <label for="emp-status" class="label">{{ $t('employee.status') }}</label>
+                        <select id="emp-status" v-model.number="form_data.status" class="field">
+                            <option :value="0">{{ $t('common.active') }}</option>
+                            <option :value="1">{{ $t('employee.statusInactive') }}</option>
+                        </select>
                     </div>
-                </form>
-            </div>
+
+                    <div class="sm:col-span-2">
+                        <label for="emp-address" class="label">{{ $t('employee.address') }}</label>
+                        <input id="emp-address" v-model="form_data.address" type="text"
+                            :placeholder="$t('employee.addressPh')" class="field">
+                        <p v-if="validator.address" role="alert" class="mt-1 text-[11.5px] font-medium text-danger">{{
+                            validator.address }}</p>
+                    </div>
+                </div>
+
+                <!-- schedule assignment -->
+                <section class="rounded-xl border border-border bg-surface-raised/50 p-3.5 space-y-3">
+                    <p class="flex items-center gap-2 card-label !text-primary-deeper">
+                        <font-awesome :icon="faCalendarDays" class="w-3.5 h-3.5" />
+                        {{ $t('employee.scheduleAssignment') }} <span class="text-danger">*</span>
+                    </p>
+
+                    <select v-model="form_data.schedule_id" class="field" :aria-label="$t('employee.workSchedule')">
+                        <option :value="null" disabled>- {{ $t('employee.pickSchedule') }} -</option>
+                        <option v-for="s in scheduleOptions" :key="s.parent" :value="s.parent">{{ s.name }} - {{
+                            scheduleBadge(s) }} • {{ scheduleDesc(s) }}</option>
+                    </select>
+
+                    <p v-if="validator.schedule_id" role="alert" class="text-[11.5px] font-medium text-danger">{{
+                        validator.schedule_id }}</p>
+                    <p v-else-if="scheduleOptions.length === 0"
+                        class="flex items-start gap-2 rounded-lg border border-cat-amber/25 bg-warn-bg px-3 py-2.5 text-[11.5px] leading-relaxed text-cat-amber">
+                        <font-awesome :icon="faTriangleExclamation" class="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                        <span>{{ $t('employee.emptySchedulesFirst') }}</span>
+                    </p>
+
+                    <!-- preview selected schedule -->
+                    <div v-if="form_data.schedule_id"
+                        class="rounded-lg bg-surface border border-border px-3 py-2.5 space-y-2">
+                        <template
+                            v-for="s in scheduleOptions.filter(x => String(x.parent) === String(form_data.schedule_id))"
+                            :key="s.parent">
+                            <p class="mono text-[10px] font-bold tracking-[0.12em] text-text-muted uppercase">{{
+                                $t('employee.preview') }}: {{ s.name }} - {{ scheduleBadge(s) }} • {{ scheduleDesc(s) }}
+                            </p>
+                            <div class="flex flex-wrap gap-1.5">
+                                <span v-for="p in previewSchedule(s)" :key="p.dom"
+                                    class="inline-flex items-center gap-1 px-2 py-1 rounded-full border text-[10.5px] mono"
+                                    :class="p.isLibur ? 'bg-surface-raised border-border text-text-muted' : 'bg-surface border-border-strong text-text'">
+                                    <span class="w-1.5 h-1.5 rounded-full"
+                                        :class="p.isLibur ? 'bg-text-muted/40' : 'bg-primary'"></span>
+                                    D{{ p.dom }}: {{ p.name }} <span v-if="!p.isLibur && p.start != null"
+                                        class="opacity-60">{{ Math.floor(p.start / 3600).toString().padStart(2, '0') }}:{{
+                                            Math.floor((p.start %3600)/60).toString().padStart(2,'0') }}</span>
+                                </span>
+                            </div>
+                        </template>
+                    </div>
+                </section>
+
+                <div class="flex flex-col sm:flex-row gap-2 pt-1">
+                    <button v-if="canSubmit" type="submit" :disabled="submitting"
+                        class="btn btn-primary flex-1 sm:flex-none sm:!px-7">
+                        <font-awesome v-if="submitting" :icon="faRotate" class="w-3.5 h-3.5 animate-spin" />
+                        {{ submitting ? $t('common.saving') : (isEdit ? $t('employee.updateEmployee') :
+                            $t('employee.saveEmployee')) }}
+                    </button>
+                    <button type="button" @click="resetForm" class="btn btn-secondary flex-1 sm:flex-none">{{
+                        $t('common.reset')
+                        }}</button>
+                    <button v-if="isEdit" type="button" @click="resetForm(); close(); emit('done')"
+                        class="btn btn-quiet flex-1 sm:flex-none">{{ $t('common.cancelEdit') }}</button>
+                </div>
+            </form>
         </div>
     </div>
 </template>
@@ -473,8 +476,8 @@ defineExpose({ fillForm, del_employee, resetForm, open, close, isShow, openNew }
    identical to an unselected row. */
 .dept-item:hover,
 .dept-item.is-active {
-    background: rgba(16, 185, 129, .1);
-    color: #047857;
+    background: var(--surface-raised);
+    color: var(--primary-deeper);
     font-weight: 600;
 }
 </style>

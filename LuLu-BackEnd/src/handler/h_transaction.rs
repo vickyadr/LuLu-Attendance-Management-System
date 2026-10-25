@@ -22,7 +22,7 @@ pub async fn transaction_live(
 
     //match sqlx::query_as::<_, LiveTransaction>(r#"WITH query_data AS (SELECT (EXTRACT(EPOCH FROM enrolls.enroll_time)::INTEGER) AS enroll_time, enrolls.enroll_type, enrolls.enroll_status, employee.employee_fname, employee.employee_lname, devices.device_location, enrolls.enroll_id FROM (( enrolls INNER JOIN employee ON employee.employee_id = enrolls.enroll_employee_id) INNER JOIN devices ON enrolls.enroll_device_sn = devices.device_sn ) ORDER BY enrolls.enroll_time DESC LIMIT 100) SELECT * FROM query_data"#)
     //.bind(as_epoch("enrolls.enroll_time"))
-    match sqlx::query_as::<_, LiveTransaction>(r#"SELECT enrolls.enroll_time, enrolls.enroll_type, enrolls.enroll_op_code, enrolls.enroll_status, employee.employee_fname, employee.employee_lname, employee.employee_id, devices.device_location, devices.device_timezone, employee.employee_departement, enrolls.enroll_id FROM (( enrolls INNER JOIN employee ON employee.employee_device_uid = enrolls.enroll_employee_id) INNER JOIN devices ON enrolls.enroll_device_sn = devices.device_sn ) ORDER BY enrolls.enroll_time DESC LIMIT 100"#)
+    match sqlx::query_as::<_, LiveTransaction>(r#"SELECT enrolls.enroll_time, enrolls.enroll_type, enrolls.enroll_op_code, enrolls.enroll_status, employee.employee_fname, employee.employee_lname, employee.employee_id, devices.device_location, devices.device_timezone, employee.employee_department, enrolls.enroll_id FROM (( enrolls INNER JOIN employee ON employee.employee_device_uid = enrolls.enroll_employee_id) INNER JOIN devices ON enrolls.enroll_device_sn = devices.device_sn ) ORDER BY enrolls.enroll_time DESC LIMIT 100"#)
     .fetch_all(&pool.db)
     .await
     {

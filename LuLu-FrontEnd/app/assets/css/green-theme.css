@@ -1,273 +1,725 @@
-/* tailwind base already injected by @nuxtjs/tailwindcss */
-@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap");
+/* LuLu design system layer.
+   Palette and type scale come from DESIGN.md (exported to design/tokens.json).
+   Every page composes these classes, so a change here lands app-wide.
+   Tailwind base/components/utilities are injected by @nuxtjs/tailwindcss and
+   load after this file, which lets utility classes win ties on purpose. */
 
-/* LuLu - Emerald Biotech • Secure */
 :root {
-  --green-50: #f0fdf4;
-  --green-100: #dcfce7;
-  --green-200: #bbf7d0;
-  --green-300: #86efac;
-  --green-400: #4ade80;
-  --green-500: #22c55e;
-  --green-600: #16a34a;
-  --green-700: #15803d;
-  --green-800: #166534;
-  --green-900: #14532d;
-  --green-950: #052e16;
-  --emerald-50: #ecfdf5;
-  --emerald-100: #d1fae5;
-  --emerald-500: #10b981;
-  --emerald-600: #059669;
-  --emerald-700: #047857;
-  --lime-300: #bef264;
-  --lime-400: #a3e635;
-  --lime-500: #84cc16;
+  /* palette */
+  --primary: #059669;
+  --primary-deep: #047857;
+  --primary-deeper: #065f46;
+  --secondary: #16a34a;
+  --accent-lime: #a3e635;
+  --lime-raised: #ecfccb;
+  --canvas: #f6fdf7;
+  --surface: #ffffff;
+  --surface-raised: #ecfdf5;
+  --surface-sunken: #d1fae5;
+  --border: #d1fae5;
+  --border-strong: #a7f3d0;
+  --text: #14532d;
+  --text-muted: #047857;
+  --text-faint: #10b981;
+  --sidebar-top: #052e16;
+  --sidebar-bottom: #14532d;
+  --danger: #b91c1c;
+  --danger-bg: #fef2f2;
+  --warn: #b45309;
+  --warn-bg: #fffbeb;
+
+  /* shape */
+  --radius-card: 16px;
+  --radius-control: 12px;
+  --radius-pill: 999px;
+
+  /* depth: one light source, tinted with the canvas hue */
+  --shadow-1: 0 1px 2px rgba(2, 44, 34, 0.06);
+  --shadow-2: 0 12px 28px -12px rgba(2, 44, 34, 0.18);
+  --shadow-3: 0 24px 60px -24px rgba(2, 44, 34, 0.26);
+
+  /* motion */
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --dur: 200ms;
+
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 }
+
+/* ---------- base ---------- */
+
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--canvas);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::selection {
+  background: var(--surface-sunken);
+  color: var(--text);
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-sans);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
+}
+
+/* numbers must not jitter when a live feed updates them */
+table,
+.num,
+time {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- scrollbars: thin, neutral, never a bright rail ---------- */
+
 * {
   scrollbar-width: thin;
-  scrollbar-color: #86efac transparent;
+  scrollbar-color: var(--border-strong) transparent;
 }
+
 *::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
+
 *::-webkit-scrollbar-thumb {
-  background: #86efac;
-  border-radius: 999px;
+  background: var(--border-strong);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  border-radius: var(--radius-pill);
 }
+
 *::-webkit-scrollbar-thumb:hover {
-  background: #4ade80;
+  background: #6ee7b7;
+  background-clip: padding-box;
 }
-/* Scroll without a visible track. For containers where scrolling is a fallback
-   rather than a feature: a 6px bar suggests there is more to see when the
-   content already fits. Beats the global `*` rule on specificity. */
+
 .no-scrollbar {
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
+
 .no-scrollbar::-webkit-scrollbar {
   display: none;
   width: 0;
   height: 0;
 }
-html {
-  scroll-behavior: smooth;
+
+/* ---------- focus: one visible ring for every interactive element ---------- */
+
+:where(
+  a,
+  button,
+  [role="button"],
+  input,
+  select,
+  textarea,
+  summary
+):focus-visible {
+  outline: 2px solid var(--primary-deep);
+  outline-offset: 2px;
 }
-body {
-  background: #f6fdf7;
+
+.skip-link {
+  position: absolute;
+  left: 12px;
+  top: -60px;
+  z-index: 100;
+  padding: 10px 16px;
+  border-radius: var(--radius-control);
+  background: var(--primary-deeper);
+  color: #fff;
+  font-weight: 700;
+  transition: top var(--dur) var(--ease);
 }
-@keyframes float {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-6px);
-  }
+
+.skip-link:focus {
+  top: 12px;
 }
-@keyframes shimmer {
-  0% {
-    background-position: -200% 0;
-  }
-  100% {
-    background-position: 200% 0;
-  }
+
+/* ---------- typography helpers ---------- */
+
+.display {
+  font-family: var(--font-sans);
+  font-weight: 700;
+  letter-spacing: -0.015em;
 }
-@keyframes pulse-green {
-  0%,
-  100% {
-    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.35);
-  }
-  50% {
-    box-shadow: 0 0 0 12px rgba(16, 185, 129, 0);
-  }
+
+/* SaaS card label: sentence case, not another uppercase overline. */
+.card-label {
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--text-muted);
 }
-@keyframes tech-sway {
-  0%,
-  100% {
-    transform: rotate(-3deg);
-  }
-  50% {
-    transform: rotate(3deg);
-  }
+
+.num {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
 }
+
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.label-mono {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  line-height: 1.4;
+}
+
+/* ---------- surfaces ---------- */
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+}
+
+.panel-glass {
+  background: rgba(255, 255, 255, 0.86);
+  backdrop-filter: blur(12px) saturate(1.1);
+  border: 1px solid rgba(167, 243, 208, 0.6);
+  border-radius: var(--radius-card);
+}
+
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.panel-body {
+  padding: 16px;
+}
+
+/* legacy aliases kept so untouched components still render correctly */
 .glass {
   background: rgba(255, 255, 255, 0.86);
-  backdrop-filter: blur(12px) saturate(1.15);
+  backdrop-filter: blur(12px) saturate(1.1);
   border: 1px solid rgba(167, 243, 208, 0.6);
 }
+
 .glass-dark {
-  background: linear-gradient(180deg, #052e16 0%, #14532d 100%);
-  border-right: 1px solid rgba(16, 185, 129, 0.15);
+  background: linear-gradient(
+    180deg,
+    var(--sidebar-top) 0%,
+    var(--sidebar-bottom) 100%
+  );
+  border-right: 1px solid rgba(16, 185, 129, 0.16);
 }
+
 .card-lift {
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  transition:
+    transform var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease),
+    border-color var(--dur) var(--ease);
 }
+
 .card-lift:hover {
   transform: translateY(-2px);
-  box-shadow:
-    0 14px 30px -10px rgba(21, 128, 61, 0.22),
-    0 4px 10px -4px rgba(21, 128, 61, 0.12);
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-2);
 }
-.th-green {
+
+.card-lift:active {
+  transform: translateY(0);
+}
+
+/* safety nets for tokens added after the last Tailwind build */
+.text-warn {
+  color: var(--warn);
+}
+.border-warn {
+  border-color: var(--warn);
+}
+
+/* ---------- buttons ---------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 18px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background var(--dur) var(--ease),
+    border-color var(--dur) var(--ease),
+    color var(--dur) var(--ease),
+    transform var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease);
+}
+
+.btn:active {
+  transform: translateY(1px) scale(0.99);
+}
+
+.btn:disabled,
+.btn[aria-disabled="true"] {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.btn-primary {
   background: linear-gradient(
     135deg,
-    #059669 0%,
-    #047857 55%,
-    #065f46 100%
-  ) !important;
+    var(--primary-deep),
+    var(--primary-deeper)
+  );
+  color: #fff;
+  box-shadow: 0 8px 18px -10px rgba(4, 120, 87, 0.6);
 }
-tr.th-green td,
-tr.th-green th {
+
+.btn-primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, var(--primary-deeper), #064e3b);
+  box-shadow: 0 12px 24px -12px rgba(4, 120, 87, 0.65);
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  background: var(--surface);
+  border-color: var(--border-strong);
+  color: var(--text-muted);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: var(--surface-raised);
+  border-color: #6ee7b7;
+  color: var(--primary-deeper);
+}
+
+.btn-quiet {
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.btn-quiet:hover:not(:disabled) {
+  background: var(--surface-raised);
+  color: var(--primary-deeper);
+}
+
+.btn-danger {
+  background: var(--surface);
+  border-color: #fecaca;
+  color: var(--danger);
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: var(--danger-bg);
+  border-color: #fca5a5;
+}
+
+.btn-sm {
+  min-height: 36px;
+  padding: 0 12px;
+  font-size: 12px;
+}
+
+/* legacy alias, used by 12 components */
+.btn-emerald {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   background: linear-gradient(
     135deg,
-    #059669 0%,
-    #047857 55%,
-    #065f46 100%
-  ) !important;
+    var(--primary-deep),
+    var(--primary-deeper)
+  );
+  color: #fff;
+  box-shadow: 0 8px 18px -10px rgba(4, 120, 87, 0.6);
+  transition:
+    background var(--dur) var(--ease),
+    transform var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease);
 }
-.tech-pattern {
-  background-image:
-    radial-gradient(
-      circle at 18% 22%,
-      rgba(34, 197, 94, 0.09) 0%,
-      transparent 45%
-    ),
-    radial-gradient(
-      circle at 82% 72%,
-      rgba(132, 204, 22, 0.09) 0%,
-      transparent 45%
-    ),
-    radial-gradient(
-      circle at 50% 8%,
-      rgba(16, 185, 129, 0.07) 0%,
-      transparent 55%
-    );
+
+.btn-emerald:hover {
+  background: linear-gradient(135deg, var(--primary-deeper), #064e3b);
+  transform: translateY(-1px);
 }
+
+.btn-emerald:active {
+  transform: translateY(1px) scale(0.99);
+}
+
+/* ---------- fields ---------- */
+
+/* Sizing lives in a zero-specificity rule so a utility such as w-56, w-full
+   or h-11 always wins. Component CSS loads after Tailwind utilities, so a
+   plain .field { width: 100% } was overriding them. */
+:where(.field) {
+  width: 100%;
+  min-height: 44px;
+  height: 44px;
+}
+
+.field {
+  padding: 0 16px;
+  border: 1.5px solid var(--border-strong);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 500;
+  transition:
+    border-color var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease),
+    background var(--dur) var(--ease);
+}
+
+.field::placeholder {
+  color: rgba(20, 83, 45, 0.38);
+  font-weight: 400;
+}
+
+.field:hover:not(:disabled) {
+  border-color: #6ee7b7;
+}
+
+.field:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 4px rgba(5, 150, 105, 0.14);
+}
+
+.field:disabled,
+.field[readonly] {
+  background: var(--canvas);
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+/* A hard height for single-line fields: min-height alone let some browsers
+   collapse type=search / select to the intrinsic control height. */
+input.field,
+select.field {
+  height: 44px;
+}
+
+.field.has-icon-left {
+  padding-left: 40px;
+}
+
+/* input.field sets height explicitly, so the large variant needs to outrank it.
+   Padding is left to .field and .has-icon-right, otherwise the icon clearance
+   would be overridden here. */
+input.field.field-lg,
+select.field.field-lg,
+.field.field-lg {
+  height: 48px;
+}
+
+.field-lg {
+  padding-left: 16px;
+}
+
+.field.has-icon-right {
+  padding-right: 44px;
+}
+
+textarea.field {
+  padding: 10px 14px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.label {
+  display: block;
+  margin-bottom: 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.input-emerald {
+  border: 1.5px solid var(--border-strong);
+  background: var(--surface);
+}
+
+.input-emerald:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 4px rgba(5, 150, 105, 0.14);
+}
+
 .focus-emerald:focus {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.18);
-  border-color: #10b981 !important;
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 4px rgba(5, 150, 105, 0.14);
 }
-.nav-active {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
-  color: white !important;
-  box-shadow: 0 4px 14px -4px rgba(16, 185, 129, 0.6);
+
+/* ---------- chips and status ---------- */
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1.4;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
-.nav-active svg {
-  opacity: 1 !important;
+
+.chip-emerald {
+  background: var(--surface-raised);
+  border-color: var(--border-strong);
+  color: var(--text-muted);
 }
-.btn-emerald {
-  background: linear-gradient(135deg, #059669 0%, #047857 100%);
-  color: white;
-  box-shadow: 0 4px 14px -4px rgba(5, 150, 105, 0.45);
-  transition: all 0.2s;
+
+.chip-dark {
+  background: rgba(5, 46, 22, 0.55);
+  border-color: rgba(16, 185, 129, 0.22);
+  color: #a7f3d0;
 }
-.btn-emerald:hover {
-  background: linear-gradient(135deg, #047857 0%, #065f46 100%);
-  transform: translateY(-1px);
-  box-shadow: 0 8px 20px -6px rgba(5, 150, 105, 0.5);
+
+.chip-lime {
+  background: var(--lime-raised);
+  border-color: #d9f99d;
+  color: #4d7c0f;
 }
-.input-emerald {
-  border-color: #a7f3d0;
-  background: #f8fdf9;
+
+.chip-ok {
+  background: var(--surface-raised);
+  border-color: var(--border-strong);
+  color: var(--text-muted);
 }
-.input-emerald:focus {
-  border-color: #10b981;
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.14);
-  background: white;
+
+.chip-warn {
+  background: var(--warn-bg);
+  border-color: #fde68a;
+  color: var(--warn);
 }
+
+.chip-danger {
+  background: var(--danger-bg);
+  border-color: #fecaca;
+  color: var(--danger);
+}
+
+.chip-quiet {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--text-muted);
+}
+
 .badge-emerald {
-  background: #d1fae5;
-  color: #065f46;
-  border: 1px solid #a7f3d0;
+  background: var(--surface-raised);
+  color: var(--primary-deeper);
+  border: 1px solid var(--border-strong);
 }
+
 .badge-lime {
-  background: #ecfccb;
+  background: var(--lime-raised);
   color: #3f6212;
   border: 1px solid #d9f99d;
 }
-.text-gradient-emerald {
-  background: linear-gradient(135deg, #059669 0%, #84cc16 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+
+/* ---------- tables ---------- */
+
+.table-shell {
+  overflow: auto;
+  overscroll-behavior: contain;
 }
 
-/* ===== TECH LAYER - BioTech Fusion ===== */
-.mono {
-  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+/* One gradient across the entire header row: the tr owns the paint, cells stay
+   transparent so the ramp never restarts per column. */
+table {
+  border-collapse: separate;
+  border-spacing: 0;
 }
-.display {
-  font-family:
-    "Plus Jakarta Sans",
-    system-ui,
-    -apple-system,
-    sans-serif;
-}
-.tech-grid {
-  background-image:
-    linear-gradient(to right, rgba(16, 185, 129, 0.07) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(16, 185, 129, 0.07) 1px, transparent 1px);
-  background-size: 28px 28px;
-}
-.tech-grid-soft {
-  background-image:
-    linear-gradient(to right, rgba(16, 185, 129, 0.045) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(16, 185, 129, 0.045) 1px, transparent 1px);
-  background-size: 32px 32px;
-}
-.tech-dots {
-  background-image: radial-gradient(
-    circle at 1px 1px,
-    rgba(16, 185, 129, 0.22) 1px,
-    transparent 0
+
+thead tr {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background-image: linear-gradient(
+    90deg,
+    var(--primary) 0%,
+    #0f9d6b 50%,
+    var(--secondary) 100%
   );
-  background-size: 18px 18px;
 }
+
+.th {
+  position: relative;
+  z-index: 1;
+  padding: 10px 12px;
+  background: transparent;
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-shadow: 0 1px 1px rgba(2, 44, 34, 0.35);
+  text-transform: uppercase;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.td {
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  color: var(--text);
+  vertical-align: middle;
+}
+
+tbody tr:last-child .td {
+  border-bottom: 0;
+}
+
+/* Column separators live in the header only; body rows stay open so the eye
+   can track a record across the row. */
+.th + .th {
+  border-left: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+tbody tr:hover .td {
+  background: var(--surface-raised);
+}
+
+/* first and last cells share the 16px inset of .panel-head */
+th:first-child,
+td:first-child {
+  padding-left: 16px;
+}
+
+th:last-child,
+td:last-child {
+  padding-right: 16px;
+}
+
+.th-green {
+  background: transparent !important;
+}
+
+tr.th-green {
+  background-image: linear-gradient(
+    90deg,
+    var(--primary) 0%,
+    #0f9d6b 50%,
+    var(--secondary) 100%
+  ) !important;
+}
+
+tr.th-green td,
+tr.th-green th {
+  background: linear-gradient(
+    90deg,
+    var(--primary) 0%,
+    #0f9d6b 50%,
+    var(--secondary) 100%
+  ) !important;
+  color: #fff;
+}
+
+/* ---------- HUD accents: at most two per page ---------- */
+
 .hud-frame {
   position: relative;
 }
+
 .hud-corner {
   position: absolute;
-  width: 14px;
-  height: 14px;
+  width: 12px;
+  height: 12px;
   border-color: rgba(16, 185, 129, 0.45);
   pointer-events: none;
 }
+
 .hud-corner-tl {
   top: -1px;
   left: -1px;
-  border-top: 2px solid;
-  border-left: 2px solid;
-  border-top-left-radius: 12px;
+  border-top: 1.5px solid;
+  border-left: 1.5px solid;
+  border-top-left-radius: var(--radius-card);
 }
 .hud-corner-tr {
   top: -1px;
   right: -1px;
-  border-top: 2px solid;
-  border-right: 2px solid;
-  border-top-right-radius: 12px;
+  border-top: 1.5px solid;
+  border-right: 1.5px solid;
+  border-top-right-radius: var(--radius-card);
 }
 .hud-corner-bl {
   bottom: -1px;
   left: -1px;
-  border-bottom: 2px solid;
-  border-left: 2px solid;
-  border-bottom-left-radius: 12px;
+  border-bottom: 1.5px solid;
+  border-left: 1.5px solid;
+  border-bottom-left-radius: var(--radius-card);
 }
 .hud-corner-br {
   bottom: -1px;
   right: -1px;
-  border-bottom: 2px solid;
-  border-right: 2px solid;
-  border-bottom-right-radius: 12px;
+  border-bottom: 1.5px solid;
+  border-right: 1.5px solid;
+  border-bottom-right-radius: var(--radius-card);
 }
+
 .scanline {
   position: absolute;
   left: 0;
   right: 0;
-  height: 2px;
+  height: 1.5px;
   background: linear-gradient(
     90deg,
     transparent,
@@ -277,132 +729,311 @@ tr.th-green th {
     transparent
   );
   opacity: 0;
-  filter: blur(0.4px);
-  animation: scan 3.2s linear infinite;
+  animation: scan 6s linear infinite;
+  pointer-events: none;
 }
+
+.tech-pattern {
+  background-image:
+    radial-gradient(
+      circle at 18% 22%,
+      rgba(34, 197, 94, 0.07) 0%,
+      transparent 45%
+    ),
+    radial-gradient(
+      circle at 82% 72%,
+      rgba(132, 204, 22, 0.06) 0%,
+      transparent 45%
+    );
+}
+
+.tech-grid {
+  background-image:
+    linear-gradient(to right, rgba(16, 185, 129, 0.06) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(16, 185, 129, 0.06) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+.tech-grid-soft {
+  background-image:
+    linear-gradient(to right, rgba(16, 185, 129, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(16, 185, 129, 0.04) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+.tech-dots {
+  background-image: radial-gradient(
+    circle at 1px 1px,
+    rgba(16, 185, 129, 0.18) 1px,
+    transparent 0
+  );
+  background-size: 18px 18px;
+}
+
+.neon-ring {
+  box-shadow:
+    0 0 0 1px rgba(16, 185, 129, 0.22),
+    0 18px 40px -22px rgba(5, 46, 22, 0.5);
+}
+
+.glow-emerald {
+  filter: drop-shadow(0 0 8px rgba(16, 185, 129, 0.45));
+}
+
+.data-tick {
+  animation: tick 1.4s steps(2) infinite;
+}
+
+.shimmer-green {
+  background: linear-gradient(
+      100deg,
+      transparent 20%,
+      rgba(255, 255, 255, 0.16) 30%,
+      transparent 40%
+    )
+    0 0 / 200% 100% no-repeat;
+  animation: shimmer 2.8s ease-in-out infinite;
+}
+
+.circuit-line {
+  background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(16, 185, 129, 0.2) 2px,
+      transparent 2px
+    )
+    0 0 / 100% 1px no-repeat;
+}
+
+.text-gradient-emerald {
+  background: linear-gradient(
+    135deg,
+    var(--primary-deep) 0%,
+    var(--accent-lime) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* ---------- navigation ---------- */
+
+.nav-active {
+  background: rgba(4, 120, 87, 0.92) !important;
+  color: #fff !important;
+  box-shadow: inset 0 0 0 1px rgba(163, 230, 53, 0.18);
+}
+
+.nav-active svg {
+  opacity: 1 !important;
+}
+
+/* ---------- empty and loading states ---------- */
+
+.state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 40px 24px;
+  text-align: center;
+}
+
+.state-icon {
+  position: relative;
+  display: grid;
+  place-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-card);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--primary);
+  overflow: hidden;
+}
+
+.state-title {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.state-hint {
+  max-width: 36ch;
+  font-size: 13px;
+  color: rgba(20, 83, 45, 0.62);
+}
+
+.skeleton {
+  display: block;
+  border-radius: 8px;
+  background: var(--surface-sunken);
+  animation: breathe 1.6s ease-in-out infinite;
+}
+
+/* ---------- keyframes ---------- */
+
 @keyframes scan {
   0% {
-    top: 12%;
-    opacity: 0;
-  }
-  8% {
-    opacity: 0.75;
-  }
-  92% {
-    opacity: 0.75;
-  }
-  100% {
-    top: 86%;
-    opacity: 0;
-  }
-}
-@keyframes scan-v {
-  0% {
-    transform: translateY(-100%);
+    top: 10%;
     opacity: 0;
   }
   10% {
-    opacity: 0.9;
+    opacity: 0.65;
   }
   90% {
-    opacity: 0.9;
+    opacity: 0.65;
   }
   100% {
-    transform: translateY(220px);
+    top: 88%;
     opacity: 0;
   }
 }
-.neon-ring {
-  box-shadow:
-    0 0 0 1px rgba(16, 185, 129, 0.25),
-    0 0 22px rgba(16, 185, 129, 0.22),
-    inset 0 0 14px rgba(16, 185, 129, 0.08);
-}
-.glow-emerald {
-  filter: drop-shadow(0 0 10px rgba(16, 185, 129, 0.5));
-}
-.chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  border-radius: 999px;
-  font-family: "JetBrains Mono", monospace;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  border: 1px solid;
-  line-height: 1;
-}
-.chip-emerald {
-  background: rgba(16, 185, 129, 0.1);
-  border-color: rgba(16, 185, 129, 0.22);
-  color: #047857;
-}
-.chip-dark {
-  background: rgba(5, 46, 22, 0.55);
-  border-color: rgba(16, 185, 129, 0.18);
-  color: #a7f3d0;
-}
-.chip-lime {
-  background: rgba(132, 204, 22, 0.12);
-  border-color: rgba(132, 204, 22, 0.22);
-  color: #3f6212;
-}
-.data-tick {
-  animation: tick 1.1s steps(2) infinite;
-}
+
 @keyframes tick {
   0%,
   100% {
     opacity: 1;
   }
   50% {
-    opacity: 0.3;
+    opacity: 0.35;
   }
 }
-.shimmer-green {
-  background: linear-gradient(
-      100deg,
-      transparent 20%,
-      rgba(255, 255, 255, 0.18) 30%,
-      transparent 40%
-    )
-    0 0 / 200% 100% no-repeat;
-  animation: shimmer 2.8s ease-in-out infinite;
-}
-.circuit-line {
-  background:
-    linear-gradient(
-        90deg,
-        transparent,
-        rgba(16, 185, 129, 0.22) 2px,
-        transparent 2px
-      )
-      0 0 / 100% 1px no-repeat,
-    linear-gradient(
-        90deg,
-        transparent,
-        rgba(132, 204, 22, 0.14) 1px,
-        transparent 1px
-      )
-      0 6px / 100% 1px no-repeat;
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
 }
 
-/* ===== COOKIE BANNER - tema LuLu (override modul nuxt-cookie-control) ===== */
-/* Module pakai class .cookieControl__Bar (fixed bottom-full) dan default
-   dark-grey + tombol kotak -> off-theme. Di-override di sini agar hijau. */
+@keyframes breathe {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+.rise {
+  animation: rise 320ms var(--ease) both;
+}
+
+/* ---------- cookie banner: theme it, including the floating control ---------- */
+
 .cookieControl__Bar {
-  background: linear-gradient(180deg, #052e16 0%, #14532d 100%) !important;
+  background: linear-gradient(
+    180deg,
+    var(--sidebar-top) 0%,
+    var(--sidebar-bottom) 100%
+  ) !important;
   border-top: 1px solid rgba(16, 185, 129, 0.28);
   box-shadow: 0 -12px 32px -12px rgba(5, 46, 22, 0.55);
-  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-family: var(--font-mono);
   backdrop-filter: blur(10px);
   max-height: 62vh;
   overflow-y: auto;
 }
-/* mobile: banner shouldn't eat half the screen */
+
+.cookieControl__Bar a {
+  color: #6ee7b7 !important;
+}
+
+.cookieControl__Bar p,
+.cookieControl__Bar span {
+  color: rgba(167, 243, 208, 0.85) !important;
+}
+
+.cookieControl__Bar h2,
+.cookieControl__Bar h3,
+.cookieControl__Bar strong {
+  color: #ecfdf5 !important;
+}
+
+.cookieControl__Bar button {
+  min-height: 44px;
+  border-radius: var(--radius-control) !important;
+  font-family: var(--font-mono) !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase;
+  padding: 10px 16px !important;
+  transition: all var(--dur) var(--ease);
+}
+
+.cookieControl__Bar button:hover {
+  transform: translateY(-1px);
+}
+
+.cookieControl__Bar button:first-of-type {
+  background: linear-gradient(
+    135deg,
+    var(--primary) 0%,
+    var(--primary-deep) 100%
+  ) !important;
+  color: #fff !important;
+  border: 1px solid rgba(16, 185, 129, 0.5) !important;
+}
+
+.cookieControl__Bar button:not(:first-of-type) {
+  background: rgba(16, 185, 129, 0.08) !important;
+  color: #a7f3d0 !important;
+  border: 1px solid rgba(16, 185, 129, 0.3) !important;
+}
+
+/* The module renders __ControlButton. The previous sheet styled __Button, so
+   the floating cookie control fell back to a white circle with a dark glyph. */
+.cookieControl__ControlButton,
+.cookieControl__Button {
+  width: 44px !important;
+  height: 44px !important;
+  border-radius: var(--radius-control) !important;
+  background: linear-gradient(
+    135deg,
+    var(--primary-deep) 0%,
+    var(--primary-deeper) 100%
+  ) !important;
+  border: 1px solid rgba(16, 185, 129, 0.4) !important;
+  box-shadow: var(--shadow-2) !important;
+  color: #fff !important;
+}
+
+.cookieControl__ControlButton svg,
+.cookieControl__Button svg {
+  color: #fff !important;
+  fill: currentColor;
+}
+
 @media (max-width: 640px) {
   .cookieControl__Bar {
     max-height: 46vh;
@@ -416,52 +1047,34 @@ tr.th-green th {
     font-size: 15px !important;
   }
 }
-.cookieControl__Bar a {
-  color: #6ee7b7 !important;
+
+/* ---------- reduced motion: one global switch ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .scanline,
+  .data-tick,
+  .shimmer-green {
+    animation: none !important;
+    opacity: 0;
+  }
 }
-.cookieControl__Bar p,
-.cookieControl__Bar span {
-  color: rgba(167, 243, 208, 0.85) !important;
-}
-.cookieControl__Bar h2,
-.cookieControl__Bar h3,
-.cookieControl__Bar strong {
-  color: #ecfdf5 !important;
-}
-/* tombol: hijau rounded, bukan kotak abu-abu */
-.cookieControl__Bar button {
-  border-radius: 12px !important;
-  font-family: "JetBrains Mono", monospace !important;
-  font-size: 11px !important;
-  font-weight: 700 !important;
-  letter-spacing: 0.08em !important;
-  text-transform: uppercase;
-  padding: 10px 16px !important;
-  transition: all 0.2s;
-}
-.cookieControl__Bar button:hover {
-  transform: translateY(-1px);
-}
-.cookieControl__Bar button:first-of-type {
-  background: linear-gradient(135deg, #10b981 0%, #047857 100%) !important;
-  color: #fff !important;
-  border: 1px solid rgba(16, 185, 129, 0.5) !important;
-}
-.cookieControl__Bar button:first-of-type:hover {
-  background: linear-gradient(135deg, #047857 0%, #065f46 100%) !important;
-}
-/* Sisanya = outline emerald */
-.cookieControl__Bar button:not(:first-of-type) {
-  background: rgba(16, 185, 129, 0.08) !important;
-  color: #a7f3d0 !important;
-  border: 1px solid rgba(16, 185, 129, 0.3) !important;
-}
-.cookieControl__Bar button:not(:first-of-type):hover {
-  background: rgba(16, 185, 129, 0.16) !important;
-}
-/* tombol kontrol mengambang (ikon cookie) */
-.cookieControl__Button {
-  border-radius: 12px !important;
-  background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
-  border: 1px solid rgba(16, 185, 129, 0.4) !important;
+
+/* Inline table inputs (dates in report and payroll cells) do not use .field.
+   Text stays centred, but they need a little breathing room from the border. */
+input:not(.field):not([type="checkbox"]):not([type="radio"]):not(
+    [type="hidden"]
+  ) {
+  padding-inline: 6px;
 }

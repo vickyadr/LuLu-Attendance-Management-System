@@ -15,7 +15,10 @@ pub async fn post_device_cmd(
     body: Bytes,
 ) -> impl Responder {
     let mut data: HashMap<String, String> = HashMap::new();
-    let data_body = String::from_utf8(body.to_vec()).unwrap();
+    // Lossy, not `unwrap`: this route is unauthenticated, so one stray non-UTF-8
+    // byte from any caller would panic the worker instead of parsing the ASCII
+    // device protocol this endpoint actually speaks.
+    let data_body = String::from_utf8_lossy(&body).into_owned();
     let mut cmd_deleted: usize = 0;
 
     log::info!("POST CMD: {:?}", data_body);

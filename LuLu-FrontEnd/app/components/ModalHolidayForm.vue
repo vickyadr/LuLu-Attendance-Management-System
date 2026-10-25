@@ -81,21 +81,21 @@ watch(
 
             <div class="mt-4 space-y-3">
                 <div>
-                    <label for="holiday-date" class="mono text-[10px] tracking-widest text-emerald-700/70">{{
+                    <label for="holiday-date" class="mono text-[10px] tracking-widest text-emerald-700">{{
                         $t('holiday.date') }}</label>
                     <input id="holiday-date" ref="dateInput" v-model="date" type="date"
                         class="mt-1 w-full h-10 rounded-lg border-2 border-emerald-100 bg-white px-3 text-sm text-green-900 focus:outline-none focus:border-emerald-400">
                 </div>
 
                 <div>
-                    <label for="holiday-name" class="mono text-[10px] tracking-widest text-emerald-700/70">{{
+                    <label for="holiday-name" class="mono text-[10px] tracking-widest text-emerald-700">{{
                         $t('holiday.name') }}</label>
                     <input id="holiday-name" v-model="name" type="text" :placeholder="$t('holiday.namePh')"
                         class="mt-1 w-full h-10 rounded-lg border-2 border-emerald-100 bg-white px-3 text-sm text-green-900 focus:outline-none focus:border-emerald-400">
                 </div>
 
                 <div>
-                    <label for="holiday-kind" class="mono text-[10px] tracking-widest text-emerald-700/70">{{
+                    <label for="holiday-kind" class="mono text-[10px] tracking-widest text-emerald-700">{{
                         $t('holiday.kind') }}</label>
                     <select id="holiday-kind" v-model="kind"
                         class="mt-1 w-full h-10 rounded-lg border-2 border-emerald-100 bg-white px-2 text-sm text-green-900 focus:outline-none focus:border-emerald-400">

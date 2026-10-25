@@ -14,7 +14,7 @@
 //   - /user/list returns `UserWithPermissions`: `permissions` is a MAP keyed by
 //     page_key, never an array (models/m_user.rs)
 //   - field renames match the serde attributes (employee `id`/`first_name`,
-//     device `sn`/`h_id`, schedule `type`/`dom`/`parrent`, …)
+//     device `sn`/`h_id`, schedule `type`/`dom`/`parent`, …)
 //   - success/failure messages are the backend's own strings, because the UI
 //     toasts `response.message` verbatim and users.vue matches one of them
 //
@@ -30,7 +30,7 @@
 // instead of reshuffling on every refresh.
 
 /** Page keys, matching the `users` page grid and the route middleware. */
-const PAGE_KEYS = ['dashboard', 'employee', 'shift', 'report', 'controller', 'settings', 'users']
+const PAGE_KEYS = ['dashboard', 'employee', 'shift', 'report', 'controller', 'settings', 'users', 'leave', 'payroll']
 
 /** Day-off sentinel. The backend builds it with COALESCE and drops those rows. */
 const OFF_DAY = 'Libur'
@@ -46,7 +46,7 @@ const DEMO_USERS = [
         user_fname: 'DEMO',
         user_lname: 'USER',
         password: 'demo12345',
-        permissions: { dashboard: 1, employee: 1, shift: 1, report: 1, controller: 1, settings: 1, users: 1 },
+        permissions: { dashboard: 1, employee: 1, shift: 1, report: 1, controller: 1, settings: 1, users: 1, payroll: 1, leave: 1 },
     },
     {
         user_id: 2,
@@ -54,7 +54,7 @@ const DEMO_USERS = [
         user_fname: 'AUDIT',
         user_lname: 'VIEWER',
         password: 'audit12345',
-        permissions: { dashboard: 1, employee: 1, shift: 1, report: 1, controller: 1, settings: 0, users: 0 },
+        permissions: { dashboard: 1, employee: 1, shift: 1, report: 1, controller: 1, settings: 0, users: 0, payroll: 1, leave: 1 },
     },
     {
         user_id: 3,
@@ -62,7 +62,7 @@ const DEMO_USERS = [
         user_fname: 'STAFF',
         user_lname: 'ADMIN',
         password: 'staf12345',
-        permissions: { dashboard: 1, employee: 1, shift: 0, report: 1, controller: 0, settings: 0, users: 0 },
+        permissions: { dashboard: 1, employee: 1, shift: 0, report: 1, controller: 0, settings: 0, users: 0, payroll: 0, leave: 1 },
     },
 ]
 
@@ -93,19 +93,19 @@ const SHIFTS = [
 /**
  * Schedules. `type` is schedule_type: 1 = flat (one shift for every day),
  * 7/14/21/28 = weekly through monthly. `dom` is schedule_dom, the day slot:
- * 1..7 in week 1, 8..14 in week 2, and so on. `parrent` groups the rows of one
+ * 1..7 in week 1, 8..14 in week 2, and so on. `parent` groups the rows of one
  * schedule and equals the parent row's own id.
  *
  * A slot with schedule_shift_id 0 is a day off; the backend COALESCEs its name to
  * 'Libur' and the report drops that day.
  */
 const SCHEDULES = [
-    { id: 1, name: 'Main Office', type: 1, parrent: 1, slots: [{ dom: 1, shift: 1 }] },
-    { id: 13, name: 'Weekly Office', type: 7, parrent: 13, slots: [
+    { id: 1, name: 'Main Office', type: 1, parent: 1, slots: [{ dom: 1, shift: 1 }] },
+    { id: 13, name: 'Weekly Office', type: 7, parent: 13, slots: [
         { dom: 1, shift: 1 }, { dom: 2, shift: 12 }, { dom: 3, shift: 1 },
         { dom: 4, shift: 0 }, { dom: 5, shift: 12 }, { dom: 6, shift: 0 }, { dom: 7, shift: 1 },
     ] },
-    { id: 27, name: 'Monthly Office', type: 28, parrent: 27, slots: [
+    { id: 27, name: 'Monthly Office', type: 28, parent: 27, slots: [
         { dom: 1, shift: 1 }, { dom: 2, shift: 12 }, { dom: 3, shift: 1 }, { dom: 4, shift: 12 },
         { dom: 5, shift: 1 }, { dom: 6, shift: 0 }, { dom: 7, shift: 12 }, { dom: 8, shift: 1 },
         { dom: 9, shift: 0 }, { dom: 10, shift: 12 }, { dom: 11, shift: 1 }, { dom: 12, shift: 12 },
@@ -114,13 +114,13 @@ const SCHEDULES = [
         { dom: 21, shift: 0 }, { dom: 22, shift: 12 }, { dom: 23, shift: 1 }, { dom: 24, shift: 0 },
         { dom: 25, shift: 12 }, { dom: 26, shift: 1 }, { dom: 27, shift: 0 }, { dom: 28, shift: 12 },
     ] },
-    { id: 41, name: 'Night Watch', type: 7, parrent: 41, slots: [
+    { id: 41, name: 'Night Watch', type: 7, parent: 41, slots: [
         { dom: 1, shift: 13 }, { dom: 2, shift: 13 }, { dom: 3, shift: 13 },
         { dom: 4, shift: 13 }, { dom: 5, shift: 13 }, { dom: 6, shift: 13 }, { dom: 7, shift: 13 },
     ] },
 ]
 
-/** Employee seed: [first, last, departement, schedule parrent id, device timezone]. */
+/** Employee seed: [first, last, department, schedule parent id, device timezone]. */
 const EMPLOYEE_SEED = [
     ['Andi', 'Wijaya', 'Riset & Pengembangan', 13, 7],
     ['Sari', 'Dewi', 'Keuangan', 13, 7],
@@ -143,7 +143,7 @@ function buildDb() {
             first_name: e[0],
             last_name: e[1],
             address: `Jl. ${STREETS[i]} No. ${i + 3}, ${CITIES[i]}`,
-            departement: e[2],
+            department: e[2],
             status: i === 5 ? 1 : 0,
             schedule_id: e[3],
             timezone: e[4],
@@ -153,8 +153,138 @@ function buildDb() {
         device: DEVICES.map(d => ({ ...d })),
         user: DEMO_USERS.map(u => ({ ...u })),
         settings: { late_tolerance_sec: 60, overtime_tolerance_sec: 60 },
+        salary: SALARY_SEED.map((row, i) => ({ id: i + 1, ...row })),
+        payslip: PAYSLIP_SEED(),
+        leave: LEAVE_SEED(),
+        absence: ABSENCE_SEED.map((row, i) => ({
+            id: i + 1,
+            employee_id: row.employee_id,
+            absence_date: isoDay(-row.daysAgo),
+            absence_reason: row.absence_reason,
+            status: row.status,
+            notes: null,
+        })),
     }
 }
+
+/**
+ * Salary rules use the BACKEND's formula language (`payroll_expr.rs`); the demo
+ * never evaluates them, but they are shown verbatim in the rules editor and the
+ * CSV export, so the seed keeps realistic formulas.
+ */
+const SALARY_SEED = [
+    {
+        employee_id: 1, salary_type: 'monthly', monthly_rate: 5000000, daily_salary: 165000, hourly_rate: 24000,
+        effective_date: '2026-08-01',
+        rules_json: [
+            { name: 'Gaji Pokok', function: 'monthly_rate', parameter: 'monthly_rate', add: true, deduct: false, daily: false },
+            { name: 'Absen', function: 'salary-100000', parameter: 'salary-100000', add: false, deduct: true, daily: true },
+            { name: 'Telat', function: 'if(late>=15; 15000; 0)', parameter: 'if(late>=15; 15000; 0)', add: false, deduct: true, daily: true },
+            { name: 'Lembur', function: 'floor(overtime/60) * hourly_rate', parameter: 'floor(overtime/60) * hourly_rate', add: true, deduct: false, daily: true },
+            { name: 'Tax', function: 'if(salary>=5500000; salary-(salary*11/100); 0)', parameter: 'if(salary>=5500000; salary-(salary*11/100); 0)', add: false, deduct: true, daily: false },
+        ],
+    },
+    {
+        employee_id: 2, salary_type: 'monthly', monthly_rate: 3000000, daily_salary: 100000, hourly_rate: 15000,
+        effective_date: '2026-09-01',
+        rules_json: [
+            { name: 'Gaji Pokok', function: 'monthly_rate', parameter: 'monthly_rate', add: true, deduct: false, daily: false },
+            { name: 'Absen', function: 'salary-100000', parameter: 'salary-100000', add: false, deduct: true, daily: true },
+        ],
+    },
+    {
+        employee_id: 3, salary_type: 'daily', monthly_rate: 0, daily_salary: 120000, hourly_rate: 18000,
+        effective_date: '2026-10-01',
+        rules_json: [
+            { name: 'Gaji Harian', function: 'present * daily_rate', parameter: 'present * daily_rate', add: true, deduct: false, daily: true },
+            { name: 'Lembur', function: 'floor(overtime/60) * hourly_rate', parameter: 'floor(overtime/60) * hourly_rate', add: true, deduct: false, daily: true },
+        ],
+    },
+    {
+        employee_id: 4, salary_type: 'monthly', monthly_rate: 4000000, daily_salary: 130000, hourly_rate: 20000,
+        effective_date: '2026-07-01',
+        rules_json: [
+            { name: 'Gaji Pokok', function: 'monthly_rate', parameter: 'monthly_rate', add: true, deduct: false, daily: false },
+            { name: 'Sakit', function: 'salary-50000', parameter: 'salary-50000', add: false, deduct: true, daily: true },
+        ],
+    },
+]
+
+/**
+ * Two payslips for the previous calendar month, so the Payslips tab is not empty
+ * on a fresh visit. Amounts follow the same rule as generate: monthly rate with
+ * 11% withholding when the salary carries a Tax rule.
+ */
+function PAYSLIP_SEED() {
+    const now = new Date()
+    const first = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1))
+    const last = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 0))
+    const period_start = first.toISOString().slice(0, 10)
+    const period_end = last.toISOString().slice(0, 10)
+    return SALARY_SEED.slice(0, 2).map((salary, i) => {
+        const base = salary.salary_type === 'daily' ? salary.daily_salary * 22 : salary.monthly_rate
+        const taxed = (salary.rules_json || []).some(r => String(r.name).toLowerCase().includes('tax'))
+        const deductions = taxed ? Math.round(base * 0.11) : 0
+        const employee = EMPLOYEE_SEED[salary.employee_id - 1]
+        return {
+            id: `demo-slip-seed-${salary.employee_id}`,
+            employee_id: salary.employee_id,
+            employee_name: employee ? `${employee[0]} ${employee[1]}` : null,
+            department: employee?.[2] ?? null,
+            period_start,
+            period_end,
+            regular_days_pay: base,
+            ot_pay: 0,
+            holiday_premium_pay: 0,
+            paid_leave_pay: 0,
+            thr_amount: 0,
+            gross_salary: base,
+            bpjs_kes_employee: 0,
+            bpjs_jht_employee: 0,
+            bpjs_jp_employee: 0,
+            pph_21_withholding: deductions,
+            total_deductions: deductions,
+            net_salary: base - deductions,
+            status: i === 0 ? 'draft' : 'locked',
+            created_at: new Date().toISOString(),
+        }
+    })
+}
+
+/**
+ * Leave requests: one approved (already reflected in the report), two pending so
+ * the approve/reject path has something to act on.
+ */
+function LEAVE_SEED() {
+    const rows = [
+        { employee_id: 1, day: isoDay(-9), kind: 'cuti', reason: 'Family trip', status: 'approved' },
+        { employee_id: 2, day: isoDay(-1), kind: 'sakit', reason: 'Fever', status: 'pending' },
+        { employee_id: 3, day: isoDay(1), kind: 'izin', reason: 'Bank appointment', status: 'pending' },
+    ]
+    return rows.map((row, i) => {
+        const employee = EMPLOYEE_SEED[row.employee_id - 1]
+        return {
+            leave_id: i + 1,
+            leave_employee_id: row.employee_id,
+            leave_date: row.day,
+            leave_kind: row.kind,
+            leave_reason: row.reason,
+            leave_status: row.status,
+            leave_source: 'manual',
+            request_by: 'demo',
+            decided_by: row.status === 'approved' ? 'demo' : '',
+            employee_fname: employee?.[0] ?? '',
+            employee_lname: employee?.[1] ?? '',
+        }
+    })
+}
+
+/** A couple of missed-punch rows so the Absences tab has something to approve. */
+const ABSENCE_SEED = [
+    { employee_id: 2, daysAgo: 2, absence_reason: 'no_punch_in', status: 'pending_verification' },
+    { employee_id: 5, daysAgo: 1, absence_reason: 'no_punch_out', status: 'pending_verification' },
+    { employee_id: 3, daysAgo: 4, absence_reason: 'no_punch_in', status: 'approved' },
+]
 
 let DB = buildDb()
 
@@ -222,6 +352,12 @@ function tsWeek(ts, tz) {
  * put the same row on screen twice - once because the store's array grew, once
  * because the component also pushed the row the add call returned.
  */
+function pageRows(rows, params) {
+    const limit = Number(params.get('limit') || 50)
+    const offset = Number(params.get('offset') || 0)
+    return rows.slice(offset, offset + limit)
+}
+
 function listOk(data, message = 'OK') {
     return { message, data: clone(data), code: 200 }
 }
@@ -243,8 +379,11 @@ function noDataOk(message) {
 }
 
 /** NoDataResponse::new - a failure carrying a real HTTP status. */
-function fail(code, message, data) {
-    return { message, data: clone(data ?? []), code }
+function fail(code, message, data, errorKey) {
+    const envelope = { message, data: clone(data ?? []), code }
+    // Same contract as NoDataResponse::coded: the key lets apiFetch localize it.
+    if (errorKey) envelope.error = errorKey
+    return envelope
 }
 
 // ── schedule lookup (mirrors h_report.rs get_shift_for_date) ─────────────
@@ -254,22 +393,22 @@ function fail(code, message, data) {
  *
  * Ids follow the live DB's convention (verified against `schedules`): the FIRST
  * row of a schedule shares the parent's id, and child rows get their own ids.
- * ListSchedule.vue finds parents with `item.parrent === item.id`, so a schedule
- * whose parent row id differs from its `parrent` silently vanishes from the list.
+ * ListSchedule.vue finds parents with `item.parent === item.id`, so a schedule
+ * whose parent row id differs from its `parent` silently vanishes from the list.
  * /schedule/edit updates by primary key, so ids must stay unique and stable.
  */
 function scheduleRows() {
     const rows = []
-    // Ids are handed out sequentially but start above every parrent value, so a
+    // Ids are handed out sequentially but start above every parent value, so a
     // child's id can never collide with another schedule's parent id.
-    let nextId = DB.schedule.reduce((m, s) => Math.max(m, s.parrent), 0) + 1
+    let nextId = DB.schedule.reduce((m, s) => Math.max(m, s.parent), 0) + 1
 
     for (const sch of DB.schedule) {
-        const isParentRow = rows.length === 0 || rows[rows.length - 1].parrent !== sch.parrent
+        const isParentRow = rows.length === 0 || rows[rows.length - 1].parent !== sch.parent
         sch.slots.forEach((slot, index) => {
             const shift = DB.shift.find(s => s.id === slot.shift)
             const isOff = slot.shift === 0 || !shift
-            const id = index === 0 && isParentRow ? sch.parrent : nextId++
+            const id = index === 0 && isParentRow ? sch.parent : nextId++
             rows.push({
                 id,
                 name: sch.name,
@@ -280,7 +419,7 @@ function scheduleRows() {
                 end: isOff ? 0 : shift.end_time,
                 type: sch.type,
                 dom: slot.dom,
-                parrent: sch.parrent,
+                parent: sch.parent,
             })
         })
     }
@@ -294,7 +433,7 @@ function scheduleRows() {
  * schedule_dom key. A slot that resolves to a day off returns null.
  */
 function shiftForDate(dayTs, employee) {
-    const sch = DB.schedule.find(s => s.parrent === Number(employee.schedule_id))
+    const sch = DB.schedule.find(s => s.parent === Number(employee.schedule_id))
     if (!sch) return null
 
     const pattern = sch.type < 7 ? 1 : Math.floor(sch.type / 7)
@@ -417,7 +556,7 @@ function buildReportRow(employee, dayTs) {
         id: employee.id,
         first_name: employee.first_name,
         last_name: employee.last_name,
-        departement: employee.departement,
+        department: employee.department,
         enroll_dow: dow + week * 7,
         date: dayTs,
         tz: employee.timezone,
@@ -468,7 +607,7 @@ function transactionLive() {
             enroll_type: 1 + Math.floor(seeded(now + i * 71) * 5),
             location: device.location,
             tz: employee.timezone,
-            departement: employee.departement,
+            department: employee.department,
             status: seeded(now + i * 97) < 0.9 ? 1 : 0,
             employee_id: employee.id,
         })
@@ -602,15 +741,37 @@ function loginUser(token) {
 
 // ── handlers: employee ──────────────────────────────────────────────────
 
-const employeeList = gated('employee', 'View', () => {
-    // `timezone` is mock-only state: the employee row has no such column.
-    return listOk(DB.employee.map(({ timezone, ...rest }) => rest), 'ok')
+const employeeList = gated('employee', 'View', (token, url) => {
+    const params = new URLSearchParams(String(url).split('?')[1] || '')
+    const q = (params.get('q') || '').trim().toLowerCase()
+    const department = params.get('department') || ''
+    const status = params.get('status')
+    let rows = DB.employee.filter(e => {
+        if (q) {
+            const hay = `${e.first_name || ''} ${e.last_name || ''} ${e.department || ''} ${e.address || ''}`.toLowerCase()
+            if (!hay.includes(q)) return false
+        }
+        if (department && e.department !== department) return false
+        if (status !== null && String(e.status) !== String(status)) return false
+        return true
+    })
+    const total = rows.length
+    const all = DB.employee
+    const meta = {
+        items: rows.map(({ timezone, ...rest }) => rest),
+        total,
+        all_total: all.length,
+        active: all.filter(e => String(e.status) === '0').length,
+        inactive: all.filter(e => String(e.status) !== '0').length,
+        departments: [...new Set(all.map(e => e.department).filter(Boolean))].sort(),
+    }
+    return listOk([meta], 'ok')
 })
 
 const employeeAdd = gated('employee', 'Add', (token, url, method, body) => {
     const errors = {}
     if (!body?.first_name) errors.first_name = 'Field required'
-    if (!body?.departement) errors.departement = 'Field required'
+    if (!body?.department) errors.department = 'Field required'
     if (!body?.address) errors.address = 'Field required'
     if (Object.keys(errors).length > 0) return fail(403, 'There was an error while adding employee', errors)
 
@@ -625,7 +786,7 @@ const employeeAdd = gated('employee', 'Add', (token, url, method, body) => {
         first_name: body.first_name,
         last_name: body.last_name ?? null,
         address: body.address ?? '',
-        departement: body.departement,
+        department: body.department,
         status: Number(body.status) || 0,
         schedule_id: Number(body.schedule_id) || 0,
         timezone: 7,
@@ -647,7 +808,7 @@ const employeeEdit = gated('employee', 'Edit', (token, url, method, body) => {
     row.first_name = body.first_name
     row.last_name = body.last_name ?? null
     row.address = body.address ?? ''
-    row.departement = body.departement
+    row.department = body.department
     row.status = Number(body.status) || 0
     row.schedule_id = Number(body.schedule_id) || 0
 
@@ -767,13 +928,13 @@ const scheduleAdd = gated('shift', 'Add', (token, url, method, body) => {
 
     // Legacy flat patterns (0/2/3/4) are normalised to the canonical schedule_type.
     const scheduleType = { 0: 1, 1: 1, 7: 7, 14: 14, 21: 21, 28: 28, 2: 14, 3: 21, 4: 28 }[body.pattern] ?? 1
-    const parrent = DB.schedule.reduce((m, s) => Math.max(m, s.parrent), 0) + 1
+    const parent = DB.schedule.reduce((m, s) => Math.max(m, s.parent), 0) + 1
 
     DB.schedule.push({
-        id: parrent,
+        id: parent,
         name: String(body.name),
         type: scheduleType,
-        parrent,
+        parent,
         slots: shifts.map((shiftId, i) => ({ dom: i + 1, shift: Number(shiftId) || 0 })),
     })
 
@@ -804,7 +965,7 @@ const scheduleEdit = gated('shift', 'Edit', (token, url, method, body) => {
     const row = scheduleRows().find(r => r.id === Number(body.id))
     if (!row) return fail(404, 'Jadwal tidak ditemukan', [])
 
-    const sch = DB.schedule.find(s => s.parrent === row.parrent)
+    const sch = DB.schedule.find(s => s.parent === row.parent)
     const slot = sch?.slots.find(s => s.dom === row.dom)
     if (!slot) return fail(404, 'Jadwal tidak ditemukan', [])
     slot.shift = newShift
@@ -815,7 +976,7 @@ const scheduleEdit = gated('shift', 'Edit', (token, url, method, body) => {
 const scheduleDelete = gated('shift', 'Delete', (token, url) => {
     const id = Number(routeId(url))
     const before = DB.schedule.length
-    DB.schedule = DB.schedule.filter(s => s.parrent !== id)
+    DB.schedule = DB.schedule.filter(s => s.parent !== id)
     return before === DB.schedule.length
         ? fail(404, 'Schedule not found', [])
         : noDataOk('Schedule deleted !!!')
@@ -1088,6 +1249,553 @@ function userPermissionsList(token) {
     return listOk(rows, 'OK')
 }
 
+// ── payroll (ports of h_payroll.rs / payroll_api.rs) ───────────────────
+
+/** Id of an `.../{id}/action` route: the segment before the trailing verb. */
+function idBeforeAction(url) {
+    const parts = routeOf(url).split('/')
+    return parts[parts.length - 2]
+}
+
+/** `First Last` for an employee id, or `#id` when it is not in the demo roster. */
+function employeeLabel(id) {
+    const e = DB.employee.find(x => x.id === Number(id))
+    return e ? `${e.first_name} ${e.last_name || ''}`.trim() : `#${id}`
+}
+
+/** `YYYY-MM-DD` for a day offset from today, the shape the DB date columns use. */
+function isoDay(dayOffset = 0) {
+    const d = new Date(Date.now() + dayOffset * 86400_000)
+    return d.toISOString().slice(0, 10)
+}
+
+/** Same ordering as the backend list query: employee asc, effective date desc. */
+function salaryRows() {
+    return [...DB.salary].sort((a, b) =>
+        a.employee_id - b.employee_id || String(b.effective_date).localeCompare(String(a.effective_date)))
+}
+
+const salaryList = gated('payroll', 'View', () => listOk(salaryRows(), 'Salaries retrieved'))
+
+const salaryGet = gated('payroll', 'View', (token, url) => {
+    const employeeId = Number(routeId(url))
+    const row = salaryRows().find(r => r.employee_id === employeeId)
+    if (!row) return fail(404, 'Salary not found', [])
+    return listOk([row], 'Salary retrieved')
+})
+
+/** Variables `payroll_expr.rs` accepts; anything else fails validation. */
+const PAYROLL_VARS = ['overtime', 'absent', 'present', 'salary', 'monthly_rate', 'daily_rate',
+    'hourly_rate', 'late', 'late_time', 'late_day', 'sick', 'permission', 'dow', 'hols']
+const PAYROLL_FUNCS = ['if', 'iif', 'or', 'and', 'floor', 'ceiling', 'ceil']
+
+/** Split one CSV line on commas, honouring "quoted, cells" and "" escapes. */
+function csvCells(line) {
+    const cells = []
+    let cell = ''
+    let quoted = false
+    for (let i = 0; i < line.length; i++) {
+        const ch = line[i]
+        if (quoted) {
+            if (ch === '"' && line[i + 1] === '"') { cell += '"'; i++ }
+            else if (ch === '"') quoted = false
+            else cell += ch
+        } else if (ch === '"') quoted = true
+        else if (ch === ',') { cells.push(cell.trim()); cell = '' }
+        else cell += ch
+    }
+    cells.push(cell.trim())
+    return cells
+}
+
+/**
+ * Same shapes `parse_effective_date` accepts in the backend, including the
+ * `11/01/26` an Excel round-trip produces. Returns YYYY-MM-DD or null, and
+ * validates the calendar (31/02 is not a date).
+ */
+function csvDate(raw) {
+    const s = String(raw || '').trim().replace(/-/g, '/')
+    const parts = s.split('/')
+    if (parts.length !== 3) return null
+    let year, month, day
+    if (parts[0].length === 4) {
+        [year, month, day] = [Number(parts[0]), Number(parts[1]), Number(parts[2])]
+    } else {
+        year = Number(parts[2])
+        if (parts[2].length <= 2) year += year < 70 ? 2000 : 1900
+        month = Number(parts[1])
+        day = Number(parts[0])
+    }
+    if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) return null
+    const d = new Date(Date.UTC(year, month - 1, day))
+    if (d.getUTCFullYear() !== year || d.getUTCMonth() !== month - 1 || d.getUTCDate() !== day) return null
+    return d.toISOString().slice(0, 10)
+}
+
+/** Cheap static check: identifiers exist, parens balance, no doubled operators. */
+function formulaError(formula) {
+    const text = String(formula || '').trim()
+    if (!text) return 'formula is empty'
+    const ident = text.match(/[A-Za-z_][A-Za-z0-9_]*/g) || []
+    const unknown = [...new Set(ident)].filter(v => !PAYROLL_VARS.includes(v) && !PAYROLL_FUNCS.includes(v))
+    if (unknown.length) return `unknown vars: ${unknown.join(', ')}`
+    let depth = 0
+    for (const ch of text) {
+        if (ch === '(') depth++
+        else if (ch === ')') { depth--; if (depth < 0) return 'bad formula: unbalanced parentheses' }
+    }
+    if (depth !== 0) return 'bad formula: unbalanced parentheses'
+    if (/[+\-*/%]\s*[*/%]/.test(text) || /[+\-*/%]\s*$/.test(text)) {
+        return 'bad formula: expected a number, variable, or \'(\''
+    }
+    return null
+}
+
+/** Structural checks shared by import and by the rules editor. */
+function ruleError(rule) {
+    if (!String(rule?.name || '').trim()) return 'name is empty'
+    const formula = String(rule?.parameter ?? rule?.function ?? '')
+    if (!formula.trim()) return 'function is empty'
+    if (!!rule?.add === !!rule?.deduct) return 'exactly one of add/deduct must be true'
+    return formulaError(formula)
+}
+
+/** Parse the flat EM/RL file into employee blocks, collecting row errors. */
+function parseImportCsv(text) {
+    const errors = []
+    const blocks = []
+    const lines = String(text).replace(/^\uFEFF/, '').split(/\r?\n/)
+    let current = null
+    let sawEm = false
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i]
+        if (!line.trim()) continue
+        if (i === 0) continue // column header
+        const cells = csvCells(line)
+        const rowNo = i + 1
+        if (cells.length > 8) {
+            errors.push({ row: rowNo, reason: `expected at most 8 columns, found ${cells.length}` })
+            current = null
+            continue
+        }
+        const kind = (cells[0] || '').toUpperCase()
+
+        if (kind === 'EM') {
+            sawEm = true
+            const id = cells[1] || ''
+            if (!/^\d+$/.test(id)) {
+                errors.push({ row: rowNo, reason: `employee ID '${id}' is not an integer` })
+                current = null
+                continue
+            }
+            // The backend rejects a present-but-blank cell; only a SHORT row can
+            // default, and flexible parsing makes those rare.
+            const type = (cells[2] || '').toUpperCase()
+            if (type !== 'MONTHLY' && type !== 'DAILY') {
+                errors.push({ row: rowNo, employee_id: Number(id), reason: `salary type must be MONTHLY or DAILY, got '${type}'` })
+                current = null
+                continue
+            }
+            const effective = csvDate(cells[3])
+            if (!effective) {
+                errors.push({ row: rowNo, employee_id: Number(id), reason: `effective date '${cells[3] || ''}' is not a valid date` })
+                current = null
+                continue
+            }
+            const rates = [cells[5], cells[6], cells[7]].map(v => (v || '').trim())
+            const badRate = rates.find(v => v !== '' && !/^-?\d+$/.test(v))
+            if (badRate !== undefined) {
+                errors.push({ row: rowNo, employee_id: Number(id), reason: `rate '${badRate}' is not a number` })
+                current = null
+                continue
+            }
+            const [monthly, daily, hourly] = rates.map(v => Number(v || 0))
+            if (monthly < 0 || daily < 0 || hourly < 0) {
+                errors.push({ row: rowNo, employee_id: Number(id), reason: 'salary amounts must be >= 0' })
+                current = null
+                continue
+            }
+            current = {
+                row: rowNo,
+                employee_id: Number(id),
+                salary_type: type === 'DAILY' ? 'daily' : 'monthly',
+                monthly_rate: monthly,
+                daily_salary: daily,
+                hourly_rate: hourly,
+                effective_date: effective,
+                rules_json: [],
+            }
+            blocks.push(current)
+            continue
+        }
+
+        if (kind !== 'RL') continue
+        const name = cells[1] || ''
+        const ruleType = (cells[2] || '').toUpperCase()
+        if (name.toUpperCase() === 'RULE_NAME' || ruleType === 'RULE_TYPE') continue // second header
+        if (!current) {
+            // A rejected EM row carries its own error; only a file with no EM row
+            // at all reports the orphan.
+            if (!sawEm) errors.push({ row: rowNo, reason: 'RL row has no preceding EM row' })
+            continue
+        }
+        if (ruleType !== 'ADD' && ruleType !== 'SUB') {
+            errors.push({ row: rowNo, rule: name, reason: `rule type must be ADD or SUB, got '${ruleType}'` })
+            continue
+        }
+        const formula = cells[3] || ''
+        const bad = ruleError({ name, parameter: formula, add: ruleType === 'ADD', deduct: ruleType === 'SUB' })
+        if (bad) {
+            errors.push({ row: rowNo, rule: name, reason: bad })
+            continue
+        }
+        current.rules_json.push({
+            name,
+            function: formula,
+            parameter: formula,
+            add: ruleType === 'ADD',
+            deduct: ruleType === 'SUB',
+            daily: (cells[4] || '0').trim() === '1',
+        })
+    }
+    return { errors, blocks }
+}
+
+const salaryAssign = gated('payroll', 'Add', (token, url, method, body) => {
+    if (body?.salary_type !== 'monthly' && body?.salary_type !== 'daily') {
+        return fail(400, 'salary_type must be monthly or daily', [])
+    }
+    if ([body.monthly_rate, body.daily_salary, body.hourly_rate].some(v => Number(v) < 0)) {
+        return fail(400, 'salary amounts must be >= 0', [])
+    }
+    const effective = String(body.effective_date || '').slice(0, 10)
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(effective)) return fail(400, 'effective_date is required', [])
+    // The backend relies on the unique (employee, date) constraint: a second row
+    // for the same date is a 409, not a silent overwrite.
+    const clash = DB.salary.find(r => r.employee_id === Number(body.employee_id) && r.effective_date === effective)
+    if (clash) {
+        return fail(409, 'Salary for this effective date already exists. Use a newer date or delete the row first.', [], 'payroll.salaryDateExists')
+    }
+    const id = DB.salary.reduce((m, r) => Math.max(m, r.id), 0) + 1
+    const row = {
+        id,
+        employee_id: Number(body.employee_id),
+        salary_type: body.salary_type,
+        monthly_rate: Number(body.monthly_rate || 0),
+        daily_salary: Number(body.daily_salary || 0),
+        hourly_rate: Number(body.hourly_rate || 0),
+        effective_date: effective,
+        rules_json: body.rules_json ?? [],
+    }
+    DB.salary.push(row)
+    return listOk([row], 'Salary assigned')
+})
+
+const salaryUpdateRules = gated('payroll', 'Edit', (token, url, method, body) => {
+    const id = Number(idBeforeAction(url))
+    const row = DB.salary.find(r => r.id === id)
+    if (!row) return fail(404, 'Salary not found', [])
+    const rules = body?.rules_json ?? []
+    for (const [i, rule] of rules.entries()) {
+        const bad = ruleError(rule)
+        if (bad) return fail(400, `rules_json[${i}]: ${bad}`, [])
+    }
+    row.rules_json = rules
+    return listOk([row], 'Salary rules updated')
+})
+
+const salaryDelete = gated('payroll', 'Delete', (token, url) => {
+    const id = Number(routeId(url))
+    const before = DB.salary.length
+    DB.salary = DB.salary.filter(r => r.id !== id)
+    if (DB.salary.length === before) return fail(404, 'Salary not found', [])
+    return noDataOk('Salary deleted')
+})
+
+const salaryImport = gated('payroll', 'Add', (token, url, method, body) => {
+    const text = body?.csv
+    if (!text) return fail(400, "Missing 'csv' field", [])
+    if (String(text).length > 1024 * 1024) return fail(400, 'CSV is larger than 1 MiB', [])
+    if (String(text).split(/\r?\n/).length > 5000) return fail(400, 'CSV has more than 5000 rows', [])
+
+    const { errors, blocks } = parseImportCsv(text)
+    if (errors.length) return fail(400, 'Import validation failed', { errors }, 'payroll.importInvalid')
+
+    // Unknown employees reject the whole file, same as the backend.
+    for (const block of blocks) {
+        if (!DB.employee.some(e => e.id === block.employee_id)) {
+            errors.push({ row: block.row, employee_id: block.employee_id, reason: `employee ${block.employee_id} does not exist` })
+        }
+    }
+    if (errors.length) return fail(400, 'Import validation failed', { errors }, 'payroll.importInvalid')
+
+    const duplicates = blocks
+        .filter(b => DB.salary.some(r => r.employee_id === b.employee_id && r.effective_date === b.effective_date))
+        .map(b => ({
+            id: b.employee_id,
+            name: employeeLabel(b.employee_id),
+            effective_date: b.effective_date,
+        }))
+
+    if (!body.confirm && duplicates.length) {
+        return {
+            message: 'Confirm replace',
+            data: { needs_confirm: true, duplicates, missing: [] },
+            code: 200,
+        }
+    }
+
+    // Apply, mirroring the backend: delete the row for that employee+date, insert
+    // the imported one. The table must actually change, or the demo lies.
+    let importedEmployees = 0
+    let importedRules = 0
+    for (const block of blocks) {
+        DB.salary = DB.salary.filter(r => !(r.employee_id === block.employee_id && r.effective_date === block.effective_date))
+        const id = DB.salary.reduce((m, r) => Math.max(m, r.id), 0) + 1
+        DB.salary.push({
+            id,
+            employee_id: block.employee_id,
+            salary_type: block.salary_type,
+            monthly_rate: block.monthly_rate,
+            daily_salary: block.daily_salary,
+            hourly_rate: block.hourly_rate,
+            effective_date: block.effective_date,
+            rules_json: block.rules_json,
+        })
+        importedEmployees++
+        importedRules += block.rules_json.length
+    }
+
+    return {
+        message: `Imported ${importedEmployees} employees, ${importedRules} rules`,
+        data: {
+            needs_confirm: false,
+            imported_employees: importedEmployees,
+            imported_rules: importedRules,
+            missing: [],
+            duplicates_replaced: duplicates.length,
+        },
+        code: 200,
+    }
+})
+
+const payslipList = gated('payroll', 'View', (token, url) => {
+    const query = String(url).split('?')[1] || ''
+    const params = new URLSearchParams(query)
+    const from = params.get('period_start')
+    const to = params.get('period_end')
+    // Overlap, not containment: a window inside a payslip period still matches.
+    const rows = DB.payslip.filter(p => (!from || p.period_end >= from) && (!to || p.period_start <= to))
+    if (!params.get('limit')) return listOk(rows, 'Payslips retrieved')
+    return listOk([{ items: pageRows(rows, params), total: rows.length }], 'Payslips retrieved')
+})
+
+const payslipGenerate = gated('payroll', 'Add', (token, url, method, body) => {
+    const start = String(body?.period_start || '').slice(0, 10)
+    const end = String(body?.period_end || '').slice(0, 10)
+    if (!start || !end) return fail(400, 'period_start and period_end are required', [])
+    if (start > end) return fail(400, 'period_start must be before period_end', [])
+
+    const scopeEmployee = body?.employee_id ? Number(body.employee_id) : null
+    const scopeDept = body?.department || null
+    const targets = salaryRows().filter(r => {
+        if (scopeEmployee && r.employee_id !== scopeEmployee) return false
+        if (scopeDept) {
+            const emp = DB.employee.find(e => e.id === r.employee_id)
+            if (!emp || emp.department !== scopeDept) return false
+        }
+        return true
+    })
+    if (!targets.length) return fail(400, 'No employee salary found for this period', [])
+
+    const created = []
+    for (const salary of targets) {
+        const exists = DB.payslip.find(p => p.employee_id === salary.employee_id && p.period_start === start && p.period_end === end)
+        if (exists) continue
+        // Deterministic money: base from the rates, 11% tax when a Tax rule exists.
+        const base = salary.salary_type === 'daily' ? salary.daily_salary * 22 : salary.monthly_rate
+        const taxed = (salary.rules_json || []).some(r => String(r.name).toLowerCase().includes('tax'))
+        const deductions = taxed ? Math.round(base * 0.11) : 0
+        const emp = DB.employee.find(e => e.id === salary.employee_id)
+        const row = {
+            id: `demo-slip-${salary.employee_id}-${start}`,
+            employee_id: salary.employee_id,
+            employee_name: emp ? `${emp.first_name} ${emp.last_name}` : null,
+            department: emp?.department ?? null,
+            period_start: start,
+            period_end: end,
+            regular_days_pay: base,
+            ot_pay: 0,
+            holiday_premium_pay: 0,
+            paid_leave_pay: 0,
+            thr_amount: 0,
+            gross_salary: base,
+            bpjs_kes_employee: 0,
+            bpjs_jht_employee: 0,
+            bpjs_jp_employee: 0,
+            pph_21_withholding: deductions,
+            total_deductions: deductions,
+            net_salary: base - deductions,
+            status: 'draft',
+            created_at: new Date().toISOString(),
+        }
+        DB.payslip.push(row)
+        created.push(row)
+    }
+    if (!created.length) return fail(409, 'Payslips for this period already exist', [])
+    // The real handler answers 201, and payroll.vue branches on it.
+    return { message: `Generated ${created.length} payslips`, data: created, code: 201 }
+})
+
+const payslipGet = gated('payroll', 'View', (token, url) => {
+    const id = routeId(url)
+    const row = DB.payslip.find(p => String(p.id) === String(id))
+    if (!row) return fail(404, 'Payslip not found', [])
+    return listOk([{ ...row, lines: [] }], 'Payslip retrieved')
+})
+
+const payslipLock = gated('payroll', 'Edit', (token, url) => {
+    const id = idBeforeAction(url)
+    const row = DB.payslip.find(p => String(p.id) === String(id))
+    if (!row) return fail(404, 'Payslip not found', [])
+    if (row.status === 'locked') return fail(409, 'Cannot lock payslip in locked state', [])
+    row.status = 'locked'
+    return listOk([row], 'Payslip locked')
+})
+
+const payslipDelete = gated('payroll', 'Delete', (token, url) => {
+    const id = routeId(url)
+    const row = DB.payslip.find(p => String(p.id) === String(id))
+    if (!row) return fail(404, 'Payslip not found', [])
+    if (row.status === 'locked') return fail(409, 'Locked payslip cannot be deleted', [], 'payroll.lockedDelete')
+    DB.payslip = DB.payslip.filter(p => p !== row)
+    return noDataOk('Payslip deleted')
+})
+
+const payslipDeleteDrafts = gated('payroll', 'Delete', (token, url, method, body) => {
+    const ids = (body?.ids || []).map(String)
+    const removed = []
+    DB.payslip = DB.payslip.filter(p => {
+        if (!ids.includes(String(p.id))) return true
+        if (p.status === 'locked') return true // server skips locked rows
+        removed.push(p.id)
+        return false
+    })
+    return listOk(removed, `Deleted ${removed.length} draft payslips`)
+})
+
+const absenceList = gated('payroll', 'View', (token, url) => {
+    const query = String(url).split('?')[1] || ''
+    const params = new URLSearchParams(query)
+    const status = params.get('status')
+    const employeeId = params.get('employee_id') ? Number(params.get('employee_id')) : null
+    const rows = DB.absence.filter(a => (!status || a.status === status) &&
+        (!employeeId || Number(a.employee_id) === employeeId))
+    if (!params.get('limit')) return listOk(rows, 'Daily absences retrieved')
+    return listOk([{ items: pageRows(rows, params), total: rows.length }], 'Daily absences retrieved')
+})
+
+const absenceDecision = (nextStatus) => gated('payroll', 'Edit', (token, url, method, body) => {
+    const id = Number(idBeforeAction(url))
+    const row = DB.absence.find(a => a.id === id)
+    if (!row) return fail(404, 'Absence not found', [])
+    // The backend refuses a second decision on an already-decided absence.
+    if (row.status !== 'pending_verification') {
+        return fail(409, `Cannot ${nextStatus === 'approved' ? 'approve' : 'reject'} daily absence in ${row.status} state`, [])
+    }
+    row.status = nextStatus
+    row.notes = body?.notes ?? null
+    return listOk([row], `Absence ${nextStatus}`)
+})
+
+// ── leave (port of h_leave.rs) ─────────────────────────────────────────
+
+const leaveList = gated('leave', 'View', (token, url) => {
+    const params = new URLSearchParams(String(url).split('?')[1] || '')
+    const from = params.get('from')
+    const to = params.get('to')
+    const employeeId = params.get('employee_id') ? Number(params.get('employee_id')) : null
+    const q = (params.get('q') || '').trim().toLowerCase()
+    const status = params.get('status')
+    let rows = DB.leave
+        .filter(r => (!from || r.leave_date >= from) && (!to || r.leave_date <= to) &&
+            (!employeeId || r.leave_employee_id === employeeId) &&
+            (!status || r.leave_status === status))
+        .sort((a, b) => String(b.leave_date).localeCompare(String(a.leave_date)) || b.leave_id - a.leave_id)
+    if (q) {
+        rows = rows.filter(r => `${r.employee_fname || ''} ${r.employee_lname || ''}`.toLowerCase().includes(q))
+    }
+    const countOf = (state) => rows.filter(r => r.leave_status === state).length
+    const counts = { pending: countOf('pending'), approved: countOf('approved'), rejected: countOf('rejected') }
+    const total = rows.length
+    return listOk([{ items: pageRows(rows, params), total, ...counts }], 'OK')
+})
+
+const leaveEmployeeOptions = gated('leave', 'View', () => listOk(
+    DB.employee.map(e => ({ id: e.id, first_name: e.first_name, last_name: e.last_name, department: e.department })),
+    'OK'))
+
+/** The backend upserts on (employee, date): re-submitting a day resets it to pending. */
+const leaveEdit = gated('leave', 'Add', (token, url, method, body) => {
+    const employeeId = Number(body?.leave_employee_id || 0)
+    const date = String(body?.leave_date || '').slice(0, 10)
+    if (!employeeId || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        return fail(400, 'employee and date are required', [])
+    }
+    const employee = DB.employee.find(e => e.id === employeeId)
+    if (!employee) return fail(404, 'Employee not found', [])
+
+    const existing = DB.leave.find(r => r.leave_employee_id === employeeId && r.leave_date === date)
+    if (existing) {
+        // Same guard as the backend: a decided row is a decision record.
+        if (existing.leave_status !== 'pending') {
+            return fail(409, 'Decided requests cannot be changed', [], 'leave.decidedLocked')
+        }
+        existing.leave_kind = body?.leave_kind || existing.leave_kind
+        existing.leave_reason = body?.leave_reason ?? existing.leave_reason
+        existing.leave_status = 'pending'
+        existing.decided_by = ''
+        return listOk([existing], 'Leave request saved')
+    }
+    const row = {
+        leave_id: DB.leave.reduce((m, r) => Math.max(m, r.leave_id), 0) + 1,
+        leave_employee_id: employeeId,
+        leave_date: date,
+        leave_kind: body?.leave_kind || 'izin',
+        leave_reason: body?.leave_reason || '',
+        leave_status: 'pending',
+        leave_source: 'manual',
+        request_by: 'demo',
+        decided_by: '',
+        employee_fname: employee.first_name,
+        employee_lname: employee.last_name,
+    }
+    DB.leave.push(row)
+    return listOk([row], 'Leave request saved')
+})
+
+const leaveDecision = gated('leave', 'Edit', (token, url, method, body) => {
+    const row = DB.leave.find(r => r.leave_id === Number(body?.leave_id))
+    if (!row) return fail(404, 'Leave request not found', [])
+    if (row.leave_status !== 'pending') {
+        return fail(409, 'This request was already decided', [], 'leave.decidedLocked')
+    }
+    row.leave_status = body?.leave_approve ? 'approved' : 'rejected'
+    row.decided_by = 'demo'
+    return listOk([row], body?.leave_approve ? 'Leave approved' : 'Leave rejected')
+})
+
+const leaveCancel = gated('leave', 'Delete', (token, url, method, body) => {
+    const row = DB.leave.find(r => r.leave_id === Number(body?.leave_id))
+    if (!row) return fail(404, 'Leave request not found', [])
+    // Same guard as the backend: only a pending request can be withdrawn.
+    if (row.leave_status !== 'pending') {
+        return fail(409, 'Decided requests cannot be withdrawn', [], 'leave.decidedLocked')
+    }
+    DB.leave = DB.leave.filter(r => r !== row)
+    return noDataOk('Leave request withdrawn')
+})
+
 // ── dispatcher ──────────────────────────────────────────────────────────
 
 /**
@@ -1179,6 +1887,30 @@ function dispatch(url, options) {
     // ── report ──
     if (route === '/report/today' && method === 'GET') return call(reportToday)
     if (/^\/report\/range\/(-?\d+)\/(-?\d+)$/.test(route)) return call(reportRange)
+
+    // ── leave ──
+    if (route === '/leave/list' && method === 'GET') return call(leaveList)
+    if (route === '/leave/employee-options' && method === 'GET') return call(leaveEmployeeOptions)
+    if (route === '/leave/edit' && method === 'POST') return call(leaveEdit)
+    if (route === '/leave/decision' && method === 'POST') return call(leaveDecision)
+    if (route === '/leave/cancel' && method === 'POST') return call(leaveCancel)
+
+    // ── payroll ──
+    if (route === '/payroll/employee-salaries' && method === 'GET') return call(salaryList)
+    if (route === '/payroll/employee-salaries/import' && method === 'POST') return call(salaryImport)
+    if (/^\/payroll\/employee-salary\/\d+$/.test(route) && method === 'GET') return call(salaryGet)
+    if (route === '/payroll/employee-salary' && method === 'POST') return call(salaryAssign)
+    if (/^\/payroll\/employee-salary\/\d+\/rules$/.test(route) && method === 'PUT') return call(salaryUpdateRules)
+    if (/^\/payroll\/employee-salary\/\d+$/.test(route) && method === 'DELETE') return call(salaryDelete)
+    if (route === '/payroll/payslips' && method === 'GET') return call(payslipList)
+    if (route === '/payroll/payslips/generate' && method === 'POST') return call(payslipGenerate)
+    if (route === '/payroll/payslips/delete-drafts' && method === 'POST') return call(payslipDeleteDrafts)
+    if (/^\/payroll\/payslips\/[^/]+\/lock$/.test(route) && method === 'POST') return call(payslipLock)
+    if (/^\/payroll\/payslips\/[^/]+$/.test(route) && method === 'GET') return call(payslipGet)
+    if (/^\/payroll\/payslips\/[^/]+$/.test(route) && method === 'DELETE') return call(payslipDelete)
+    if (route === '/payroll/daily-absences' && method === 'GET') return call(absenceList)
+    if (/^\/payroll\/daily-absences\/\d+\/approve$/.test(route) && method === 'POST') return call(absenceDecision('approved'))
+    if (/^\/payroll\/daily-absences\/\d+\/reject$/.test(route) && method === 'POST') return call(absenceDecision('rejected'))
 
     // ── settings ──
     if (route === '/settings/list' && method === 'GET') return call(settingsList)

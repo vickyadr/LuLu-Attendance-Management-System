@@ -4,6 +4,10 @@ import { useChecker } from "~/utils/checker";
 // Im lazy, its just a copy paste from device.js with no changes
 export const useEmployee = defineStore("employee", () => {
     const contents = ref([]),
+        // Server-side page metadata for the employee table: totals, active split
+        // and the department list used by the filter, all counted over the whole
+        // table rather than the current page.
+        meta = ref({ total: 0, all_total: 0, active: 0, inactive: 0, departments: [] }),
         check = useChecker();
 
     async function addList(data = {
@@ -59,6 +63,10 @@ export const useEmployee = defineStore("employee", () => {
         contents.value = data;
     }
 
+    function setMeta(data) {
+        meta.value = data || { total: 0, all_total: 0, active: 0, inactive: 0, departments: [] };
+    }
+
     function get(id){
         let index = contents.value.findIndex(x => x.id === id);
         return contents.value[index];
@@ -69,7 +77,9 @@ export const useEmployee = defineStore("employee", () => {
         updateList,
         removeList,
         set,
+        setMeta,
         get,
-        contents
+        contents,
+        meta
     };
 });

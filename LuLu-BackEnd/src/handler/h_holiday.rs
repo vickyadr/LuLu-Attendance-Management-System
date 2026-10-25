@@ -30,6 +30,9 @@ pub async fn holiday_list(
         return resp;
     }
 
+    // Both bounds are optional; an absent bound means "unbounded on that side",
+    // so the settings panel can show the whole calendar and the report engine
+    // can ask for exactly the window it is about to compute.
     let from = query.get("from").and_then(|v| parse_date(v));
     let to = query.get("to").and_then(|v| parse_date(v));
 
@@ -60,6 +63,9 @@ pub async fn holiday_list(
         )
         .into_response(),
 
+        // A missing table is a failed migration, and an empty calendar is the
+        // normal state of a fresh install; neither is a client error, so the
+        // report simply has no holidays to exclude.
         Err(e) => {
             log::error!("{}", e);
             GenericResponse::<Holiday>::ok(Vec::new(), "OK".to_string()).into_response()
@@ -79,6 +85,8 @@ pub async fn holiday_edit(
 
     let mut errs: HashMap<String, String> = HashMap::new();
 
+    // A row is written only when at least one editable field arrives, so a
+    // malformed request can never blank an existing entry's name.
     let Some(date_raw) = body.holiday_date.as_deref() else {
         return NoDataResponse::new("A date is required".to_string(), 400).into_response();
     };
@@ -183,6 +191,8 @@ pub async fn holiday_delete(
         .into_response();
     };
 
+    // DELETE is scoped to exactly one date. A wider delete would let a stray
+    // request quietly turn the report's whole holiday window into working days.
     let done = sqlx::query("DELETE FROM holiday WHERE holiday_date = $1")
         .bind(date)
         .execute(&pool.db)
@@ -211,6 +221,9 @@ pub async fn holiday_import(
         return resp;
     }
 
+    // Every row is validated before any row is written: a rejected import must
+    // not leave the calendar half-populated, because a partial import looks
+    // like a complete one to the operator who has not seen the error.
     let mut errs: HashMap<String, String> = HashMap::new();
     let mut clean: Vec<(NaiveDate, &str, &str)> = Vec::new();
 
@@ -249,11 +262,15 @@ pub async fn holiday_import(
         .into_response();
     }
 
+    // Bounded so a malformed or hostile payload cannot pin the database for
+    // minutes; two decades of holidays is far above any real calendar.
     if clean.len() > 5000 {
         return NoDataResponse::new("Too many rows, import 5000 or fewer".to_string(), 400)
             .into_response();
     }
 
+    // Upsert rather than replace: an entry the operator added by hand for a
+    // company closure keeps its name when a later import brings the same date.
     let mut tx = match pool.db.begin().await {
         Ok(t) => t,
         Err(e) => {
@@ -265,7 +282,11 @@ pub async fn holiday_import(
 
     for (date, name, kind) in clean {
         if let Err(e) = sqlx::query(
-
+            // holiday_included is deliberately absent from both the column list and the
+            // DO UPDATE SET: a new date takes the column default (not counted), and a
+            // date already in the table keeps whatever the operator decided for it.
+            // A calendar feed knows the date and the name, never whether this office
+            // pays differently that day, so it must not answer that question.
             r#"INSERT INTO holiday (holiday_date, holiday_name, holiday_kind, holiday_source, updated_at)
                VALUES ($1, $2, $3, 'import', NOW())
                ON CONFLICT (holiday_date)

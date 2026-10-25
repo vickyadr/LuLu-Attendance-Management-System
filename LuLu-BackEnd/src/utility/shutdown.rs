@@ -1,3 +1,12 @@
+//! Process-wide shutdown flag.
+//!
+//! Actix already stops the HTTP server on SIGTERM, but it does not stop the
+//! ZKNet tasks: they run on the tokio runtime, and the blocking socket readers
+//! keep that runtime alive, so the process hangs until someone sends SIGKILL.
+//! That in turn leaves the machine's single client slot occupied, so a restart
+//! is refused until the device forgets us. One shared flag lets every task see
+//! the same signal and drop its socket.
+
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, LazyLock};
 

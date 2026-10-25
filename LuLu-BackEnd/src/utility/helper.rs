@@ -1,11 +1,26 @@
 use chrono::{DateTime, Datelike, Timelike};
 
 /// Instant for `seconds`, falling back to the epoch when it is unrepresentable.
+///
+/// Every helper here is TOTAL. `DateTime::from_timestamp` returns `None` outside
+/// chrono's supported range, and these arguments reach the server from the wire:
+/// `/report/range/{start}/{end}` takes bare epochs straight off the URL, so a
+/// client asking for `i64::MAX` used to panic inside `unwrap()` and take the
+/// whole worker down - every later request answered 500 until a supervisor
+/// restarted the process.
 fn at(seconds: i64) -> DateTime<chrono::Utc> {
     DateTime::from_timestamp(seconds, 0).unwrap_or(DateTime::from_timestamp(0, 0).unwrap())
 }
 
 /// Midnight of the day containing `seconds`, offset by `tz + hour` hours.
+///
+/// NOTE on `tz`: the arithmetic is deliberately the original one - truncate the
+/// UTC day of `seconds`, then ADD the offset. It does not convert local midnight
+/// into a UTC epoch; that would need a subtraction. Every current caller passes
+/// `tz = 0` (see `h_report.rs`), where the two are identical, so this has never
+/// been exercised. Preserved on purpose: changing it would silently move shift
+/// day buckets, which is a decision to make with the data in hand, not inside a
+/// panic fix.
 pub fn ts_at_zero(seconds: i64, tz: i32) -> i64 {
     ts_at_hour(seconds, tz, 0)
 }

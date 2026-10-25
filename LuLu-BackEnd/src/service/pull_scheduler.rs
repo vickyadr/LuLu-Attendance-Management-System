@@ -59,6 +59,14 @@ pub async fn spawn_pull_task(
     let pool_clone = pool.clone();
     let handle = tokio::spawn(async move {
         loop {
+            // The live scheduler checks this and stops; without it a SIGTERM
+            // leaves every poll loop running, holding the device and a pool
+            // connection, so the process waits for SIGKILL instead of exiting.
+            if crate::utility::shutdown::triggered() {
+                log::info!("pull scheduler device {device_id}: shutdown, stopping");
+                return;
+            }
+
             let row: Option<(Option<String>, String, i32)> =
                 match sqlx::query_as(
                     "SELECT device_ip, device_sn, device_timezone FROM devices WHERE device_id = $1 AND device_handler_id = 5 AND device_state <> 3",

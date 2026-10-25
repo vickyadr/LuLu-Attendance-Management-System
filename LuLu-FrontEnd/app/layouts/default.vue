@@ -2,7 +2,7 @@
 import { useAuthStore } from '~/store/auth';
 import {
   faGaugeHigh, faChartColumn, faUserGroup, faFingerprint, faClock,
-  faPlaneDeparture,
+  faPlaneDeparture, faReceipt, faLocationDot,
   faSliders, faArrowRightFromBracket, faXmark,
   faChevronLeft, faChevronRight, faChevronDown, faUsers, faGlobe, faCheck,
 } from '@fortawesome/free-solid-svg-icons'
@@ -40,7 +40,11 @@ function toggleUserMenu() { showUserMenu.value = !showUserMenu.value; if (showUs
 function closeUserMenu() { showUserMenu.value = false }
 function go(path) { closeMenu(); closeUserMenu(); navigateTo(path, { replace: true }) }
 watch(() => route.path, () => { closeMenu(); closeUserMenu(); closeLocaleMenu(); });
-function onKey(e) { if (e.key === 'Escape') { closeMenu(); closeUserMenu(); closeLocaleMenu(); } }
+function onKey(e) {
+  if (e.key === 'Escape') { closeMenu(); closeUserMenu(); closeLocaleMenu(); }
+  const tag = (e.target && e.target.tagName) || '';
+  if (e.key === '[' && !/^(INPUT|TEXTAREA|SELECT)$/.test(tag)) { e.preventDefault(); toggleSidebar(); }
+}
 function onDocClick(e) {
   if (showUserMenu.value) {
     const el = userMenuRef.value;
@@ -73,6 +77,8 @@ const NAV = [
   { path: '/report', label: 'nav.reports', icon: faChartColumn, pageKey: 'report' },
   { path: '/controller', label: 'nav.devices', icon: faFingerprint, pageKey: 'controller' },
   { path: '/leave', label: 'nav.leave', icon: faPlaneDeparture, pageKey: 'leave' },
+  { path: '/field', label: 'nav.field', icon: faLocationDot, pageKey: 'field' },
+  { path: '/payroll', label: 'nav.payroll', icon: faReceipt, pageKey: 'payroll' },
 ]
 const isActive = (p) => route.path === p || (p !== '/' && route.path.startsWith(p + '/'))
 const isActiveOn = isActive
@@ -99,155 +105,161 @@ function modalLogout() {
 </script>
 
 <template>
-  <div
-    class="min-h-screen lg:h-screen flex bg-[#f6fdf7] tech-pattern tech-grid-soft overflow-x-hidden lg:overflow-hidden">
-    <!-- ============ SIDEBAR (desktop: always visible, 2 widths) ============ -->
-    <aside :style="{ width: sidebarCompact ? '72px' : '248px' }"
-      class="hidden lg:flex shrink-0 flex-col relative glass-dark shadow-[4px_0_24px_rgba(5,46,22,.18)] z-50 sticky top-0 h-screen transition-all duration-300 ease-in-out overflow-visible">
-      <div class="pointer-events-none absolute inset-0 opacity-[0.06] tech-dots"></div>
-      <!-- Brand -->
-      <div class="relative flex items-center h-[68px] border-b border-white/10 shrink-0"
-        :class="sidebarCompact ? 'justify-center px-2' : 'gap-3 px-4'">
-        <div class="w-10 h-10 rounded-xl overflow-hidden shadow-lg shadow-emerald-900/40 ring-1 ring-white/20 shrink-0">
-          <img src="/lulu-192.png" alt="LuLu Attendance" class="w-full h-full object-cover">
+  <div class="min-h-screen lg:h-screen flex bg-canvas overflow-x-hidden lg:overflow-hidden">
+    <a href="#main" class="skip-link">{{ $t('common.skipToContent') }}</a>
+
+    <!-- ============ SIDEBAR: 264px expanded, 76px rail ============ -->
+    <aside :style="{ width: sidebarCompact ? '76px' : '264px' }"
+      class="hidden lg:flex shrink-0 flex-col relative glass-dark sticky top-0 h-screen z-40 transition-[width] duration-300 ease-out">
+
+      <!-- Brand + rail toggle (chevron appears on hover, stays put in compact) -->
+      <div class="relative border-b border-white/10 shrink-0">
+        <div class="group flex items-center h-[72px]" :class="sidebarCompact ? 'justify-center px-2' : 'gap-3 px-4'">
+          <div class="w-[38px] h-[38px] rounded-xl overflow-hidden ring-1 ring-white/15 shrink-0">
+            <img src="/lulu-192.png" alt="LuLu Attendance" class="w-full h-full object-cover">
+          </div>
+
+          <div v-show="!sidebarCompact" class="min-w-0 leading-tight flex-1">
+            <p class="display text-[15px] text-white truncate">LuLu</p>
+            <p class="mono text-[9.5px] tracking-[0.18em] text-emerald-200/50 truncate">ATTENDANCE</p>
+          </div>
+
+          <button v-if="!sidebarCompact" type="button" @click="toggleSidebar"
+            :aria-expanded="sidebarCompact ? 'false' : 'true'" aria-label="Collapse sidebar"
+            title="Collapse sidebar ( [ )"
+            class="w-8 h-8 shrink-0 grid place-content-center rounded-lg text-emerald-200/70 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:bg-white/10 hover:text-white transition">
+            <font-awesome :icon="faChevronLeft" class="w-3 h-3" />
+          </button>
         </div>
-        <div v-show="!sidebarCompact" class="min-w-0 leading-tight">
-          <p class="display text-sm font-extrabold tracking-tight text-white truncate">LuLu</p>
-          <p class="mono text-[10px] tracking-[0.14em] text-emerald-200/60 truncate">ATTENDANCE</p>
+
+        <div v-if="sidebarCompact" class="pb-2 flex justify-center">
+          <button type="button" @click="toggleSidebar" :aria-expanded="sidebarCompact ? 'false' : 'true'"
+            aria-label="Expand sidebar" title="Expand sidebar ( [ )"
+            class="w-9 h-9 grid place-content-center rounded-lg text-emerald-200/70 hover:bg-white/10 hover:text-white transition">
+            <font-awesome :icon="faChevronRight" class="w-3.5 h-3.5" />
+          </button>
         </div>
       </div>
 
-      <!-- Nav - x-hidden prevents horizontal scroll in compact -->
-      <nav class="relative flex-1 overflow-y-auto overflow-x-hidden py-4 space-y-1 min-w-0"
-        :class="sidebarCompact ? 'px-2' : 'px-3'" aria-label="Main">
-        <p v-show="!sidebarCompact" class="mono text-[10px] font-bold tracking-[0.18em] text-emerald-200/40 px-3 pb-2">
-          {{ $t('nav.menu') }}</p>
+      <!-- Nav -->
+      <nav class="relative flex-1 overflow-y-auto overflow-x-hidden py-3 min-w-0"
+        :class="sidebarCompact ? 'px-2 space-y-1' : 'px-3 space-y-1'" aria-label="Main">
+        <p v-show="!sidebarCompact"
+          class="mono text-[9.5px] font-bold tracking-[0.2em] text-emerald-200/40 px-3 pb-1.5">{{ $t('nav.menu') }}</p>
+
         <template v-for="n in visibleNav" :key="n.path">
           <a :href="n.path" @click.prevent="go(n.path)" :aria-current="isActive(n.path) ? 'page' : undefined"
             :title="sidebarCompact ? $t(n.label) : undefined"
-            class="group flex items-center rounded-xl text-sm font-semibold transition-all duration-150 cursor-pointer relative min-w-0"
+            class="group relative flex items-center rounded-xl text-[13.5px] font-semibold transition-colors duration-150 cursor-pointer min-w-0 min-h-[44px]"
             :class="[
-              sidebarCompact ? 'justify-center px-2 py-2.5' : 'gap-3 px-3 py-2.5',
+              sidebarCompact ? 'justify-center px-2' : 'gap-3 px-3',
               isActive(n.path)
-                ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-[0_4px_14px_-4px_rgba(16,185,129,.6)]'
-                : 'text-emerald-50/90 hover:text-white hover:bg-white/10'
+                ? 'nav-active'
+                : 'text-emerald-50/75 hover:text-white hover:bg-white/[0.08]'
             ]">
-            <font-awesome :icon="n.icon" class="text-[15px] w-5 text-center shrink-0" />
+            <font-awesome :icon="n.icon" class="text-[15px] w-5 text-center shrink-0 opacity-90" />
             <span v-show="!sidebarCompact" class="truncate">{{ $t(n.label) }}</span>
             <span v-if="sidebarCompact"
-              class="pointer-events-none hidden group-hover:block absolute left-[calc(100%+10px)] top-1/2 -translate-y-1/2 whitespace-nowrap px-2.5 py-1.5 rounded-lg bg-green-950 text-white text-xs font-semibold shadow-xl z-50">
+              class="pointer-events-none hidden group-hover:block absolute left-[calc(100%+12px)] top-1/2 -translate-y-1/2 whitespace-nowrap px-2.5 py-1.5 rounded-lg bg-green-950 text-white text-xs font-semibold shadow-tint-lg z-50">
               {{ $t(n.label) }}
             </span>
           </a>
         </template>
 
-        <div class="my-4 h-px bg-white/10"></div>
+        <div class="my-3 h-px bg-white/10"></div>
+
         <a v-if="auth.hasPageAccess('users')" href="/users" @click.prevent="go('/users')"
           :title="sidebarCompact ? $t('nav.users') : undefined"
-          class="group flex items-center rounded-xl text-sm font-semibold transition-all duration-150 cursor-pointer relative min-w-0"
-          :class="[
-            sidebarCompact ? 'justify-center px-2 py-2.5' : 'gap-3 px-3 py-2.5',
-            isActive('/users') ? 'bg-white/15 text-white' : 'text-emerald-50/90 hover:text-white hover:bg-white/10'
-          ]">
-          <font-awesome :icon="faUsers" class="text-[15px] w-5 text-center shrink-0" />
+          class="group relative flex items-center rounded-xl text-[13.5px] font-semibold transition-colors duration-150 cursor-pointer min-w-0 min-h-[44px]"
+          :class="[sidebarCompact ? 'justify-center px-2' : 'gap-3 px-3', isActive('/users') ? 'nav-active' : 'text-emerald-50/75 hover:text-white hover:bg-white/[0.08]']">
+          <font-awesome :icon="faUsers" class="text-[15px] w-5 text-center shrink-0 opacity-90" />
           <span v-show="!sidebarCompact">{{ $t('nav.users') }}</span>
           <span v-if="sidebarCompact"
-            class="pointer-events-none hidden group-hover:block absolute left-[calc(100%+10px)] top-1/2 -translate-y-1/2 whitespace-nowrap px-2.5 py-1.5 rounded-lg bg-green-950 text-white text-xs font-semibold shadow-xl z-50">
+            class="pointer-events-none hidden group-hover:block absolute left-[calc(100%+12px)] top-1/2 -translate-y-1/2 whitespace-nowrap px-2.5 py-1.5 rounded-lg bg-green-950 text-white text-xs font-semibold shadow-tint-lg z-50">
             {{ $t('nav.users') }}
           </span>
         </a>
-        <a href="/settings" @click.prevent="go('/settings')" :title="sidebarCompact ? $t('nav.settings') : undefined"
-          class="group flex items-center rounded-xl text-sm font-semibold transition-all duration-150 cursor-pointer relative min-w-0"
-          :class="[
-            sidebarCompact ? 'justify-center px-2 py-2.5' : 'gap-3 px-3 py-2.5',
-            isActive('/settings') ? 'bg-white/15 text-white' : 'text-emerald-50/90 hover:text-white hover:bg-white/10'
-          ]">
-          <font-awesome :icon="faSliders" class="text-[15px] w-5 text-center shrink-0" />
+
+        <a v-if="auth.hasPageAccess('settings')" href="/settings" @click.prevent="go('/settings')"
+          :title="sidebarCompact ? $t('nav.settings') : undefined"
+          class="group relative flex items-center rounded-xl text-[13.5px] font-semibold transition-colors duration-150 cursor-pointer min-w-0 min-h-[44px]"
+          :class="[sidebarCompact ? 'justify-center px-2' : 'gap-3 px-3', isActive('/settings') ? 'nav-active' : 'text-emerald-50/75 hover:text-white hover:bg-white/[0.08]']">
+          <font-awesome :icon="faSliders" class="text-[15px] w-5 text-center shrink-0 opacity-90" />
           <span v-show="!sidebarCompact">{{ $t('nav.settings') }}</span>
           <span v-if="sidebarCompact"
-            class="pointer-events-none hidden group-hover:block absolute left-[calc(100%+10px)] top-1/2 -translate-y-1/2 whitespace-nowrap px-2.5 py-1.5 rounded-lg bg-green-950 text-white text-xs font-semibold shadow-xl z-50">
+            class="pointer-events-none hidden group-hover:block absolute left-[calc(100%+12px)] top-1/2 -translate-y-1/2 whitespace-nowrap px-2.5 py-1.5 rounded-lg bg-green-950 text-white text-xs font-semibold shadow-tint-lg z-50">
             {{ $t('nav.settings') }}
           </span>
         </a>
       </nav>
 
-      <!-- Middle toggle - floating di tengah seam (pattern umum: pill chevron centered on edge) -->
-      <button type="button" @click="toggleSidebar" :aria-label="sidebarCompact ? 'Expand sidebar' : 'Collapse sidebar'"
-        :title="sidebarCompact ? 'Expand' : 'Collapse'"
-        class="absolute top-1/2 -translate-y-1/2 -right-3 z-[60] w-7 h-7 grid place-content-center rounded-full bg-white border border-emerald-200 text-emerald-700 shadow-[0_2px_10px_rgba(2,44,34,.22)] hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-800 active:scale-95 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2">
-        <font-awesome :icon="sidebarCompact ? faChevronRight : faChevronLeft" class="w-3 h-3" />
-      </button>
     </aside>
 
     <!-- ============ MAIN ============ -->
     <div class="flex-1 flex flex-col min-w-0 min-h-0 lg:h-screen lg:overflow-hidden">
-      <header class="shrink-0 sticky top-0 z-30 glass border-b border-emerald-100">
-        <div class="h-[2px] w-full bg-gradient-to-r from-emerald-500 via-lime-400 to-emerald-600 opacity-60"></div>
-        <div class="flex h-[64px] items-center gap-3 px-4 sm:px-6">
-          <!-- Mobile: ikon aplikasi yang bisa ditekan sebagai pengganti hamburger -->
+      <header class="shrink-0 sticky top-0 z-30 glass border-b border-border">
+        <div class="h-[2px] w-full bg-gradient-to-r from-emerald-500 via-lime-400 to-emerald-600 opacity-50"></div>
+        <div class="flex h-16 items-center gap-3 px-4 sm:px-5">
           <button type="button" @click="toggleMenu" :aria-expanded="openMenu ? 'true' : 'false'"
             aria-controls="mobile-nav" aria-label="Toggle navigation"
-            class="lg:hidden w-9 h-9 rounded-xl overflow-hidden shadow-md ring-1 ring-emerald-100 hover:ring-emerald-200 active:scale-95 transition shrink-0">
+            class="lg:hidden w-11 h-11 grid place-content-center rounded-xl overflow-hidden ring-1 ring-border-strong hover:ring-emerald-300 active:scale-95 transition shrink-0">
             <img src="/lulu-192.png" alt="LuLu Attendance" class="w-full h-full object-cover">
           </button>
+
           <div class="min-w-0">
-            <h1 class="display text-base sm:text-lg font-extrabold tracking-tight text-green-900 truncate">{{ pageTitle
-              }}
-            </h1>
-            <p class="hidden sm:block mono text-[10px] tracking-[0.14em] text-emerald-700/50">LULU {{
-              $t('brand.systemName')
-              }}</p>
+            <h1 class="display text-[17px] text-text truncate">{{ pageTitle }}</h1>
+            <p class="hidden sm:block mono text-[9.5px] tracking-[0.16em] text-text-muted">LULU {{
+              $t('brand.systemName') }}
+            </p>
           </div>
 
-          <div class="ml-auto flex items-center gap-2 sm:gap-3 min-w-0">
-            <!-- Notifications - history of everything the app has told you -->
+          <div class="ml-auto flex items-center gap-1.5 sm:gap-2 min-w-0">
             <NotifyBell />
-            <!-- Language - picks a locale file, no reload needed -->
+
             <div ref="localeMenuRef" class="relative shrink-0">
               <button type="button" @click.stop="toggleLocaleMenu" :aria-expanded="showLocaleMenu ? 'true' : 'false'"
                 aria-haspopup="menu" :aria-label="localeLabel"
-                class="flex items-center gap-1.5 rounded-xl px-2 py-1.5 text-emerald-800 hover:bg-emerald-50 active:bg-emerald-100 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500">
+                class="flex items-center gap-1.5 rounded-xl px-2.5 min-h-11 text-primary-deep hover:bg-surface-raised active:bg-surface-sunken transition">
                 <font-awesome :icon="faGlobe" class="w-4 h-4" />
                 <span class="mono text-[11px] font-bold tracking-wider uppercase">{{ locale }}</span>
-                <font-awesome :icon="faChevronDown" class="w-2.5 h-2.5 text-emerald-700/40 transition"
+                <font-awesome :icon="faChevronDown" class="w-2.5 h-2.5 transition"
                   :class="showLocaleMenu ? 'rotate-180' : ''" />
               </button>
               <div v-if="showLocaleMenu"
-                class="absolute right-0 top-full mt-2 min-w-[11rem] rounded-xl bg-white border border-emerald-100 shadow-[0_12px_32px_-12px_rgba(2,44,34,.28)] overflow-hidden z-50 py-1"
+                class="absolute right-0 top-full mt-2 min-w-[11rem] rounded-xl bg-surface border border-border shadow-tint-lg overflow-hidden z-50 py-1"
                 role="menu">
                 <button v-for="l in locales" :key="l.code" type="button" role="menuitem"
                   @click.stop="pickLocale(l.code)"
-                  class="flex w-full items-center justify-between gap-3 px-4 py-2.5 text-sm transition text-left"
-                  :class="l.code === locale ? 'bg-emerald-50 font-semibold text-emerald-900' : 'text-emerald-800 hover:bg-emerald-50/60'">
+                  class="flex w-full items-center justify-between gap-3 px-4 min-h-11 text-sm transition text-left"
+                  :class="l.code === locale ? 'bg-surface-raised font-semibold text-text' : 'text-text-muted hover:bg-surface-raised/60'">
                   <span class="truncate">{{ l.name }}</span>
-                  <font-awesome v-if="l.code === locale" :icon="faCheck"
-                    class="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                  <font-awesome v-if="l.code === locale" :icon="faCheck" class="w-3.5 h-3.5 text-primary shrink-0" />
                 </button>
               </div>
             </div>
-            <!-- User - 1x klik muncul logout, klik lagi / klik menu hidden -->
+
             <div ref="userMenuRef" class="relative flex items-center min-w-0">
               <button type="button" @click.stop="toggleUserMenu" :aria-expanded="showUserMenu ? 'true' : 'false'"
                 aria-haspopup="menu" aria-label="User menu"
-                class="flex items-center gap-2 rounded-xl px-1.5 py-1 hover:bg-emerald-50 active:bg-emerald-100 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 min-w-0">
+                class="flex items-center gap-2 rounded-xl px-1.5 min-h-11 hover:bg-surface-raised active:bg-surface-sunken transition min-w-0">
                 <div
-                  class="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-400 to-green-600 grid place-content-center text-white text-[11px] font-bold shadow-sm shrink-0">
+                  class="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-green-700 grid place-content-center text-white text-[11px] font-bold shrink-0">
                   {{ initials }}</div>
                 <div class="hidden lg:block text-left leading-tight min-w-0">
-                  <p class="text-xs font-semibold text-green-900 truncate max-w-[9rem]">{{ userName }}</p>
+                  <p class="text-[12.5px] font-semibold text-text truncate max-w-[9rem]">{{ userName }}</p>
                 </div>
-                <font-awesome :icon="faChevronDown" class="hidden sm:block w-3 h-3 text-emerald-700/40 transition"
+                <font-awesome :icon="faChevronDown" class="hidden sm:block w-3 h-3 text-text-muted transition"
                   :class="showUserMenu ? 'rotate-180' : ''" />
               </button>
-              <!-- Dropdown logout - di atas header jadi tidak tertutup cookie banner -->
+
               <div v-if="showUserMenu"
-                class="absolute right-0 top-full mt-2 w-56 rounded-xl bg-white border border-emerald-100 shadow-[0_12px_32px_-12px_rgba(2,44,34,.28)] overflow-hidden z-50"
+                class="absolute right-0 top-full mt-2 w-56 rounded-xl bg-surface border border-border shadow-tint-lg overflow-hidden z-50"
                 role="menu" aria-label="User menu">
-                <div class="px-4 py-3 bg-emerald-50/60 border-b border-emerald-100">
-                  <p class="text-sm font-semibold text-green-900 truncate">{{ userName }}</p>
+                <div class="px-4 py-3 bg-surface-raised/60 border-b border-border">
+                  <p class="text-sm font-semibold text-text truncate">{{ userName }}</p>
                 </div>
                 <button @click.stop="modalLogout" type="button" role="menuitem"
-                  class="flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-emerald-900 hover:bg-red-50 hover:text-red-600 transition text-left">
+                  class="flex w-full items-center gap-3 px-4 min-h-11 text-sm font-medium text-text hover:bg-red-50 hover:text-danger transition text-left">
                   <font-awesome :icon="faArrowRightFromBracket" class="w-4 h-4 shrink-0" />
                   <span>{{ $t('nav.logOut') }}</span>
                 </button>
@@ -259,47 +271,49 @@ function modalLogout() {
 
       <!-- Mobile nav sheet -->
       <div v-if="openMenu" id="mobile-nav" class="lg:hidden fixed inset-0 z-[80]" role="dialog" aria-modal="true">
-        <div class="absolute inset-0 bg-black/40 backdrop-blur-[2px]" @click="closeMenu"></div>
-        <nav class="absolute start-0 top-0 bottom-0 w-[272px] max-w-[82vw] glass-dark flex flex-col shadow-2xl">
-          <div class="flex items-center gap-3 h-[68px] px-4 border-b border-white/10 shrink-0">
-            <div class="w-9 h-9 rounded-xl overflow-hidden ring-1 ring-white/20 shrink-0">
+        <div class="absolute inset-0 bg-green-950/50 backdrop-blur-[2px]" @click="closeMenu"></div>
+        <nav class="absolute start-0 top-0 bottom-0 w-[280px] max-w-[82vw] glass-dark flex flex-col shadow-tint-lg">
+          <div class="flex items-center gap-3 h-[72px] px-4 border-b border-white/10 shrink-0">
+            <div class="w-9 h-9 rounded-xl overflow-hidden ring-1 ring-white/15 shrink-0">
               <img src="/lulu-192.png" alt="LuLu Attendance" class="w-full h-full object-cover">
             </div>
             <div class="min-w-0 leading-tight">
-              <p class="display text-sm font-extrabold text-white">LuLu</p>
-              <p class="mono text-[10px] tracking-[0.14em] text-emerald-200/60">ATTENDANCE</p>
+              <p class="display text-sm text-white">LuLu</p>
+              <p class="mono text-[9.5px] tracking-[0.18em] text-emerald-200/50">ATTENDANCE</p>
             </div>
             <button type="button" @click="closeMenu" aria-label="Close navigation"
-              class="ms-auto w-9 h-9 grid place-content-center rounded-lg text-emerald-100 hover:text-white hover:bg-white/10 transition shrink-0">
+              class="ms-auto w-11 h-11 grid place-content-center rounded-xl text-emerald-100 hover:text-white hover:bg-white/10 transition shrink-0">
               <font-awesome :icon="faXmark" class="w-4 h-4" />
             </button>
           </div>
-          <div class="flex-1 overflow-y-auto overflow-x-hidden px-3 py-4 space-y-1">
-            <p class="mono text-[10px] font-bold tracking-[0.18em] text-emerald-200/40 px-3 pb-2">{{ $t('nav.menu') }}
+
+          <div class="flex-1 overflow-y-auto overflow-x-hidden px-3 py-3 space-y-1">
+            <p class="mono text-[9.5px] font-bold tracking-[0.2em] text-emerald-200/40 px-3 pb-1.5">{{ $t('nav.menu') }}
             </p>
             <a v-for="n in visibleNav" :key="n.path" :href="n.path" @click.prevent="go(n.path)"
-              class="flex items-center gap-3 px-3 py-3 rounded-xl font-semibold text-sm transition cursor-pointer"
-              :class="isActive(n.path) ? 'bg-emerald-600 text-white shadow-sm' : 'text-white/90 hover:bg-white/10 border border-transparent'">
+              class="flex items-center gap-3 px-3 min-h-[44px] rounded-xl font-semibold text-[13.5px] transition cursor-pointer"
+              :class="isActive(n.path) ? 'nav-active' : 'text-emerald-50/80 hover:bg-white/[0.08]'">
               <font-awesome :icon="n.icon" class="w-4 h-4 shrink-0" />
               <span class="truncate">{{ $t(n.label) }}</span>
             </a>
             <div class="my-3 h-px bg-white/10"></div>
             <a v-if="auth.hasPageAccess('users')" href="/users" @click.prevent="go('/users')"
-              class="flex items-center gap-3 px-3 py-3 rounded-xl font-semibold text-sm transition cursor-pointer"
-              :class="isActive('/users') ? 'bg-white/15 text-white' : 'text-white/90 hover:bg-white/10 border border-transparent'">
+              class="flex items-center gap-3 px-3 min-h-[44px] rounded-xl font-semibold text-[13.5px] transition cursor-pointer"
+              :class="isActive('/users') ? 'nav-active' : 'text-emerald-50/80 hover:bg-white/[0.08]'">
               <font-awesome :icon="faUsers" class="w-4 h-4 shrink-0" />
               <span>{{ $t('nav.users') }}</span>
             </a>
-            <a href="/settings" @click.prevent="go('/settings')"
-              class="flex items-center gap-3 px-3 py-3 rounded-xl font-semibold text-sm transition cursor-pointer"
-              :class="isActive('/settings') ? 'bg-white/15 text-white' : 'text-white/90 hover:bg-white/10 border border-transparent'">
+            <a v-if="auth.hasPageAccess('settings')" href="/settings" @click.prevent="go('/settings')"
+              class="flex items-center gap-3 px-3 min-h-[44px] rounded-xl font-semibold text-[13.5px] transition cursor-pointer"
+              :class="isActive('/settings') ? 'nav-active' : 'text-emerald-50/80 hover:bg-white/[0.08]'">
               <font-awesome :icon="faSliders" class="w-4 h-4 shrink-0" />
               <span>{{ $t('nav.settings') }}</span>
             </a>
           </div>
+
           <div class="border-t border-white/10 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shrink-0">
             <button @click="closeMenu(); modalLogout()" type="button"
-              class="flex w-full items-center gap-3 px-3 py-3 rounded-xl font-semibold text-sm text-red-300 hover:bg-red-500/10 transition cursor-pointer">
+              class="flex w-full items-center gap-3 px-3 min-h-[44px] rounded-xl font-semibold text-sm text-red-300 hover:bg-red-500/10 transition cursor-pointer">
               <font-awesome :icon="faArrowRightFromBracket" class="w-4 h-4 shrink-0" />
               <span>{{ $t('nav.logOut') }}</span>
             </button>
@@ -307,16 +321,12 @@ function modalLogout() {
         </nav>
       </div>
 
-      <main class="flex-1 min-h-0 p-3 sm:p-4 lg:p-4 lg:overflow-y-auto lg:overflow-x-hidden flex flex-col">
+      <main id="main" class="flex-1 min-h-0 p-3 sm:p-4 lg:p-5 lg:overflow-y-auto lg:overflow-x-hidden flex flex-col">
         <slot />
       </main>
     </div>
   </div>
 
-  <SimpleModal :options="sm_data.get()" v-on:cancel="actCancel" v-on:ok="actOk" v-show="sm_data.isShow()">
-    {{ sm_data.message() }}
-  </SimpleModal>
-
-  <!-- Toasts float above every page; the bell in the header keeps the history -->
+  <SimpleModal :options="sm_data.get()" v-on:cancel="actCancel" v-on:ok="actOk" v-show="sm_data.isShow()" />
   <ToastStack />
 </template>

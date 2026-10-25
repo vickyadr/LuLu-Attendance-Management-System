@@ -6,8 +6,11 @@ const auth = useAuthStore(),
     config = useRuntimeConfig(),
     notify = useNotifyStore(),
     data = ref([]),
+    total = ref(0),
+    page = ref(0),
     loading = ref(false),
     error = ref('');
+const PAGE_SIZE = 50;
 
 // The unregistered list is a to-do list, not just a report: every row is a person
 // missing from the employee table. Clicking a row hands that exact number to the
@@ -38,19 +41,32 @@ async function init() {
     loading.value = true;
     error.value = '';
     try {
-        const r = await apiFetch(`${config.public.apiBase}/employee/unregistered`, {
+        const params = new URLSearchParams({ limit: String(PAGE_SIZE), offset: String(page.value * PAGE_SIZE) });
+        const r = await apiFetch(`${config.public.apiBase}/employee/unregistered?${params}`, {
             method: 'GET',
             headers: auth.confHeaders(),
         });
         if (r.code === 200) {
-            data.value = r.data || [];
+            const payload = Array.isArray(r.data) && Array.isArray(r.data[0]?.items)
+                ? r.data[0]
+                : { items: Array.isArray(r.data) ? r.data : [] };
+            data.value = payload.items || [];
+            total.value = payload.total ?? data.value.length;
+            if (!data.value.length && page.value > 0 && total.value > 0) {
+                page.value = Math.max(0, Math.ceil(total.value / PAGE_SIZE) - 1);
+            }
         } else {
-            error.value = r.message || 'Failed to load';
+            error.value = r.message || $t('common.loadFailed');
         }
     } catch (e) {
-        error.value = 'Connection failed';
+        error.value = $t('common.connectionFailed');
     }
     loading.value = false;
+}
+function goPage(next) {
+    if (next === page.value) return;
+    page.value = next;
+    init();
 }
 
 function reload() { init(); }
@@ -66,8 +82,7 @@ onMounted(() => { init(); });
                 <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
                 {{ $t('employee.unregTitle') }}
             </span>
-            <span class="mono text-[11px] text-emerald-700/60">{{ data.length }} {{ data.length === 1 ? 'entry' :
-                'entries' }}</span>
+            <span class="mono text-[11px] text-emerald-700">{{ $t('employee.unregCount', { n: total }) }}</span>
             <button @click="reload()" :title="$t('device.reloadShort')"
                 class="h-8 px-2.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 inline-flex items-center justify-center gap-1.5 mono text-[11px] font-bold shrink-0 shadow-sm">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
@@ -78,7 +93,7 @@ onMounted(() => { init(); });
             </button>
         </div>
 
-        <div v-if="loading" class="px-4 py-12 text-center text-slate-500">{{ $t('common.loading') }}</div>
+        <div v-if="loading" class="px-4 py-12 text-center text-emerald-700">{{ $t('common.loading') }}</div>
         <div v-else-if="error" class="px-4 py-12 text-center text-red-600">{{ error }}</div>
         <div v-else-if="data.length === 0" class="px-4 py-14 text-center">
             <div class="flex flex-col items-center gap-3">
@@ -93,7 +108,7 @@ onMounted(() => { init(); });
                     </svg>
                 </div>
                 <p class="mono text-xs font-bold tracking-[0.14em] text-emerald-700">{{ $t('employee.unregEmpty') }}</p>
-                <p class="text-sm text-slate-500">{{ $t('employee.unregNone') }}</p>
+                <p class="text-sm text-emerald-700">{{ $t('employee.unregNone') }}</p>
             </div>
         </div>
 
@@ -123,21 +138,24 @@ onMounted(() => { init(); });
                                 class="inline-flex px-2.5 py-1 rounded-full bg-amber-100 border border-amber-300 text-amber-800 mono text-[11px] font-bold">
                                 #{{ row.device_uid }}
                             </span>
-                            <span v-if="tzShort(row.timezone)" class="ml-1.5 mono text-[10px] text-slate-400">{{
+                            <span v-if="tzShort(row.timezone)" class="ml-1.5 mono text-[10px] text-emerald-700">{{
                                 tzShort(row.timezone) }}</span>
                         </td>
                         <td class="py-3 px-3 text-center">
-                            <span class="mono text-[12px] font-bold text-slate-700">{{ row.punch_count }}</span>
+                            <span class="mono text-[12px] font-bold text-emerald-800">{{ row.punch_count }}</span>
                         </td>
                         <td class="py-3 px-3">
-                            <span class="mono text-[10px] text-slate-600">{{ formatTime(row.first_punch, row.timezone)
+                            <span class="mono text-[10px] text-emerald-800">{{ formatTime(row.first_punch, row.timezone)
                                 }}</span>
                         </td>
-                        <td class="py-3 px-3 flex items-center justify-between gap-2">
-                            <span class="mono text-[10px] text-slate-600">{{ formatTime(row.last_punch, row.timezone)
-                                }}</span>
-                            <button @click="emit('link', row.device_uid)"
-                                class="h-7 px-2.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 text-xs font-bold shrink-0 transition shadow-sm">Register</button>
+                        <td class="py-3 px-3">
+                            <div class="flex items-center justify-between gap-2">
+                                <span class="mono text-[10px] text-emerald-800">{{ formatTime(row.last_punch,
+                                    row.timezone) }}</span>
+                                <button @click="emit('link', row.device_uid)"
+                                    class="h-7 px-2.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 text-xs font-bold shrink-0 transition shadow-sm">{{
+                                    $t('employee.registerBtn') }}</button>
+                            </div>
                         </td>
                     </tr>
                 </tbody>
@@ -149,20 +167,26 @@ onMounted(() => { init(); });
                 class="rounded-2xl border border-amber-100 bg-white p-3.5 shadow-sm">
                 <div class="flex items-start justify-between gap-3">
                     <div>
-                        <p class="text-sm font-bold text-slate-900">User ID #{{ row.device_uid }}</p>
-                        <p class="mono text-[11px] text-amber-600 mt-1">{{ row.punch_count }} punches</p>
+                        <p class="text-sm font-bold text-green-900">{{ $t('employee.unregUid') }} #{{ row.device_uid }}
+                        </p>
+                        <p class="mono text-[11px] text-amber-600 mt-1">{{ $t('employee.punchCount', {
+                            n:
+                            row.punch_count }) }}</p>
                     </div>
                     <button @click="emit('link', row.device_uid)"
-                        class="h-8 px-3 rounded-lg bg-emerald-600 text-white text-xs font-bold shrink-0 shadow-sm">Register</button>
+                        class="h-8 px-3 rounded-lg bg-emerald-600 text-white text-xs font-bold shrink-0 shadow-sm">{{
+                            $t('employee.registerBtn') }}</button>
                 </div>
                 <div class="mt-3 space-y-1">
-                    <p class="mono text-[10px] text-slate-600"><span class="text-slate-400">First:</span> {{
-                        formatTime(row.first_punch, row.timezone) }}</p>
-                    <p class="mono text-[10px] text-slate-600"><span class="text-slate-400">Last:</span> {{
-                        formatTime(row.last_punch, row.timezone) }}</p>
+                    <p class="mono text-[10px] text-emerald-800"><span class="text-emerald-700">{{
+                        $t('employee.firstPunch') }}</span> {{ formatTime(row.first_punch, row.timezone) }}</p>
+                    <p class="mono text-[10px] text-emerald-800"><span class="text-emerald-700">{{
+                        $t('employee.lastPunch') }}</span> {{ formatTime(row.last_punch, row.timezone) }}</p>
                 </div>
             </div>
         </div>
+
+        <TablePager :page="page" :page-size="PAGE_SIZE" :total="total" @update:page="goPage" />
 
         <div v-if="data.length > 0"
             class="px-4 py-2.5 bg-white/90 backdrop-blur border-t border-amber-100 flex items-center justify-between mono text-[10px]">

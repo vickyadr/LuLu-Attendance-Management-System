@@ -101,6 +101,8 @@ pub async fn device_add(
         }
     }
 
+    // Empty means unset; the pull reader needs it to dial the device.
+    // IPv6 included in the format, but the device speaks IPv4 over TCP 4370.
     if let Some(ref ip) = body.ip {
         if !ip.is_empty() && ip.parse::<std::net::IpAddr>().is_err() {
             data.insert("ip", "Not a valid IP address".to_string());
@@ -128,7 +130,9 @@ pub async fn device_add(
                 .await
         {
             Ok(data) => {
-
+            // Fresh ZKNET device: start its pull loop now instead of waiting for
+            // the next restart, otherwise it sits silent until someone reboots
+            // the server.
             if data.device_handler_id == 5 {
                 spawn_pull_task(data.device_id, pool.clone(), registry.clone()).await;
             }
@@ -140,7 +144,9 @@ pub async fn device_add(
         },
             Err(e) => {
                 log::error!("{}", e);
-
+                // A missing id is a client error, not a server fault: fetch_one
+                // returns RowNotFound, which carries no database error to
+                // inspect, so unwrap here would panic the worker.
                 if let Some(db_err) = e.as_database_error() {
                     if db_err.message().contains("duplicate key value violates") {
                         return NoDataResponse::new(
@@ -200,6 +206,9 @@ pub async fn device_disable(
         return resp;
     }
 
+    // Toggle: state 3 marks a device as administratively disabled. Every
+    // heartbeat path already skips state 3 (`WHERE device_state <> 3`), so a
+    // disabled device stays dark even when the machine keeps talking to us.
     let current: Option<i32> = match sqlx::query_scalar::<_, i32>(
         r#"SELECT device_state FROM devices WHERE device_id = $1"#,
     )
@@ -219,6 +228,10 @@ pub async fn device_disable(
         return NoDataResponse::new("Device not found".to_string(), 404).into_response();
     };
 
+    // Re-enabling must not claim the device is online: state 1 is written by the
+    // device's own contact (cdata/push/zknet), so claiming it here would show a
+    // machine that is actually silent as online. State 2 (offline) is the honest
+    // starting point: it waits for the device to prove it is back.
     let new_state = if current == 3 { 2 } else { 3 };
 
     match sqlx::query(
@@ -274,7 +287,10 @@ pub async fn device_edit(
         return resp;
     }
 
-
+    // Edit validation: only check provided fields. Query uses COALESCE so
+    // unset fields keep their db value.
+    // The id is the WHERE key, not a COALESCE column, so it is the one field
+    // that must be present.
     if body.id.is_none() {
         data.insert("id", "Field required".to_string());
     }
@@ -325,6 +341,10 @@ pub async fn device_edit(
                 .await
         {
             Ok(data) => {
+            // A ZKNET pull loop dials whatever IP is in the row, so changing the
+            // IP (or switching the handler) has to restart the loop: the running
+            // task still holds the old address. Handler 5 = ZKNET, handler 3 =
+            // disabled so the loop self-exits on its next iteration.
             let still_zknet = data.device_handler_id == 5;
             if still_zknet && data.device_state != 3 {
                 spawn_pull_task(data.device_id, pool.clone(), registry.clone()).await;
@@ -339,7 +359,9 @@ pub async fn device_edit(
         },
             Err(e) => {
                 log::error!("{}", e);
-
+                // A missing id is a client error, not a server fault: fetch_one
+                // returns RowNotFound, which carries no database error to
+                // inspect, so unwrap here would panic the worker.
                 if let Some(db_err) = e.as_database_error() {
                     if db_err.message().contains("duplicate key value violates") {
                         return NoDataResponse::new(

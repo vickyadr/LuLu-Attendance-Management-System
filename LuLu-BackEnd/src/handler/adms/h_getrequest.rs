@@ -13,6 +13,10 @@ use chrono::Utc;
 pub async fn get_request(data: web::Query<GetCData>, pool: web::Data<AppState>) -> impl Responder {
     let sn = data.sn.as_deref().unwrap_or("");
 
+    // Read the stored state before touching it. A heartbeat arrives every few
+    // seconds per controller, and the dashboard only needs an event when one
+    // actually changes state - broadcasting on every poll would make every
+    // client refetch the device card for no visible change.
     let prev_state: Option<i32> = sqlx::query_scalar::<_, Option<i32>>(
         r#"SELECT device_state FROM devices WHERE device_sn = $1"#,
     )
@@ -23,7 +27,9 @@ pub async fn get_request(data: web::Query<GetCData>, pool: web::Data<AppState>) 
     .flatten()
     .flatten();
 
-    // Update online status.
+    // Update online status. Devices in state 3 are switched off by an
+    // administrator; a heartbeat must not light them back up, so the update is
+    // skipped for them.
     let touched = sqlx::query(
         r#"UPDATE devices SET device_online = $1, device_state = $2 WHERE device_sn = $3 AND device_state <> 3"#,
     )
@@ -35,7 +41,8 @@ pub async fn get_request(data: web::Query<GetCData>, pool: web::Data<AppState>) 
     .map(|res| res.rows_affected())
     .unwrap_or(0);
 
-    // Offline -> online is worth telling the dashboard about
+    // Offline -> online is worth telling the dashboard about; a repeat poll
+    // from a device that was already online is not.
     if touched > 0 && prev_state != Some(1) {
         let receivers = pool.ws.broadcast(WsOut {
             event: "device",

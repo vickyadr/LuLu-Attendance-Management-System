@@ -6,6 +6,7 @@ pub struct Holiday {
     pub holiday_name: String,
     pub holiday_kind: String,
     pub holiday_source: String,
+    /// Keep this date in the report instead of dropping the day.
     #[serde(default)]
     pub holiday_included: bool,
 }
@@ -20,6 +21,9 @@ pub struct ReceiverHoliday {
     pub holiday_kind: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub holiday_source: Option<String>,
+    /// None means "leave the stored flag alone", so an import or a plain rename
+    /// cannot silently turn counting on or off for a date the operator already
+    /// decided about.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub holiday_included: Option<bool>,
 }

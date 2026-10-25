@@ -13,6 +13,9 @@ CREATE TABLE IF NOT EXISTS user_page_permissions (
 CREATE INDEX IF NOT EXISTS idx_user_page_permissions_user_nickname ON user_page_permissions(user_nickname);
 CREATE INDEX IF NOT EXISTS idx_user_page_permissions_page_key ON user_page_permissions(page_key);
 
+-- user_nickname is the users PK, so renaming a user must carry its permission
+-- rows across with it. Without ON UPDATE CASCADE the rename dies with
+-- "update or delete on table users violates foreign key constraint".
 ALTER TABLE user_page_permissions
     DROP CONSTRAINT IF EXISTS user_page_permissions_user_nickname_fkey;
 ALTER TABLE user_page_permissions
@@ -20,6 +23,13 @@ ALTER TABLE user_page_permissions
     FOREIGN KEY (user_nickname) REFERENCES users(user_nickname)
     ON DELETE CASCADE ON UPDATE CASCADE;
 
+-- Insert default permissions for existing users (all pages allowed for admin level 100).
+--
+-- Guarded like the later migrations: a re-run of this file happens when the
+-- applied-checksum of an earlier migration is corrected, and by then the
+-- user_level column and the allowed column are both gone. The bare
+-- "WHERE user_level = 100" read below aborted every re-run with
+-- ERROR: column "user_level" of relation "users" does not exist.
 DO $$
 BEGIN
     IF EXISTS (

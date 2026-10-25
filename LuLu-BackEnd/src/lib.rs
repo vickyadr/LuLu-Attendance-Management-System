@@ -11,6 +11,8 @@ pub mod models {
     pub mod m_shift;
     pub mod m_transaction;
     pub mod m_user;
+    pub mod payroll;
+    pub mod payroll_employee_deductions;
 }
 
 pub mod handler {
@@ -23,6 +25,7 @@ pub mod handler {
     pub mod h_zkpull;
     pub mod h_employee;
     pub mod h_holiday;
+    pub mod h_field;
     pub mod h_leave;
     pub mod h_login;
     pub mod h_report;
@@ -31,6 +34,12 @@ pub mod handler {
     pub mod h_shift;
     pub mod h_transaction;
     pub mod h_user;
+    pub mod h_payroll;
+    pub mod h_employee_deductions;
+    pub mod payroll_api;
+    pub mod payroll_calc_rules;
+    pub mod payroll_expr;
+    pub mod payroll_payslip;
 }
 
 pub mod receiver {

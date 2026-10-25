@@ -33,5 +33,9 @@
   "module": "index.ts",
   "peerDependencies": {
     "typescript": "^5.0.0"
+  },
+  "allowScripts": {
+    "esbuild@0.25.12": true,
+    "esbuild@0.28.2": true
   }
 }

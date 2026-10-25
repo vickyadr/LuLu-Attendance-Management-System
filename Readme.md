@@ -14,7 +14,8 @@ Password: demo12345
 ## Repository layout
 
     LuLu-BackEnd/     Rust API (Actix Web) + database migrations
-    LuLu-FrontEnd/    Nuxt 4 SPA (Vue 3 + Pinia + Tailwind)
+    LuLu-FrontEnd/    Nuxt 4 SPA (Vue 3 + Pinia + Tailwind) - admin
+    LuLu-Field/       Single-file employee PWA (served at /field-app)
     Readme.md         this file
 
 ## Requirements
@@ -34,13 +35,13 @@ order. The server refuses to start if any migration fails.
 
 Variables the code reads:
 
-| Variable          | Required | Default                   | Notes                                                        |
-| ----------------- | -------- | ------------------------- | ------------------------------------------------------------ |
-| `DATABASE_URL`    | yes      | -                         | PostgreSQL connection string                                 |
-| `SECRET_KEY`      | yes      | -                         | Must be present; the server exits without it.                |
-| `HOST`            | no       | `0.0.0.0`                 | Bind address                                                 |
-| `PORT`            | no       | `4343`                    | Backend port                                                 |
-| `ALLOWED_ORIGINS` | no       | loopback + private ranges | Comma-separated CORS allowlist; public origins need this set |
+| Variable          | Required | Default                   | Notes                                                            |
+| ----------------- | -------- | ------------------------- | ---------------------------------------------------------------- |
+| `DATABASE_URL`    | yes      | -                         | PostgreSQL connection string                                     |
+| `SECRET_KEY`      | yes      | -                         | Must be present; the server exits without it. See Security notes |
+| `HOST`            | no       | `0.0.0.0`                 | Bind address                                                     |
+| `PORT`            | no       | `4343`                    | Backend port                                                     |
+| `ALLOWED_ORIGINS` | no       | loopback + private ranges | Comma-separated CORS allowlist; public origins need this set     |
 
 Example `.env` (replace with your own environment's values):
 
@@ -82,6 +83,9 @@ build uses the demo credentials, so do not use it for real data.
 
 Findings from a code audit, and which ones are now fixed:
 
+- **Employee and admin accounts are separated.** `users.user_field_only` marks PWA
+  accounts; the admin form refuses them, the PWA refuses admin accounts, and the
+  page gate refuses a field token on every key except `field`.
 - **Passwords are stored as Argon2id** (per-user random salt), rehashed on the next
   successful sign-in for any row still holding a legacy hash. Rows written before the
   migration stay verifiable in the meantime.
@@ -107,8 +111,8 @@ Findings from a code audit, and which ones are now fixed:
 **Q: Why is it called LuLu?**
 A: Why not. It sounds cute, short, and is easy to remember.
 
-**Q: My terminal is in the list but does not work.**
-A: Check first that the device matches the requirements and its configuration, then check
+**Q: My device is in the list but does not work.**
+A: Check that the device matches the requirements and its configuration, then check
 the LuLu server - it may be a firewall, or the program may not be started. If it still
 fails, open an issue in the repository.
 

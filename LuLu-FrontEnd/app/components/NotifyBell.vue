@@ -88,11 +88,11 @@ onBeforeUnmount(() => {
             <div class="flex items-center gap-2 px-4 py-3 bg-emerald-50/60 border-b border-emerald-100">
                 <font-awesome :icon="faBell" class="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                 <p class="text-xs font-bold text-green-900">{{ $t('notify.title') }}</p>
-                <span class="ml-auto mono text-[10px] text-emerald-700/60">{{ notify.history.length }}</span>
+                <span class="ml-auto mono text-[10px] text-emerald-700">{{ notify.history.length }}</span>
             </div>
 
             <div class="max-h-[60vh] overflow-y-auto">
-                <p v-if="!notify.orderedHistory.length" class="px-4 py-8 text-center text-xs text-emerald-700/60">
+                <p v-if="!notify.orderedHistory.length" class="px-4 py-8 text-center text-xs text-emerald-700">
                     {{ $t('notify.empty') }}
                 </p>
                 <div v-for="n in notify.orderedHistory" :key="n.id"
@@ -102,9 +102,9 @@ onBeforeUnmount(() => {
                         :class="ICON_TONE[n.kind] || ICON_TONE.info" />
                     <div class="min-w-0 flex-1">
                         <p class="text-xs font-semibold text-green-900 leading-snug break-words">{{ n.title }}</p>
-                        <p v-if="n.message" class="text-[11px] text-emerald-700/70 leading-snug mt-0.5 break-words">{{
+                        <p v-if="n.message" class="text-[11px] text-emerald-700 leading-snug mt-0.5 break-words">{{
                             n.message }}</p>
-                        <p class="mono text-[9px] tracking-wider text-emerald-700/40 mt-1">{{ relTime(n.at) }}</p>
+                        <p class="mono text-[9px] tracking-wider text-emerald-700 mt-1">{{ relTime(n.at) }}</p>
                     </div>
                     <span v-if="!n.read" aria-hidden="true"
                         class="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-1.5 shrink-0"></span>

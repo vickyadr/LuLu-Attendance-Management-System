@@ -2,15 +2,15 @@
 import { useAuthStore } from '~/store/auth';
 import { useChecker } from '#imports';
 import { useShiftStore } from '~/store/shift';
-import { faPen, faTrash, faGrip } from '@fortawesome/free-solid-svg-icons';
+import { faPen, faTrash, faGrip, faInbox } from '@fortawesome/free-solid-svg-icons';
 
 const
-    auth = useAuthStore(),
-    config = useRuntimeConfig(),
-    list = useShiftStore(),
-    check = useChecker(),
-    emit = defineEmits(['edit', 'delete']),
-    contents = computed(() => list.contents);
+  auth = useAuthStore(),
+  config = useRuntimeConfig(),
+  list = useShiftStore(),
+  check = useChecker(),
+  emit = defineEmits(['edit', 'delete']),
+  contents = computed(() => list.contents);
 
 // Declared after `auth` exists: a computed referencing `auth` above its
 // declaration throws on first access, not at definition time.
@@ -21,37 +21,37 @@ function callbackEdit(row) { emit('edit', row) }
 function callbackDelete(row) { emit('delete', row) }
 
 async function getListShift() {
-    try {
-        const response = await apiFetch(`${config.public.apiBase}/shift/list`, { method: "GET", headers: auth.confHeaders() });
-        if (response.code === 200) list.set(response.data);
-    } catch (e) { console.error(e) }
+  try {
+    const response = await apiFetch(`${config.public.apiBase}/shift/list`, { method: "GET", headers: auth.confHeaders() });
+    if (response.code === 200) list.set(response.data);
+  } catch (e) { console.error(e) }
 }
 
 function fmt(sec) {
-    const s = ((sec % 86400) + 86400) % 86400
-    const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60)
-    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+  const s = ((sec % 86400) + 86400) % 86400
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60)
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
 }
 function shiftColor(s) {
-    const h = Math.floor(((s.start_time % 86400) + 86400) % 86400 / 3600)
-    if (h >= 5 && h < 12) return 'bg-amber-400'
-    if (h >= 12 && h < 18) return 'bg-emerald-500'
-    if (h >= 18 || h < 5) return 'bg-slate-500'
-    return 'bg-emerald-500'
+  const h = Math.floor(((s.start_time % 86400) + 86400) % 86400 / 3600)
+  if (h >= 5 && h < 12) return 'bg-amber-400'
+  if (h >= 12 && h < 18) return 'bg-emerald-500'
+  if (h >= 18 || h < 5) return 'bg-emerald-500'
+  return 'bg-emerald-500'
 }
 function handleDragStart(e, row) {
-    e.dataTransfer.setData('shift', JSON.stringify({ act: 'copy', id: row.id }))
-    e.dataTransfer.effectAllowed = 'copy'
-    // ghost
-    if (e.dataTransfer.setDragImage) {
-        const el = document.createElement('div')
-        el.textContent = row.name
-        el.style.position = 'absolute'; el.style.top = '-1000px'
-        el.className = 'px-3 py-1 rounded-full bg-emerald-600 text-white text-xs'
-        document.body.appendChild(el)
-        e.dataTransfer.setDragImage(el, 0, 0)
-        setTimeout(() => el.remove(), 0)
-    }
+  e.dataTransfer.setData('shift', JSON.stringify({ act: 'copy', id: row.id }))
+  e.dataTransfer.effectAllowed = 'copy'
+  // ghost
+  if (e.dataTransfer.setDragImage) {
+    const el = document.createElement('div')
+    el.textContent = row.name
+    el.style.position = 'absolute'; el.style.top = '-1000px'
+    el.className = 'px-3 py-1 rounded-full bg-emerald-600 text-white text-xs'
+    document.body.appendChild(el)
+    e.dataTransfer.setDragImage(el, 0, 0)
+    setTimeout(() => el.remove(), 0)
+  }
 }
 
 onMounted(() => getListShift());
@@ -59,117 +59,136 @@ defineExpose({ reload: getListShift })
 </script>
 
 <template>
-    <div>
-        <!-- Desktop table -->
-        <div class="hidden sm:block overflow-auto max-h-[360px]">
-            <table class="w-full">
-                <thead class="sticky top-0 z-10">
-                    <tr class="bg-gradient-to-r from-emerald-600 to-green-600 text-white">
-                        <th
-                            class="py-2.5 px-3 text-left mono text-[10px] font-bold tracking-[0.14em] uppercase border-r border-white/15 w-8">
-                        </th>
-                        <th
-                            class="py-2.5 px-3 text-left mono text-[10px] font-bold tracking-[0.14em] uppercase border-r border-white/15">
-                            {{ $t('shift.colShift') }}</th>
-                        <th
-                            class="py-2.5 px-3 text-center mono text-[10px] font-bold tracking-[0.14em] uppercase border-r border-white/15">
-                            {{ $t('shift.colWorkHours') }}</th>
-                        <th
-                            class="py-2.5 px-3 text-center mono text-[10px] font-bold tracking-[0.14em] uppercase border-r border-white/15 hidden lg:table-cell">
-                            {{ $t('shift.colPunchWindow') }}</th>
-                        <th class="py-2.5 px-3 text-center mono text-[10px] font-bold tracking-[0.14em] uppercase">{{
-                            $t('common.actions') }}</th>
-                    </tr>
-                </thead>
-                <tbody v-if="contents.length > 0" class="divide-y divide-emerald-50">
-                    <tr v-for="row in contents" :key="row.id" draggable="true"
-                        @dragstart="(e) => handleDragStart(e, row)"
-                        class="group hover:bg-emerald-50/50 transition text-xs cursor-grab active:cursor-grabbing">
-                        <td class="px-2 py-2.5 text-center">
-                            <span
-                                class="inline-flex w-7 h-7 rounded-lg bg-white border border-emerald-100 text-emerald-400 group-hover:text-emerald-600 group-hover:border-emerald-200 items-center justify-center">
-                                <FontAwesome :icon="faGrip" class="w-3 h-3" />
-                            </span>
-                        </td>
-                        <td class="px-3 py-2.5">
-                            <div class="flex items-center gap-2">
-                                <span class="w-2 h-7 rounded-full" :class="shiftColor(row)"></span>
-                                <div>
-                                    <p class="font-bold text-green-900 leading-none">{{ row.name }}</p>
-                                    <p class="mono text-[10px] text-emerald-700/50">ID #{{ row.id }}<span
-                                            v-if="row.nextday"
-                                            class="ml-1 px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200">+1
-                                            day</span><span v-if="row.prevday"
-                                            class="ml-1 px-1.5 py-0.5 rounded bg-amber-50 border border-amber-200">prev</span>
-                                    </p>
-                                </div>
-                            </div>
-                        </td>
-                        <td class="px-3 py-2.5 text-center">
-                            <span
-                                class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white border border-emerald-200 mono text-xs font-medium text-green-900">
-                                {{ fmt(row.start_time) }} <span class="text-emerald-400">→</span> {{ fmt(row.end_time)
-                                }}
-                            </span>
-                        </td>
-                        <td class="px-3 py-2.5 text-center hidden lg:table-cell mono text-[11px] text-emerald-700/70">
-                            <div class="flex flex-col gap-0.5 items-center">
-                                <span>{{ fmt(row.start_enroll) }} → {{ fmt(row.start_time) }}</span>
-                                <span>{{ fmt(row.end_time) }} → {{ fmt(row.end_enroll) }}</span>
-                            </div>
-                        </td>
-                        <td class="px-3 py-2.5 text-center">
-                            <div class="inline-flex items-center gap-1">
-                                <button v-if="canEdit" @click="callbackEdit(row)"
-                                    class="w-7 h-7 rounded-lg bg-white border border-emerald-100 text-emerald-600 hover:bg-emerald-600 hover:text-white hover:border-emerald-600 flex items-center justify-center transition"
-                                    :title="$t('common.edit')">
-                                    <FontAwesome :icon="faPen" class="w-3 h-3" />
-                                </button>
-                                <button v-if="canDelete" @click="callbackDelete(row)"
-                                    class="w-7 h-7 rounded-lg bg-white border border-red-100 text-red-500 hover:bg-red-500 hover:text-white hover:border-red-500 flex items-center justify-center transition"
-                                    :title="$t('common.delete')">
-                                    <FontAwesome :icon="faTrash" class="w-3 h-3" />
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
-                </tbody>
-                <tbody v-else>
-                    <tr>
-                        <td colspan="5" class="py-8 text-center">
-                            <p class="mono text-xs text-emerald-700/50">{{ $t('shift.emptyShort') }}</p>
-                            <p class="text-xs text-slate-400 mt-1">{{ $t('shift.formHint') }}</p>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
+  <div class="flex flex-col">
 
-        <!-- Mobile cards -->
-        <div class="sm:hidden p-2 space-y-2 max-h-[360px] overflow-auto">
-            <div v-if="contents.length === 0"
-                class="py-8 text-center rounded-xl bg-emerald-50/40 border border-emerald-100 mono text-xs text-emerald-700/60">
-                {{ $t('shift.emptyHint') }}</div>
-            <div v-for="row in contents" :key="row.id" draggable="true" @dragstart="(e) => handleDragStart(e, row)"
-                class="rounded-2xl border-2 border-emerald-100 bg-white p-3 flex items-center gap-3 active:border-emerald-300 active:bg-emerald-50/40">
-                <span class="w-2 h-10 rounded-full shrink-0" :class="shiftColor(row)"></span>
-                <div class="flex-1 min-w-0">
-                    <p class="font-bold text-sm text-green-900 truncate">{{ row.name }}</p>
-                    <p class="mono text-xs text-emerald-700">{{ fmt(row.start_time) }} → {{ fmt(row.end_time) }} <span
-                            class="text-emerald-700/40">•</span> {{ fmt(row.start_enroll) }}→{{ fmt(row.end_enroll) }}
-                    </p>
-                    <p class="mono text-[10px] text-slate-400">ID #{{ row.id }}</p>
-                </div>
-                <div class="flex flex-col gap-1 shrink-0">
-                    <button v-if="canEdit" @click="callbackEdit(row)"
-                        class="px-3 py-1.5 rounded-full bg-emerald-600 text-white mono text-[10px] font-bold">{{
-                            $t('common.edit') }}</button>
-                    <button v-if="canDelete" @click="callbackDelete(row)"
-                        class="px-3 py-1.5 rounded-full bg-white border border-red-200 text-red-600 mono text-[10px]">{{
-                            $t('common.delete') }}</button>
-                </div>
-            </div>
-        </div>
+    <!-- ===== desktop table ===== -->
+    <div class="hidden md:block table-shell">
+      <table class="w-full min-w-[360px] border-collapse hidden md:table">
+        <thead class="sticky top-0 z-10">
+          <tr>
+            <th class="th w-8"></th>
+            <th class="th">{{ $t('shift.colShift') }}</th>
+            <th class="th !text-center">{{ $t('shift.colWorkHours') }}</th>
+            <th class="th !text-center hidden 2xl:table-cell">{{ $t('shift.colPunchWindow') }}</th>
+            <th class="th !text-center">{{ $t('common.actions') }}</th>
+          </tr>
+        </thead>
 
+        <tbody v-if="contents.length > 0">
+          <tr v-for="row in contents" :key="row.id" draggable="true" @dragstart="(e) => handleDragStart(e, row)"
+            class="even:bg-surface-raised/25">
+            <td class="td">
+              <span
+                class="inline-flex w-7 h-7 rounded-lg border border-border bg-surface text-text-muted items-center justify-center cursor-grab active:cursor-grabbing">
+                <font-awesome :icon="faGrip" class="w-3 h-3" />
+              </span>
+            </td>
+
+            <td class="td">
+              <div class="flex items-center gap-2.5 min-w-0">
+                <span class="w-1.5 h-8 rounded-full bg-primary shrink-0"></span>
+                <div class="min-w-0">
+                  <p class="text-[13px] font-semibold text-text truncate">{{ row.name }}</p>
+                  <div class="mt-0.5 flex flex-wrap items-center gap-1">
+                    <span class="mono text-[10px] text-text-muted">#{{ row.id }}</span>
+                    <span v-if="row.nextday" class="chip chip-quiet">{{ $t('shift.nextDay') }}</span>
+                    <span v-if="row.prevday" class="chip chip-warn">{{ $t('shift.prevDay') }}</span>
+                  </div>
+                </div>
+              </div>
+            </td>
+
+            <td class="td whitespace-nowrap">
+              <p class="num text-[12.5px] font-bold text-text">{{ fmt(row.start_time) }} - {{ fmt(row.end_time) }}</p>
+            </td>
+
+            <td class="td hidden 2xl:table-cell whitespace-nowrap">
+              <p class="mono text-[10.5px] text-text-muted">{{ fmt(row.start_enroll) }} - {{ fmt(row.start_time) }}</p>
+              <p class="mono text-[10.5px] text-text-muted">{{ fmt(row.end_time) }} - {{ fmt(row.end_enroll) }}</p>
+            </td>
+
+            <td class="td">
+              <div class="flex items-center justify-center gap-1.5">
+                <button v-if="canEdit" @click="callbackEdit(row)"
+                  class="w-9 h-9 rounded-lg border border-border text-text-muted hover:bg-surface-raised hover:text-primary-deeper transition grid place-content-center"
+                  :title="$t('common.edit')" :aria-label="$t('common.edit')">
+                  <font-awesome :icon="faPen" class="w-3.5 h-3.5" />
+                </button>
+                <button v-if="canDelete" @click="callbackDelete(row)"
+                  class="w-9 h-9 rounded-lg border border-border text-danger hover:bg-danger-bg transition grid place-content-center"
+                  :title="$t('common.delete')" :aria-label="$t('common.delete')">
+                  <font-awesome :icon="faTrash" class="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+
+        <tbody v-else>
+          <tr>
+            <td colspan="5" class="p-0">
+              <div class="state">
+                <div class="state-icon">
+                  <span class="hud-corner hud-corner-tl"></span>
+                  <span class="hud-corner hud-corner-br"></span>
+                  <font-awesome :icon="faInbox" class="w-5 h-5" />
+                </div>
+                <p class="state-title">{{ $t('shift.emptyShort') }}</p>
+                <p class="state-hint">{{ $t('shift.formHint') }}</p>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </div>
+
+    <!-- ===== mobile cards ===== -->
+    <div class="md:hidden p-2.5 space-y-2.5 max-h-[420px] overflow-auto">
+      <div v-if="contents.length === 0" class="state">
+        <div class="state-icon">
+          <font-awesome :icon="faInbox" class="w-5 h-5" />
+        </div>
+        <p class="state-title">{{ $t('shift.emptyShort') }}</p>
+        <p class="state-hint">{{ $t('shift.formHint') }}</p>
+      </div>
+
+      <div v-for="row in contents" :key="row.id" draggable="true" @dragstart="(e) => handleDragStart(e, row)"
+        class="rounded-xl border border-border bg-surface p-3 active:border-primary/40 active:bg-surface-raised/40">
+        <div class="flex items-start gap-2.5">
+          <span class="w-1.5 h-10 rounded-full bg-primary shrink-0"></span>
+          <div class="flex-1 min-w-0">
+            <p class="text-[13px] font-semibold text-text truncate">{{ row.name }}</p>
+            <p class="mono text-[10px] text-text-muted mt-0.5">#{{ row.id }}</p>
+          </div>
+          <font-awesome :icon="faGrip" class="w-3.5 h-3.5 text-text-muted shrink-0 mt-1" />
+        </div>
+
+        <div class="mt-2.5 grid grid-cols-2 gap-2">
+          <div class="rounded-lg bg-canvas border border-border px-2.5 py-2">
+            <p class="mono text-[9.5px] tracking-[0.1em] uppercase text-text-muted">{{ $t('shift.colWorkHours') }}</p>
+            <p class="num text-[11.5px] font-bold text-text mt-0.5">{{ fmt(row.start_time) }} - {{ fmt(row.end_time) }}
+            </p>
+          </div>
+          <div class="rounded-lg bg-canvas border border-border px-2.5 py-2">
+            <p class="mono text-[9.5px] tracking-[0.1em] uppercase text-text-muted">{{ $t('shift.colPunchWindow') }}</p>
+            <p class="mono text-[10.5px] text-text mt-0.5">{{ fmt(row.start_enroll) }} - {{ fmt(row.start_time) }}</p>
+            <p class="mono text-[10.5px] text-text">{{ fmt(row.end_time) }} - {{ fmt(row.end_enroll) }}</p>
+          </div>
+        </div>
+
+        <div v-if="row.nextday || row.prevday" class="mt-2 flex flex-wrap gap-1">
+          <span v-if="row.nextday" class="chip chip-quiet">{{ $t('shift.nextDay') }}</span>
+          <span v-if="row.prevday" class="chip chip-warn">{{ $t('shift.prevDay') }}</span>
+        </div>
+
+        <div class="mt-2.5 flex flex-wrap gap-1.5">
+          <button v-if="canEdit" @click="callbackEdit(row)" class="btn btn-primary flex-1">{{ $t('common.edit')
+            }}</button>
+          <button v-if="canDelete" @click="callbackDelete(row)" class="btn btn-danger flex-1">{{ $t('common.delete')
+            }}</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
 </template>

@@ -1,3 +1,19 @@
+-- Leave requests (cuti / izin): a per-employee, per-day absence record.
+--
+-- Semantics: one row means the named employee is ABSENT on that date.
+-- 'cuti' is an approved day off drawn from a balance, 'izin' is a permission
+-- slip, and 'sakit' is sick leave. Those three are what an Indonesian office
+-- actually records, so no fourth kind is invented here.
+--
+-- Why a separate table rather than a schedule edit:
+--   * A schedule change would alter the roster for EVERY employee sharing that
+--     schedule row, and the report would then need to know who was absent.
+--   * Leave is per person and per date, with a reason and an approval trail,
+--     so the report engine can merge it with punches per employee.
+--
+-- leave_status holds the approval state: a fresh row starts 'pending' and
+-- touches nothing. Approving marks the day absent in the report; rejecting
+-- records the decision without changing attendance.
 CREATE TABLE IF NOT EXISTS leave_requests (
     leave_id SERIAL PRIMARY KEY,
     leave_employee_id INTEGER NOT NULL REFERENCES employee(employee_id) ON DELETE CASCADE,
@@ -49,6 +65,13 @@ FROM (VALUES ('leave')) AS p(page_key)
 WHERE EXISTS (SELECT 1 FROM users WHERE user_nickname = 'demo')
 ON CONFLICT (user_nickname, page_key) DO NOTHING;
 
+-- Grant 'leave' to every account that already has the 'settings' page, because
+-- leave administration sits beside settings administration in the same panel and
+-- an operator who can edit attendance rules can already change who works when.
+--
+-- Not granted to users who only have 'employee' or 'report': approving leave
+-- changes what a report shows, so it is deliberately its own permission rather
+-- than a side effect of viewing employees.
 INSERT INTO user_page_permissions
     (user_nickname, page_key, can_view, can_add, can_edit, can_delete)
 SELECT user_nickname, 'leave', true, true, true, true

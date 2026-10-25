@@ -1,0 +1,103 @@
+/**
+ * Tailwind theme, generated from DESIGN.md via @google/design.md export.
+ * Do not hand-edit the palette: change DESIGN.md, re-export, then paste here.
+ * `npm run tokens` (design/export-tokens.sh) does the regeneration.
+ */
+
+export default {
+  content: [
+    './app/components/**/*.{vue,js,ts}',
+    './app/layouts/**/*.vue',
+    './app/pages/**/*.vue',
+    './app/app.vue',
+  ],
+  theme: {
+    extend: {
+      colors: {
+        'primary': "#059669",
+        'primary-deep': "#047857",
+        'primary-deeper': "#065f46",
+        'secondary': "#16a34a",
+        'accent-lime': "#a3e635",
+        'lime-raised': "#ecfccb",
+        'canvas': "#f6fdf7",
+        'surface': "#ffffff",
+        'surface-glass': "#ffffffdb",
+        'surface-raised': "#ecfdf5",
+        'surface-sunken': "#d1fae5",
+        'border': "#d1fae5",
+        'border-strong': "#a7f3d0",
+        'text': "#14532d",
+        'text-muted': "#047857",
+        'text-faint': "#10b981",
+        'on-primary': "#ffffff",
+        'sidebar-top': "#052e16",
+        'sidebar-bottom': "#14532d",
+        'cat-sky': "#0369a1",
+        'cat-amber': "#b45309",
+        'cat-rose': "#be123c",
+        'cat-violet': "#6d28d9",
+        'cat-indigo': "#4338ca",
+        'cat-lime': "#4d7c0f",
+        'danger': "#b91c1c",
+        'danger-bg': "#fef2f2",
+        'ok-bg': "#ecfdf5",
+        'warn-bg': "#fffbeb",
+        'warn': "#b45309",
+        'ok': "#047857",
+      },
+      fontFamily: {
+        sans: ['Plus Jakarta Sans', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        display: ['Plus Jakarta Sans', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        mono: ['JetBrains Mono', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
+      },
+      fontSize: {
+        'display-page': ["1.125rem", {"letterSpacing": "-0.02em", "fontWeight": "800"}],
+        'display-login': ["1.375rem", {"letterSpacing": "-0.02em", "fontWeight": "800"}],
+        'display-hero': ["1.25rem", {"letterSpacing": "-0.02em", "fontWeight": "800"}],
+        'display-card': ["1rem", {"letterSpacing": "0em", "fontWeight": "800"}],
+        'figure': ["1.25rem", {"letterSpacing": "0em", "fontWeight": "800"}],
+        'mono-label': ["0.625rem", {"letterSpacing": "0.14em", "fontWeight": "700"}],
+        'mono-chip': ["0.625rem", {"letterSpacing": "0.08em", "fontWeight": "700"}],
+        'mono-data': ["0.6875rem", {"letterSpacing": "0.02em", "fontWeight": "500"}],
+        'label-upper': ["0.75rem", {"letterSpacing": "0.1em", "fontWeight": "600"}],
+        'body': ["0.875rem", {"letterSpacing": "0em", "fontWeight": "400"}],
+        'body-sm': ["0.8125rem", {"letterSpacing": "0em", "fontWeight": "400"}],
+      },
+      borderRadius: {
+        'sm': "8px",
+        'md': "12px",
+        'lg': "16px",
+        'xl': "24px",
+        'pill': "999px",
+      },
+      spacing: {
+        'xs': "4px",
+        'sm': "8px",
+        'md': "12px",
+        'lg': "16px",
+        'xl': "20px",
+        'xxl': "24px",
+        'page': "16px",
+      },
+      transitionTimingFunction: {
+        'out-quart': 'cubic-bezier(0.25, 1, 0.5, 1)',
+      },
+      zIndex: {
+        base: '0',
+        sticky: '20',
+        header: '30',
+        sidebar: '40',
+        dropdown: '50',
+        modal: '60',
+        toast: '70',
+      },
+      boxShadow: {
+        'tint-sm': '0 2px 8px -2px rgba(2, 44, 34, 0.10)',
+        'tint-md': '0 12px 28px -12px rgba(2, 44, 34, 0.18)',
+        'tint-lg': '0 24px 60px -24px rgba(2, 44, 34, 0.24)',
+      },
+    },
+  },
+  plugins: [],
+}

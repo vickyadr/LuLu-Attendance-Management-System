@@ -32,6 +32,7 @@ const CMD_ACK_DATA: u16 = 2002;
 const CMD_REG_EVENT: u16 = 500;
 const CMD_CANCEL_CAPTURE: u16 = 62;
 const CMD_ENABLE_DEVICE: u16 = 1002;
+const CMD_SET_TIME: u16 = 202;
 const CMD_START_VERIFY: u16 = 60;
 
 // Event mask. EF_ATTLOG (1) = real-time attendance verification. The other bits
@@ -492,6 +493,35 @@ impl ZkPull {
         result
     }
 
+    /// Encode a local wall-clock datetime into the device's packed time word.
+    /// Port of pyzk's __encode_time: year*12*31 + month*31 + day, scaled by
+    /// seconds-per-day, plus the time-of-day in seconds.
+    pub fn encode_device_time(dt: &chrono::NaiveDateTime) -> u32 {
+        use chrono::{Datelike, Timelike};
+        (((dt.year() as i64 % 100) * 12 * 31 + ((dt.month() as i64 - 1) * 31) + (dt.day() as i64 - 1))
+            * (24 * 60 * 60)
+            + ((dt.hour() as i64 * 60 + dt.minute() as i64) * 60 + dt.second() as i64)) as u32
+    }
+
+    pub fn set_time(&mut self, timestamp: u32) -> Result<()> {
+        let (code, ..) = self.round_trip(CMD_SET_TIME, &timestamp.to_le_bytes(), 0)?;
+        if code != CMD_ACK_OK {
+            return Err(Error::new(
+                ErrorKind::Other,
+                format!("set_time rejected: code {code}"),
+            ));
+        }
+        Ok(())
+    }
+
+    /// Connect, set the device clock, and disconnect.
+    pub fn set_device_time(addr: &SocketAddr, timeout: Duration, timestamp: u32) -> Result<()> {
+        let mut client = Self::connect(addr, timeout)?;
+        let result = client.set_time(timestamp);
+        let _ = client.stream.shutdown(std::net::Shutdown::Both);
+        result
+    }
+
     // Pull the whole attendance table into memory in fixed chunks.
     pub fn pull_attendance(&mut self) -> Result<(Vec<u8>, i32)> {
         let fields = self
@@ -560,9 +590,15 @@ impl ZkPull {
         self.round_trip(CMD_CANCEL_CAPTURE, &[], 0)?;
         self.round_trip(CMD_START_VERIFY, &[], 0)?;
         self.round_trip(CMD_ENABLE_DEVICE, &[], 0)?;
-        let mask = self.frame(CMD_REG_EVENT, &EF_ATTLOG.to_le_bytes());
-        self.stream.write_all(&mask)?;
-        self.reply = CMD_ACK_OK;
+        let (code, _session, reply, _) = self.round_trip(CMD_REG_EVENT, &EF_ATTLOG.to_le_bytes(), 0)?;
+        if code != CMD_ACK_OK {
+            return Err(Error::new(
+                ErrorKind::Other,
+                format!("reg_event rejected: code {code}"),
+            ));
+        }
+        self.reply = reply;
+        // Fall through to the event loop below.
 
         let mut delivered = 0u64;
         // Read timeout is a heartbeat window, not a failure: a device with no

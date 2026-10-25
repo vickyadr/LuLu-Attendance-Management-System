@@ -1,7 +1,28 @@
 import { FetchError, ofetch } from 'ofetch'
 
-/** Shape of every backend response body. */
-type Envelope = { code: number; message: string; data?: unknown }
+/** Shape of every backend response body. `error` is the i18n key the backend
+ *  wants rendered (`payroll.payslipsExistPeriod`); absent means "show `message`
+ *  as-is". Key equals the locale path, so no lookup table on either side. */
+type Envelope = { code: number; message: string; data?: unknown; error?: string }
+
+/**
+ * Resolve `envelope.error` through i18n and write the result into `message`.
+ * vue-i18n echoes an unresolved key back verbatim, so that check is the
+ * "no such translation" guard. No i18n context (store outside setup, teardown)
+ * throws and leaves `message` untouched: callers keep the English fallback.
+ */
+function translate(envelope: Envelope): Envelope {
+    const key = envelope.error
+    if (!key) return envelope
+    try {
+        const localized = useI18n().t(key)
+        const text = String(localized ?? '')
+        if (!text || text === key) return envelope
+        return { ...envelope, message: text }
+    } catch {
+        return envelope
+    }
+}
 
 /**
  * Demo mode: answer every request from the in-browser mock instead of the
@@ -43,15 +64,23 @@ export function apiFetch<T = any>(url: string, options?: any): Promise<T> {
     }
 
     return ofetch(url, options).catch((err: FetchError) => {
-        const body = err?.data as Envelope | undefined
-        if (body && typeof body === 'object' && typeof body.code === 'number') {
-            return body as unknown as T
+        let body = err?.data as Envelope | string | undefined
+        // Some framework errors (the 413 body-size guard) arrive as text/plain
+        // even though the body is JSON: parse it before giving up on the envelope.
+        if (typeof body === 'string') {
+            try {
+                body = JSON.parse(body) as Envelope
+            } catch {
+                /* not JSON: fall through to the synthesized envelope below */
+            }
         }
-        // Network failure or non-JSON body: synthesize the envelope so callers
-        // still get a code and a message instead of an exception.
+        if (body && typeof body === 'object' && typeof (body as Envelope).code === 'number') {
+            return translate(body as Envelope) as unknown as T
+        }
+        const status = err?.statusCode ?? 500
         return {
-            code: err?.statusCode ?? 500,
-            message: err?.message || 'Request failed',
+            code: status,
+            message: status === 413 ? 'Payload too large' : (err?.message || 'Request failed'),
             data: [],
         } as unknown as T
     })

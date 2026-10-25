@@ -3,12 +3,14 @@ import { useSchedule } from '~/store/schedule';
 import { useAuthStore } from '~/store/auth';
 import { useNotifyStore } from '~/store/notify';
 import { useChecker, useFormater } from '#imports';
-import { faAdd, faRefresh, faSave, faTrash, faMagnifyingGlass } from '@fortawesome/free-solid-svg-icons';
+import { faRefresh, faTrash, faMagnifyingGlass, faInbox, faXmark, faMinus, faPlus, faFloppyDisk } from '@fortawesome/free-solid-svg-icons';
 import { useShiftStore } from '~/store/shift'
+import { SMData } from '~/components/SimpleModal.vue'
 import { OFF_DAY, isOffDay } from '~/utils/labels';
 import ScheduleItem from './ScheduleItem.vue';
 
 const { t } = useI18n()
+const sm_data = new SMData()
 
 const
   auth = useAuthStore(),
@@ -33,7 +35,7 @@ const canDelete = computed(() => auth.hasActionAccess('shift', 'can_delete'))
 const contents = computed(() => list.contents)
 const filteredSchedules = computed(() => {
   const q = search.value.trim().toLowerCase()
-  let parents = contents.value.filter(item => item.parrent === item.id)
+  let parents = contents.value.filter(item => item.parent === item.id)
   if (q) parents = parents.filter(p => (p.name || '').toLowerCase().includes(q) || String(p.id).includes(q))
   return parents
 })
@@ -139,16 +141,25 @@ async function saveChanges() {
   notify[fail ? 'warning' : 'success'](t('schedule.saveSchedule'), fail ? t('schedule.saveSummaryFail', { ok, fail }) : t('schedule.saveSummaryOk', { ok }))
 }
 
-async function deleteSchedule(parrentId, name) {
-  if (!confirm(`Delete schedule "${name}"?`)) return
-  try {
-    const res = await apiFetch(`${config.public.apiBase}/schedule/delete/${parrentId}`, { method: 'GET', headers: auth.confHeaders() })
-    if (res.code === 200) {
-      await initSchedule()
-      notify.success(t('schedule.deleteTitle'), res.message || t('schedule.deleted'))
-    } else notify.error(t('common.deleteFailed'), res.message)
-  } catch (e) { notify.error(t('common.deleteFailed'), e?.data?.message || e.message) }
+async function deleteSchedule(parentId, name) {
+  sm_data.setText(t('schedule.deleteTitle'), t('schedule.deleteConfirm', { name }))
+  sm_data.setHelper("del-schedule", { parentId })
+  sm_data.showOKCancel()
 }
+async function handleDeleteOk() {
+  const helper = sm_data.getHelper("del-schedule")
+  if (helper) {
+    try {
+      const res = await apiFetch(`${config.public.apiBase}/schedule/delete/${helper.parentId}`, { method: 'GET', headers: auth.confHeaders() })
+      if (res.code === 200) {
+        await initSchedule()
+        notify.success(t('schedule.deleteTitle'), res.message || t('schedule.deleted'))
+      } else notify.error(t('common.deleteFailed'), res.message)
+    } catch (e) { notify.error(t('common.deleteFailed'), e?.data?.message || e.message) }
+  }
+  sm_data.clear()
+}
+function handleDeleteCancel() { sm_data.clear() }
 
 onMounted(() => initSchedule());
 
@@ -157,101 +168,96 @@ defineExpose({ refresh: initSchedule })
 
 <template>
   <div class="flex flex-col h-full">
-    <!-- Header search -->
-    <div class="px-3 py-2.5 border-b border-emerald-100 bg-white flex items-center gap-2">
+
+    <!-- search -->
+    <div class="px-3 py-2.5 border-b border-border flex items-center gap-2">
       <div class="relative flex-1">
-        <input v-model="search" type="text" :placeholder="$t('schedule.searchPh')"
-          class="w-full pl-8 pr-3 py-2 rounded-xl border-2 border-emerald-100 bg-emerald-50/30 focus:bg-white focus:border-emerald-300 focus:ring-4 focus:ring-emerald-100 outline-none text-sm text-green-900 placeholder:text-green-900/40 transition" />
-        <FontAwesome :icon="faMagnifyingGlass"
-          class="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-emerald-400" />
+        <font-awesome :icon="faMagnifyingGlass"
+          class="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none" />
+        <input v-model="search" type="text" :placeholder="$t('schedule.searchPh')" :aria-label="$t('schedule.searchPh')"
+          class="field has-icon-left has-icon-right" />
         <button v-if="search" @click="search = ''"
-          class="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white border border-emerald-100 text-emerald-600 text-xs">×</button>
+          class="absolute right-1 top-1/2 -translate-y-1/2 w-9 h-8 grid place-content-center rounded-lg text-text-muted hover:bg-surface-raised transition"
+          :aria-label="$t('common.clearSearch')">
+          <font-awesome :icon="faXmark" class="w-3 h-3" />
+        </button>
       </div>
-      <button @click="refreshSchedule()" :title="$t('device.reloadShort')"
-        class="w-9 h-9 rounded-xl bg-white border-2 border-emerald-100 text-emerald-600 hover:bg-emerald-50 hover:border-emerald-200 flex items-center justify-center transition">
-        <FontAwesome :icon="faRefresh" class="w-3.5 h-3.5" :class="saving ? 'animate-spin' : ''" />
+      <button @click="refreshSchedule()" :title="$t('device.reloadShort')" :aria-label="$t('device.reloadShort')"
+        class="w-9 h-9 rounded-lg border border-border text-text-muted hover:bg-surface-raised hover:text-primary-deeper transition grid place-content-center">
+        <font-awesome :icon="faRefresh" class="w-3.5 h-3.5" :class="saving ? 'animate-spin' : ''" />
       </button>
     </div>
 
-    <!-- Toolbar -->
-    <div
-      class="px-3 py-2.5 flex items-center justify-between bg-gradient-to-r from-emerald-50/40 to-white border-b border-emerald-100">
-      <div class="flex items-center gap-2">
-        <span class="mono text-[10px] font-bold tracking-[0.14em] text-emerald-700">{{ $t('schedule.listTitle')
-        }}</span>
-        <span class="chip chip-emerald mono !text-[9px]">{{ filteredSchedules.length }} schedules</span>
-        <span v-if="hasDirty" class="chip bg-amber-500 text-white mono !text-[9px] animate-pulse">{{ dirtyCount }}
-          unsaved</span>
+    <!-- toolbar -->
+    <div class="px-3 py-2 flex flex-wrap items-center justify-between gap-2 border-b border-border">
+      <div class="flex items-center gap-1.5 min-w-0">
+        <span class="mono text-[10px] font-bold tracking-[0.14em] uppercase text-text-muted truncate">{{
+          $t('schedule.listTitle') }}</span>
+        <span class="chip chip-quiet shrink-0">{{ $t('schedule.countBadge', { n: filteredSchedules.length }) }}</span>
+        <span v-if="hasDirty" class="chip chip-warn shrink-0">{{ $t('schedule.dirtyCount', { n: dirtyCount }) }}</span>
       </div>
-      <button v-if="canEdit" @click="saveChanges" :disabled="!hasDirty || saving"
-        class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold mono tracking-wide transition"
-        :class="hasDirty ? 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm' : 'bg-slate-100 text-slate-400 cursor-not-allowed'">
-        <FontAwesome :icon="faSave" class="w-3 h-3" /> {{ saving ? $t('common.saving') : $t('schedule.saveChanges') }}
+      <button v-if="canEdit" @click="saveChanges" :disabled="!hasDirty || saving" class="btn btn-primary shrink-0">
+        <font-awesome :icon="faFloppyDisk" class="w-3 h-3" /> {{ saving ? $t('common.saving') :
+          $t('schedule.saveChanges') }}
       </button>
     </div>
 
-    <!-- The page column bounds this box (h-full + min-h-0 chain), so the scroll
-         stays inside the card. min-h-0 lets the list shrink below its content;
-         min-h-[320px] would instead push the card taller than the column.
-         overscroll-contain stops a scrolled-to-the-end list from handing the
-         wheel to the page, which would move the right column. -->
-    <div class="flex-1 overflow-auto overscroll-contain px-2 py-2 space-y-2 bg-emerald-50/20 min-h-0">
-      <div v-if="filteredSchedules.length > 0" class="space-y-2">
+    <!-- list -->
+    <div class="flex-1 overflow-auto overscroll-contain px-2.5 py-2.5 space-y-2.5 bg-canvas min-h-0">
+
+      <div v-if="filteredSchedules.length > 0" class="space-y-2.5">
         <div v-for="sch in filteredSchedules" :key="sch.id"
-          class="bg-white rounded-2xl border border-emerald-100 shadow-sm overflow-hidden">
-          <!-- parent header -->
-          <div class="px-3 py-2.5 flex items-center gap-2 bg-gradient-to-r from-white to-emerald-50/30">
+          class="rounded-xl border border-border bg-surface overflow-hidden">
+          <!-- parent row -->
+          <div class="px-3 py-1 flex items-center gap-2">
             <button @click="toggleCollapse('main', sch.id)"
-              class="flex items-center gap-2 hover:text-emerald-700 flex-1 text-left">
-              <span class="w-6 h-6 rounded-lg border flex items-center justify-center text-[10px]"
-                :class="collapse.main[sch.id] ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-emerald-600 border-emerald-200'">{{
-                  collapse.main[sch.id] ? '−' : '+' }}</span>
-              <span class="font-bold text-sm text-green-900 truncate">{{ sch.name }}</span>
-              <span class="chip mono !text-[9px]"
-                :class="isOffDay(sch.shift_name) ? 'bg-slate-100 border-slate-200 text-slate-600 border' : 'chip-emerald'">{{
-                  sch.type === 1 ? 'DAILY' : sch.type === 7 ? 'WEEKLY' : sch.type === 14 ? $t('schedule.weeks2') :
-                    sch.type === 21 ? $t('schedule.weeks3') : 'MONTHLY' }}</span>
-              <span class="mono text-[10px] text-emerald-700/40 hidden sm:inline">ID #{{ sch.parrent }} • {{
-                (contents.filter(x => x.parrent === sch.parrent).length)}} days</span>
+              class="flex items-center gap-2 flex-1 min-w-0 min-h-[44px] text-left">
+              <span class="w-6 h-6 rounded-md border grid place-content-center shrink-0 transition"
+                :class="collapse.main[sch.id] ? 'bg-primary-deep border-primary-deep text-white' : 'bg-surface border-border-strong text-primary-deep'">
+                <font-awesome :icon="collapse.main[sch.id] ? faMinus : faPlus" class="w-2.5 h-2.5" />
+              </span>
+              <span class="text-[13px] font-semibold text-text truncate">{{ sch.name }}</span>
+              <span class="chip chip-quiet shrink-0">{{ sch.type === 1 ? $t('schedule.badgeDaily') :
+                sch.type === 7 ? $t('schedule.badgeWeekly') : sch.type === 14 ? $t('schedule.weeks2') :
+                  sch.type === 21 ? $t('schedule.weeks3') : $t('schedule.badgeMonthly') }}</span>
+              <span class="mono text-[10px] text-text-muted hidden sm:inline shrink-0">#{{ sch.parent }} · {{
+                $t('schedule.daysCount', { n: contents.filter(x => x.parent === sch.parent).length }) }}</span>
             </button>
-            <button v-if="canDelete" @click="deleteSchedule(sch.parrent, sch.name)"
-              class="w-7 h-7 rounded-lg bg-white border border-red-100 text-red-500 hover:bg-red-50 hover:border-red-200 flex items-center justify-center"
-              :title="$t('schedule.deleteTitle')">
-              <FontAwesome :icon="faTrash" class="w-3 h-3" />
+            <button v-if="canDelete" @click="deleteSchedule(sch.parent, sch.name)"
+              class="w-9 h-9 rounded-lg border border-border text-danger hover:bg-danger-bg transition grid place-content-center"
+              :title="$t('schedule.deleteTitle')" :aria-label="$t('schedule.deleteTitle')">
+              <font-awesome :icon="faTrash" class="w-3 h-3" />
             </button>
           </div>
 
-          <!-- body -->
-          <div v-show="collapse.main[sch.id]" class="border-t border-emerald-100">
-            <ScheduleItem :sch="sch" :list="contents.filter(item => item.parrent === sch.parrent)" :collapse="collapse"
+          <!-- expanded body -->
+          <div v-show="collapse.main[sch.id]" class="border-t border-border">
+            <ScheduleItem :sch="sch" :list="contents.filter(item => item.parent === sch.parent)" :collapse="collapse"
               :format="format" :drag-over-id="dragOverId" @toggle-collapse="toggleCollapse"
               @drag-over="(e, id) => onDragOver(e, id)" @drag-leave="onDragLeave" @handle-drop="handleDrop"
               @pick-shift="handlePickShift" />
             <div v-if="hasDirty"
-              class="px-3 py-2 bg-amber-50 border-t border-amber-100 mono text-[10px] text-amber-700 flex items-center gap-1.5">
-              ● Unsaved changes - click <b>{{ $t('common.saveChanges') }}</b> di atas</div>
+              class="px-3 py-2 bg-warn-bg border-t border-amber-200 mono text-[10px] text-amber-700 flex items-center gap-1.5">
+              {{ $t('schedule.unsavedNote') }}
+            </div>
           </div>
         </div>
       </div>
 
-      <div v-else class="py-10 text-center">
-        <div
-          class="w-12 h-12 mx-auto rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 mb-3">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
-            <rect x="3" y="4" width="18" height="18" rx="2" />
-            <path d="M16 2v4M8 2v4M3 10h18" />
-          </svg>
+      <!-- empty -->
+      <div v-else class="state">
+        <div class="state-icon">
+          <span class="hud-corner hud-corner-tl"></span>
+          <span class="hud-corner hud-corner-br"></span>
+          <font-awesome :icon="faInbox" class="w-5 h-5" />
         </div>
-        <p class="text-sm font-semibold text-green-900">{{ search ? 'No results' : 'No schedules yet' }}</p>
-        <p class="mono text-xs text-emerald-700/50 mt-1 max-w-[28ch] mx-auto">{{ search ?
-          'Try a different keyword, or clear the search' :
-          'Create a schedule in the right panel - pick a Daily / Weekly / Monthly pattern, then fill in a shift per day'
-          }}</p>
-        <button v-if="search" @click="search = ''"
-          class="mt-3 px-4 py-1.5 rounded-full bg-emerald-600 text-white mono text-xs">{{ $t('common.clearSearch')
-          }}</button>
+        <p class="state-title">{{ search ? $t('schedule.noResults') : $t('schedule.noneYet') }}</p>
+        <p class="state-hint">{{ search ? $t('schedule.tryKeyword') : $t('schedule.createHint') }}</p>
+        <button v-if="search" @click="search = ''" class="btn btn-secondary mt-1">{{ $t('common.clearSearch') }}</button>
       </div>
     </div>
 
   </div>
+  <SimpleModal :options="sm_data.get()" @ok="handleDeleteOk" @cancel="handleDeleteCancel" v-show="sm_data.isShow()" />
+
 </template>

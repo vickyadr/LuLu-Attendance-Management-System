@@ -1,3 +1,19 @@
+// Reports are bucketed per calendar day, and the timestamp carried in `enroll_date` is a
+// UTC midnight (the frontend renders it as a plain date). The original code, however,
+// derived the schedule day-of-week from `ts_dow(current_date, device_timezone)` - i.e. it
+// shifted the UTC-midnight anchor forward by the offset before taking the weekday. For a
+// +07:00 device that turned the anchor into 07:00 local, so the schedule key was read off
+// the NEXT local day; for a negative offset it became the PREVIOUS local day. Either way
+// the key no longer matched the day the punch landed on, the shift resolved to a different
+// schedule row (often "Libur"), and the whole day vanished from the report without any
+// error. The enrollment window had the mirror-image bug: it subtracted the offset to build
+// the base, then re-added it on the end bound, so the window came out 24h wide and shifted
+// by the offset instead of spanning the shift.
+//
+// Fix: keep every day anchor in UTC (unchanged public contract) and derive the weekday,
+// week and enrollment window from that SAME anchor, with the offset applied exactly once and
+// only where it genuinely belongs - converting local wall-clock shift offsets into UTC
+// epochs. Day buckets are then correct for any device timezone.
 use crate::{
     models::{m_report::*, m_schedule::ScheduleHelper},
     utility::{
@@ -14,13 +30,16 @@ use chrono::Utc;
 use sqlx::Row;
 use std::collections::{HashMap, HashSet};
 
+/// Tolerances (in seconds) applied when classifying a day as late or overtime.
+/// Read from the `settings` table so an admin can change them from the Settings page
+/// and the values take effect for every report without a rebuild.
 #[derive(Clone, Copy)]
-struct Tolerances {
-    late_sec: i64,
-    overtime_sec: i64,
+pub struct Tolerances {
+    pub late_sec: i64,
+    pub overtime_sec: i64,
 }
 
-async fn load_tolerances(db: &sqlx::PgPool) -> Tolerances {
+pub async fn load_tolerances(db: &sqlx::PgPool) -> Tolerances {
     let row = sqlx::query(
         r#"SELECT
              COALESCE(MAX(setting_value) FILTER (WHERE setting_key='late_tolerance_sec'), $1::BIGINT) AS late_tol,
@@ -45,9 +64,24 @@ async fn load_tolerances(db: &sqlx::PgPool) -> Tolerances {
     }
 }
 
+/// The set of non-working days covering one report request.
+///
+/// A day is a holiday when the `holiday` table has a row for that calendar date, whatever the
+/// kind (decree holiday, collective leave, or a company closure). The set is resolved ONCE per
+/// request rather than per day: the table is small (a few dozen rows per year) and the loop
+/// below walks every day of the requested range, so a per-day query would multiply a single
+/// report into hundreds of round trips.
+///
+/// Dates are collected as epoch seconds at UTC midnight, which is exactly how the day loop
+/// names a day (`current_date`), so membership is a plain integer comparison. That matters:
+/// the day loop deliberately keeps every anchor in the shared UTC frame (see the module
+/// comment), so converting these to device-local midnights here would reintroduce the
+/// timezone-dependent bucketing this file was rewritten to remove.
 #[derive(Clone, Debug, Default)]
-struct HolidaySet {
+pub(crate) struct HolidaySet {
+    /// Every holiday in range: these days produce no row unless also included.
     days: HashSet<i64>,
+    /// The subset that must still be counted, plus the name for labelling.
     included: HashMap<i64, String>,
 }
 
@@ -61,8 +95,19 @@ impl HolidaySet {
     }
 }
 
+/// The approved absences covering one report request, keyed per employee.
+///
+/// Leave is per PERSON, so it cannot live in the shared `HolidaySet`: two people
+/// can be on the same roster row, and only one of them is on leave. The set is
+/// loaded once per request for the same reason as holidays - the day loop below
+/// walks every day of the range, so a per-day query would multiply one report
+/// into hundreds of round trips.
+///
+/// Only 'approved' rows are collected. A 'pending' request has not been granted
+/// yet and must not erase real attendance, and a 'rejected' one is a decision not
+/// to excuse the day. Both belong in the panel, not in the report.
 #[derive(Clone, Debug, Default)]
-struct LeaveSet {
+pub(crate) struct LeaveSet {
     days: HashMap<i32, HashSet<i64>>,
 }
 
@@ -75,7 +120,7 @@ impl LeaveSet {
 }
 
 /// Load every APPROVED leave falling inside the requested range.
-async fn load_leaves(db: &sqlx::PgPool, start: i64, end: i64) -> LeaveSet {
+pub(crate) async fn load_leaves(db: &sqlx::PgPool, start: i64, end: i64) -> LeaveSet {
     let rows = sqlx::query(
         r#"SELECT leave_employee_id, (EXTRACT(EPOCH FROM leave_date))::BIGINT AS day_epoch
            FROM leave_requests
@@ -98,7 +143,8 @@ async fn load_leaves(db: &sqlx::PgPool, start: i64, end: i64) -> LeaveSet {
             }
             LeaveSet { days }
         }
-
+        // Degrade to "nobody is on leave" rather than failing the report: a
+        // missing table must not blank every attendance row.
         Err(e) => {
             log::error!("failed to load leave requests: {}", e);
             LeaveSet::default()
@@ -106,7 +152,12 @@ async fn load_leaves(db: &sqlx::PgPool, start: i64, end: i64) -> LeaveSet {
     }
 }
 
-async fn load_holidays(db: &sqlx::PgPool, start: i64, end: i64) -> HolidaySet {
+/// Load every holiday whose date falls inside the requested range.
+///
+/// On a query error the set is empty rather than absent: a missing table (migration not
+/// applied) or a database hiccup must degrade to the historical behaviour of ignoring
+/// holidays, never to a report that hides every day it could not classify.
+pub(crate) async fn load_holidays(db: &sqlx::PgPool, start: i64, end: i64) -> HolidaySet {
     let rows = sqlx::query(
         r#"SELECT (EXTRACT(EPOCH FROM holiday_date))::BIGINT AS day_epoch,
                   holiday_name, COALESCE(holiday_included, FALSE) AS holiday_included
@@ -126,7 +177,9 @@ async fn load_holidays(db: &sqlx::PgPool, start: i64, end: i64) -> HolidaySet {
             for r in rs {
                 let day: i64 = r.get("day_epoch");
                 days.insert(day);
-
+                // An old database that has not run the holiday_included migration has
+                // no such column: try_get fails closed to "excluded", which is the
+                // historical behaviour, rather than failing the whole report.
                 let flag: bool = r.try_get("holiday_included").unwrap_or(false);
                 if flag {
                     included.insert(day, r.get::<String, _>("holiday_name"));
@@ -157,6 +210,8 @@ pub async fn report_today(
 
     let tolerances = load_tolerances(&pool.db).await;
 
+    // A holiday set for today alone; the gate below drops the day, so a day that is a
+    // non-working day produces no report row regardless of what was punched on it.
     let holidays = load_holidays(&pool.db, today, today).await;
     let leaves = load_leaves(&pool.db, today, today).await;
 
@@ -210,16 +265,16 @@ pub async fn report_range(
 }
 
 // Separate async functions for better concurrency
-async fn get_schedules(db: &sqlx::PgPool) -> Result<Vec<ScheduleHelper>, sqlx::Error> {
+pub(crate) async fn get_schedules(db: &sqlx::PgPool) -> Result<Vec<ScheduleHelper>, sqlx::Error> {
     sqlx::query_as::<_, ScheduleHelper>(
-        r#"SELECT schedules.schedule_name, COALESCE(shifts.shift_name,'Libur') as shift_name, COALESCE(shifts.shift_id,0) as shift_id, schedules.schedule_dom, schedules.schedule_parrent, schedules.schedule_type, schedules.schedule_hols, COALESCE(shifts.shift_start_time,0::BIGINT) as shift_start_time, COALESCE(shifts.shift_end_time,0::BIGINT) as shift_end_time, COALESCE(shifts.shift_start_enroll,0::BIGINT) as shift_start_enroll, COALESCE(shifts.shift_end_enroll,0::BIGINT) as shift_end_enroll, COALESCE(shifts.shift_passday,0::SMALLINT) as shift_passday, COALESCE(shifts.shift_prevday,0::SMALLINT) as shift_prevday FROM schedules
+        r#"SELECT schedules.schedule_name, COALESCE(shifts.shift_name,'Libur') as shift_name, COALESCE(shifts.shift_id,0) as shift_id, schedules.schedule_dom, schedules.schedule_parent, schedules.schedule_type, schedules.schedule_hols, COALESCE(shifts.shift_start_time,0::BIGINT) as shift_start_time, COALESCE(shifts.shift_end_time,0::BIGINT) as shift_end_time, COALESCE(shifts.shift_start_enroll,0::BIGINT) as shift_start_enroll, COALESCE(shifts.shift_end_enroll,0::BIGINT) as shift_end_enroll, COALESCE(shifts.shift_passday,0::SMALLINT) as shift_passday, COALESCE(shifts.shift_prevday,0::SMALLINT) as shift_prevday FROM schedules
            LEFT JOIN shifts ON shifts.shift_id = schedules.schedule_shift_id"#
     )
     .fetch_all(db)
     .await
 }
 
-async fn get_reports_data(
+pub(crate) async fn get_reports_data(
     db: &sqlx::PgPool,
     start_range: i64,
     end_range: i64,
@@ -227,14 +282,36 @@ async fn get_reports_data(
     sqlx::query_as::<_, ReportsHelper>(
         r#"SELECT device_timezone, device_name, device_location, enroll_device_sn,
                   enroll_type, enroll_status, enroll_time, employee_id, employee_fname,
-                  employee_lname, employee_address, employee_departement, employee_status,
+                  employee_lname, employee_address, employee_department, employee_status,
                   employee_schedule_id, schedule_type
            FROM enrolls e
            INNER JOIN employee emp ON emp.employee_device_uid = e.enroll_employee_id
            INNER JOIN devices d ON e.enroll_device_sn = d.device_sn
            INNER JOIN schedules s ON s.schedule_id = emp.employee_schedule_id
            WHERE e.enroll_time BETWEEN $1 AND $2
-           ORDER BY e.enroll_time ASC"#,
+           UNION ALL
+           -- Approved field photos are punches too: the day row already treats
+           -- them as in/out, so the report must show the same evidence instead
+           -- of an empty day while payroll credits it. Device name stays "Field"
+           -- so the operator can tell where the punch came from.
+           SELECT COALESCE(p.tz_offset_minutes, 420) / 60 AS device_timezone,
+                  'Field'::text AS device_name,
+                  CASE WHEN p.lat IS NOT NULL AND p.lng IS NOT NULL
+                       THEN p.lat::text || ',' || p.lng::text END AS device_location,
+                  NULL::varchar AS enroll_device_sn,
+                  0 AS enroll_type,
+                  0 AS enroll_status,
+                  EXTRACT(EPOCH FROM p.server_at)::bigint AS enroll_time,
+                  emp.employee_id, emp.employee_fname, emp.employee_lname,
+                  emp.employee_address, emp.employee_department, emp.employee_status,
+                  emp.employee_schedule_id, s.schedule_type
+           FROM field_attendance a
+           INNER JOIN field_photo p ON p.attendance_id = a.id
+           INNER JOIN employee emp ON emp.employee_id = a.employee_id
+           INNER JOIN schedules s ON s.schedule_id = emp.employee_schedule_id
+           WHERE a.status = 'approved'
+             AND EXTRACT(EPOCH FROM p.server_at) BETWEEN $1 AND $2
+           ORDER BY enroll_time ASC"#,
     )
     // Pad 2 days on each side. One day covers a `prevday` shift whose enroll window opens on
     // the previous calendar day; the second covers a device whose timezone places local
@@ -246,7 +323,7 @@ async fn get_reports_data(
     .await
 }
 
-fn get_enroll_data(
+pub(crate) fn get_enroll_data(
     start: i64,
     end: i64,
     collection: Vec<ReportsHelper>,
@@ -262,7 +339,7 @@ fn get_enroll_data(
     // Pre-build optimized lookup structures
     let schedule_map: HashMap<(i32, i32), ScheduleHelper> = schedule_list
         .into_iter()
-        .map(|d| ((d.schedule_parrent, d.schedule_dom), d))
+        .map(|d| ((d.schedule_parent, d.schedule_dom), d))
         .collect();
 
     // Group enrollments by employee_id and date for faster processing
@@ -315,10 +392,18 @@ fn process_employee_enrollments(
     // Process each day in the range. `current_date` is a UTC midnight and doubles as the
     // bucket key in `enroll_date`.
     for current_date in (start..=end).step_by(86400) {
+        // A non-working day produces no report row at all UNLESS the operator marked
+        // that date as included: an included holiday is real work at a different pay
+        // rate, so it is counted against the roster shift for that weekday below.
+        // The gate sits BEFORE the schedule lookup in both cases, so inclusion never
+        // resurrects a roster row that says nobody works.
         if holidays.contains(current_date) && holidays.included_name(current_date).is_none() {
             continue;
         }
 
+        // An approved leave excuses exactly ONE person on exactly one day. The id
+        // comes from the enrollment rows this group was built from, so the gate
+        // cannot drift onto a different employee.
         if let Some(enrollment) = enrollments.first()
             && leaves.contains(enrollment.employee_id, current_date)
         {
@@ -342,7 +427,9 @@ fn process_employee_enrollments(
                 && let Some(mut report) =
                     create_daily_report(current_date, enrollment, shift, &day_enrollments)
             {
-
+                // Payroll needs to tell this row apart from a normal day: it was
+                // worked on a holiday, at a different rate. The label is exactly
+                // the name the operator gave the date, or nothing on normal days.
                 if let Some(name) = holidays.included_name(current_date) {
                     report.holiday_name = Some(name.to_string());
                 }
@@ -361,6 +448,24 @@ fn process_employee_enrollments(
         .collect()
 }
 
+/// Resolve the schedule row governing `current_date`.
+///
+/// `current_date` is a UTC midnight and its only job here is to NAME a calendar day: the
+/// frontend renders it as a plain date, so the weekday used to look up the schedule must be
+/// the weekday of that named day - for every device, regardless of its timezone.
+///
+/// The original computed the weekday as `ts_dow(current_date, device_timezone)`, which first
+/// shifts the instant by the device offset. For a negative offset that lands on the PREVIOUS
+/// day, and the offset then re-enters the lookup through `(dow % dom_span) + 1`, which wraps
+/// Sunday (7) onto Monday (1) whenever the shifted weekday reaches 7. The net effect is that
+/// the SAME weekday maps to a DIFFERENT schedule row depending on the device timezone: at
+/// +07:00 a Saturday resolved to dom 7 (the "Shift Siang" row) while at -05:00 it correctly
+/// resolved to dom 6. When a day's shifted key landed on a "Libur" row the day was dropped
+/// entirely - that is the missing-report class this fixes.
+///
+/// The fix is to make the key a function of the day name alone: read the weekday from the
+/// anchor with no timezone shift, and map it onto `dom` preserving its value (1..7) instead of
+/// wrapping, so `(dow - 1) % dom_span + 1`.
 fn get_shift_for_date<'a>(
     current_date: i64,
     enrollment: &ReportsHelper,
@@ -374,6 +479,10 @@ fn get_shift_for_date<'a>(
     };
     let dom_span = if schedule_type < 7 { 1 } else { 7 };
 
+    // `current_date` already IS midnight of the named calendar day, so read the weekday and
+    // week from it directly, with no timezone shift. `ts_dow`/`ts_week` return 1..=7 and 1..=52,
+    // so shift the weekday down by one before folding it into 1..=dom_span - that keeps the
+    // mapping an identity for a 7-day schedule instead of wrapping Sunday onto Monday.
     let iso_dow = ts_dow(current_date, 0) as i32;
     let dow = (iso_dow - 1) % dom_span + 1;
     let week = (ts_week(current_date, 0) as i32) % if pattern < 1 { 1 } else { pattern };
@@ -387,6 +496,14 @@ fn get_shift_for_date<'a>(
     schedule_map.get(&key)
 }
 
+/// Enrollment window for `current_date` (a UTC midnight naming a calendar day), as epochs.
+///
+/// A shift's enroll offsets are wall-clock durations measured from the device's LOCAL
+/// midnight, so the anchor is converted into that local midnight once and both bounds are
+/// expressed from it. The original code subtracted the offset to build the base but then
+/// re-added it on the end bound, so the window was one day short and displaced by the
+/// offset: a shift whose checkout falls after local midnight (every night shift) had its
+/// last punch excluded, and the report came back without it.
 fn calculate_enrollment_window(
     current_date: i64,
     enrollment: &ReportsHelper,
@@ -424,6 +541,11 @@ fn create_daily_report(
         None
     };
 
+    // Device identity belongs to the punch that opened the day, not to whichever
+    // punch happened to come first in the whole range: a day whose only evidence
+    // is a field checkout must read "Field", not the office reader from yesterday.
+    let device_source = day_enrollments.first().copied().unwrap_or(enrollment);
+
     let schedule_type = enrollment.schedule_type;
     let pattern = if schedule_type < 7 {
         1
@@ -432,6 +554,8 @@ fn create_daily_report(
     };
     let dom_span = if schedule_type < 7 { 1 } else { 7 };
 
+    // Same frame as get_shift_for_date: the weekday of the named calendar day, mapped onto
+    // dom without wrapping, so `enroll_dow` agrees with the schedule row that was selected.
     let iso_dow = ts_dow(current_date, 0) as i32;
     let dow = (iso_dow - 1) % dom_span + 1;
     let week = (ts_week(current_date, 0) as i32) % if pattern < 1 { 1 } else { pattern };
@@ -440,12 +564,12 @@ fn create_daily_report(
         employee_id: enrollment.employee_id,
         employee_fname: enrollment.employee_fname.clone(),
         employee_lname: enrollment.employee_lname.clone(),
-        employee_departement: enrollment.employee_departement.clone(),
+        employee_department: enrollment.employee_department.clone(),
         enroll_dow: Some((dow + (week * 7)).into()),
         enroll_date: Some(current_date),
-        device_timezone: Some(enrollment.device_timezone),
-        device_name: enrollment.device_name.clone(),
-        device_location: enrollment.device_location.clone(),
+        device_timezone: Some(device_source.device_timezone),
+        device_name: device_source.device_name.clone(),
+        device_location: device_source.device_location.clone(),
         shift_start_time: Some(shift.shift_start_time),
         shift_end_time: Some(shift.shift_end_time),
         shift_name: Some(shift.shift_name.clone()),
@@ -475,6 +599,11 @@ fn calculate_working_time(report: &mut Reports, tolerances: Tolerances) {
 
     let timezone_offset = (device_timezone * 3600) as i64;
 
+    // `enroll_date` is a UTC midnight; the shift's own start/end are wall-clock durations
+    // from LOCAL midnight. Convert the anchor to local midnight once, then add the shift
+    // offsets in that same frame. The original code added the offset to the start bound and
+    // subtracted it from the end bound, which stretched or compressed the shift span by
+    // twice the offset and pushed the reference point a day off for non-zero timezones.
     let local_midnight = enroll_date - timezone_offset;
     let start_working = local_midnight
         + if shift_start >= shift_end {
@@ -487,7 +616,8 @@ fn calculate_working_time(report: &mut Reports, tolerances: Tolerances) {
     let shift_duration = end_working - start_working;
     let half_shift = shift_duration / 2;
 
-    // Calculate late time.
+    // Calculate late time. `late_tolerance_sec` is the configured grace window:
+    // an arrival within that many seconds of shift start is not counted as late.
     if let Some(start_enroll) = report.start_enroll {
         if start_enroll > start_working {
             let late = start_enroll - start_working;
@@ -500,17 +630,28 @@ fn calculate_working_time(report: &mut Reports, tolerances: Tolerances) {
 
         // Handle case where employee arrived after half shift without checkout
         if start_enroll > start_working + half_shift && report.end_enroll.is_none() {
+            // A lone punch that late can only be a checkout. It is not a late
+            // arrival, so the late counter must be cleared with the reclassify.
             report.end_enroll = report.start_enroll;
             report.start_enroll = None;
+            report.late_time = 0;
         }
     }
 
+    // Calculate working time: actual presence between first IN and last OUT.
+    // The old formula measured from shift start (`end_enroll - start_working`),
+    // which inflated the number whenever someone arrived late and hid early
+    // leave entirely (OUT before shift end still showed a full shift).
     if let (Some(start_enroll), Some(end_enroll)) = (report.start_enroll, report.end_enroll) {
         report.working_time = end_enroll.saturating_sub(start_enroll);
-    } else if let Some(end_enroll) = report.end_enroll {
-        report.working_time = end_enroll.saturating_sub(start_working);
     }
-    
+    // Checkout-only days keep working_time 0: inventing a span from the shift
+    // start reported 9 hours for a single 17:00 punch, which the payslip never
+    // paid. The row still carries the punch and the overtime below.
+
+    // Overtime: seconds worked past the configured shift end. Gated by
+    // `overtime_tolerance_sec` - leaving within that many seconds after shift end
+    // is treated as an on-time checkout, not overtime.
     if let Some(end_enroll) = report.end_enroll
         && end_enroll > end_working
     {

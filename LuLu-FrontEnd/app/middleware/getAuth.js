@@ -9,6 +9,9 @@ const PAGE_KEY_MAP = {
     '/controller': 'controller',
     '/settings': 'settings',
     '/users': 'users',
+    '/leave': 'leave',
+    '/payroll': 'payroll',
+    '/field': 'field',
 };
 
 export default defineNuxtRouteMiddleware(async (to) => {

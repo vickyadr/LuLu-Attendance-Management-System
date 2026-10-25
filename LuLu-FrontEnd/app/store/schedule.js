@@ -10,7 +10,7 @@ export const useSchedule = defineStore("schedule", () => {
         name: null,
         shift_name: null,
         dom: 0,
-        parrent: 0
+        parent: 0
     }) {
         contents.value.push(data);
     }
@@ -20,7 +20,7 @@ export const useSchedule = defineStore("schedule", () => {
         name: null,
         shift_name: null,
         dom: 0,
-        parrent: 0
+        parent: 0
     }) {
         if (check.isNull(data.id))
             return;
@@ -35,7 +35,7 @@ export const useSchedule = defineStore("schedule", () => {
             name: data.name ?? existingItem.name,
             shift_name: data.shift_name ?? existingItem.shift_name,
             dom: data.dom ?? existingItem.dom,
-            parrent: data.parrent ?? existingItem.parrent
+            parent: data.parent ?? existingItem.parent
         };
     }
 

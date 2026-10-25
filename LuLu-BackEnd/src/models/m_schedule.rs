@@ -18,8 +18,8 @@ pub struct Schedules {
     pub schedule_type: Option<i32>,
     #[serde(rename = "dom")]
     pub schedule_dom: Option<i32>,
-    #[serde(rename = "parrent")]
-    pub schedule_parrent: Option<i32>,
+    #[serde(rename = "parent")]
+    pub schedule_parent: Option<i32>,
 }
 
 #[derive(Debug, Deserialize, Serialize, sqlx::FromRow)]
@@ -28,7 +28,7 @@ pub struct ScheduleHelper {
     pub shift_name: String,
     pub shift_id: i32,
     pub schedule_dom: i32,
-    pub schedule_parrent: i32,
+    pub schedule_parent: i32,
     pub schedule_type: i32,
     pub schedule_hols: i16,
     pub shift_start_time: i64,

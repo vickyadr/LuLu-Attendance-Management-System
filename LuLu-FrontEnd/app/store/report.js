@@ -9,7 +9,7 @@ export const useReportStore = defineStore("report", () => {
             id: 0,
             first_name: null,
             last_name: null,
-            departement: null,
+            department: null,
             enroll_dow: 0,
             date: 0,
             tz: 0,

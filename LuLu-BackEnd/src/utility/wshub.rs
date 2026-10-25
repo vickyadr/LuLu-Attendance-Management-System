@@ -73,7 +73,7 @@ pub async fn ws_endpoint(
     state: web::Data<crate::utility::stor::AppState>,
     query: web::Query<WsAuth>,
 ) -> Result<HttpResponse, actix_web::Error> {
-    match crate::utility::authorization::is_login_token(
+    match crate::utility::authorization::is_admin_token(
         state.db.clone(),
         // Same transformation the bearer middleware applies to an
         // `Authorization` header: sessions store the hash, not the raw token.

@@ -10,8 +10,8 @@ pub struct ReceiverEmployee {
     pub lname: Option<String>,
     //#[serde(skip_serializing_if = "Option::is_none", rename = "address")]
     pub address: Option<String>,
-    //#[serde(skip_serializing_if = "Option::is_none", rename = "departement")]
-    pub departement: Option<String>,
+    //#[serde(skip_serializing_if = "Option::is_none", rename = "department")]
+    pub department: Option<String>,
     //#[serde(skip_serializing_if = "Option::is_none", rename = "status")]
     pub status: Option<i32>,
     //#[serde(skip_serializing_if = "Option::is_none", rename = "schedule_id")]

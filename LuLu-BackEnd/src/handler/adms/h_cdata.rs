@@ -18,6 +18,13 @@ pub async fn get_cdata(pool: web::Data<AppState>, data: web::Query<GetCData>) ->
     let sn = data.sn.as_deref().unwrap_or("");
     log::info!("CDATA: {:?}", if sn.is_empty() { "No SN" } else { sn });
 
+    // ADMS config only: a ZKNET device (handler_id=5) must never receive this
+    // payload. Realtime=1 tells the machine to push its punches to us, which
+    // is the opposite of how ZKNET works (we pull) and would let a ZKNET device
+    // bypass the pull isolation entirely.
+    //
+    // An SN we do not know is refused too: handing out the config would let any
+    // machine on the network enrol itself into the attendance feed.
     let handler_id: Option<i32> =
         match sqlx::query_scalar::<_, i32>(r#"SELECT device_handler_id FROM devices WHERE device_sn = $1"#)
             .bind(sn)
@@ -49,6 +56,8 @@ pub async fn get_cdata(pool: web::Data<AppState>, data: web::Query<GetCData>) ->
             .await
             .unwrap_or(0);
 
+    // DeviceTalker option payload. `concat!` keeps each line free of the 24
+    // leading spaces the old `\`-continued literals leaked into the payload.
     let text = format!(
         concat!(
             "GET OPTION FROM: {}\r\n",
@@ -78,6 +87,11 @@ pub async fn post_cdata(
 ) -> impl Responder {
     let mut data: HashMap<String, String> = HashMap::new();
 
+    // A device body is not guaranteed to be UTF-8: a template or name in a legacy
+    // single-byte encoding makes this decode fail, and the old `unwrap()` panicked
+    // the worker -- every later request answered 500 until a restart. Recover the
+    // text instead: the wire format is line/field oriented, so lossy decoding keeps
+    // the structure and only mangles the offending character.
     let data_body = String::from_utf8_lossy(&body).into_owned();
     log::info!("POST CDATA: {:?}", data_body);
 
@@ -98,6 +112,9 @@ pub async fn post_cdata(
             .into_response();
     }
 
+    // ADMS push only: reject ZKNET devices (handler_id=5), and reject SNs we do
+    // not know. An unknown machine must not be able to inject punches, and a
+    // failed lookup must fail closed rather than let the batch through.
     let push_handler: Option<i32> =
         match sqlx::query_scalar::<_, i32>(r#"SELECT device_handler_id FROM devices WHERE device_sn = $1"#)
             .bind(get.sn.as_deref().unwrap_or(""))
@@ -128,6 +145,8 @@ pub async fn post_cdata(
         Some(_) => {}
     }
 
+    // An administratively disabled device (state 3) must stay dark: it may
+    // still be talking to us, but nothing it sends is attendance data now.
     let disabled: Option<i32> =
         match sqlx::query_scalar::<_, i32>(r#"SELECT device_state FROM devices WHERE device_sn = $1"#)
             .bind(get.sn.as_deref().unwrap_or(""))
@@ -149,12 +168,19 @@ pub async fn post_cdata(
             .body("");
     }
 
+    // A batch the server understood but could not store is a 400, not a 500. The
+    // old code built the 400 inside `map_err` and then threw it away, falling
+    // through to the InternalServerError arm below - so any upload whose rows
+    // were all rejected answered 500, and a device that retries on 5xx would
+    // resend the same bad buffer forever. `Err` is a handled outcome here, so
+    // return the response it mapped to instead of discarding it.
     let (text, is_operlog) = if get.table.as_ref().unwrap() == "OPERLOG" {
         (data_operlog(pool, get, data_body).await, true)
     } else if get.table.as_ref().unwrap() == "ATTLOG" {
         (data_attlog(pool, get, data_body).await, false)
     } else {
-
+        // A table this build does not implement. Tell the device plainly rather
+        // than falling into the 500, so it stops resending it.
         return HttpResponse::BadRequest()
             .content_type("text/plain")
             .body("");
@@ -172,6 +198,8 @@ pub async fn post_cdata(
     }
 }
 
+/// Push a "controller changed state" event to every live client. Best effort by
+/// design: a failed broadcast must never turn a device upload into an error.
 fn notify_device(pool: &AppState, message: &str) {
     let receivers = pool.ws.broadcast(WsOut {
         event: "device",
@@ -181,6 +209,15 @@ fn notify_device(pool: &AppState, message: &str) {
     log::info!("ws broadcast device -> {receivers} client(s)");
 }
 
+/// Mark a device as having just contacted the server.
+///
+/// An upload is proof of life for controllers that never poll `getrequest`, so
+/// without this touch they would read as offline forever despite having just
+/// reported data. State is set here rather than left to the sweeper so a
+/// controller shows up as online immediately instead of up to a minute later.
+///
+/// Returns `true` when this contact flipped the device from offline to online,
+/// which is the only transition worth pushing to the dashboard.
 async fn touch_device(pool: &AppState, sn: &str) -> bool {
     let flipped: Option<(i64,)> = sqlx::query_as(
         r#"UPDATE devices
@@ -194,8 +231,12 @@ async fn touch_device(pool: &AppState, sn: &str) -> bool {
     .ok()
     .flatten();
 
+    // No row means either the device is unknown, disabled, or already online.
+    // Only a real flip counts as news.
     let came_online = flipped.is_some();
 
+    // Always refresh the timestamp, even when already online: the sweeper
+    // decides online vs offline from `device_online`, not from the state alone.
     let _ = sqlx::query(
         r#"UPDATE devices SET device_online = EXTRACT(EPOCH FROM NOW())::BIGINT WHERE device_sn = $1 AND device_state <> 3"#,
     )
@@ -206,6 +247,8 @@ async fn touch_device(pool: &AppState, sn: &str) -> bool {
     came_online
 }
 
+/// Push a "new enroll" event to every live client. Best effort by design: a
+/// failed broadcast must never turn a device upload into an error response.
 fn notify_enroll(pool: &AppState, enroll_id: i32, recorded: i32) {
     let receivers = pool.ws.broadcast(WsOut {
         event: "enroll",
@@ -229,11 +272,29 @@ async fn data_attlog(
             continue;
         }
 
+        // ATTLOG wire layout (ZKTeco PUSH SDK):
+        //   UserID<HT>Timestamp<HT>Status<HT>VerifyMode<HT>WorkCode
+        // so the canonical row is FIVE columns, e.g.
+        //   `123<HT>2024-01-01 08:00:00<HT>0<HT>1<HT>0`
+        // The old `log.len() < 6` guard rejected that canonical row outright, so
+        // every real ATTLOG upload was discarded. Four columns is the true
+        // minimum here: this handler needs UserID, Timestamp and VerifyMode.
         let log: Vec<&str> = logs.split("\t").collect();
         if log.len() < 4 {
             continue;
         }
 
+        // VerifyMode (column 3) per the ADMS protocol table. The old mapping was
+        // transposed - it read 2 as Password and 3 as Card, while the protocol
+        // defines 2 as legacy Card and 3 as alternative Password - so card and
+        // password enrollments were stored under the wrong type. Modes 5-8 are
+        // multi-factor rows; the protocol lists the modalities in priority
+        // order, so the first one named wins rather than dropping the row.
+        //
+        // The raw code is kept in `enroll_op_code` and an unrecognised one is
+        // kept too (mapped to the "other" display type) rather than dropped:
+        // the protocol defines codes this table does not enumerate, and a
+        // dropped row is a lost punch that nothing downstream can diagnose.
         let op_code: Option<i32> = log[3].trim().parse::<i32>().ok();
         let enroll_type: i32 = match log[3].trim() {
             "0" => 2,  // Password
@@ -261,6 +322,13 @@ async fn data_attlog(
             }
         };
 
+        // Column 1 is the timestamp, and the protocol allows TWO formats for it:
+        // `YYYY-MM-DD HH:MM:SS` in device-local time, or a Unix epoch. The old
+        // `unwrap_or_default()` turned an epoch row into 1970-01-01 and INSERTED
+        // it as a genuine punch, which is worse than dropping it - so an
+        // unparseable timestamp must skip the row. An epoch is already UTC and
+        // must not be shifted by the device offset; only the wall-clock form is
+        // expressed in device-local time.
         let (mut dt, is_device_local) =
             match NaiveDateTime::parse_from_str(log[1], "%Y-%m-%d %H:%M:%S") {
                 Ok(naive) => (naive.and_utc().timestamp(), true),
@@ -281,6 +349,9 @@ async fn data_attlog(
             dt -= (3600 * device_timezone) as i64;
         }
 
+        // Fingerprint template data arrives as tab-separated columns; a device
+        // that sends a short or malformed row must be skipped, never panic -
+        // an unwrap here would kill the worker process.
         let user_id: i32 = match log[0].parse() {
             Ok(id) => id,
             Err(_) => continue,
@@ -289,6 +360,12 @@ async fn data_attlog(
             continue;
         }
 
+        // Count each row exactly once and tell a real failure from a tolerated
+        // duplicate. The old `.map_err().map()` chain counted a duplicate
+        // twice, counted a successful insert once, and silently dropped a
+        // genuine error (type mismatch, FK violation) with no bump at all - so
+        // a batch where every row failed still answered "OK 0" and the missing
+        // punches were never noticed by the device.
         let row_result = sqlx::query(r#"INSERT INTO enrolls (enroll_device_sn, enroll_employee_id, enroll_type, enroll_time, enroll_status, enroll_op_code) VALUES ($1, $2, $3, $4, $5, $6)"#)
                 .bind(get.sn.as_ref().unwrap_or(&String::new()).to_string())
                 .bind(user_id)
@@ -304,7 +381,9 @@ async fn data_attlog(
                 log_recorded += 1;
             }
             Err(e) => {
-
+                // A device that resends its buffer after a dropped connection
+                // must not be scolded, so the unique-constraint case still
+                // counts as recorded. Anything else is a real loss.
                 if e.to_string()
                     .contains("duplicate key value violates unique constraint")
                 {
@@ -327,10 +406,15 @@ async fn data_attlog(
         bail!("Some data error: {}", log_recorded);
     }
 
+    // Contact proof: an upload means the device is alive right now. Devices
+    // that only POST cdata (never GET getrequest) would stay offline forever
+    // without this touch, even though they just talked to the server.
     if touch_device(&pool, get.sn.as_deref().unwrap_or("")).await {
         notify_device(&pool, "controller checked in");
     }
 
+    // One event per upload, not per row: a device posts a batch every few
+    // seconds and a fan-out per row would flood the feed with duplicates.
     if let Ok(newest) =
         sqlx::query_scalar::<_, i32>("SELECT COALESCE(MAX(enroll_id), 0) FROM enrolls")
             .fetch_one(&pool.db)
@@ -342,38 +426,65 @@ async fn data_attlog(
     Ok(format!("OK {}", log_recorded))
 }
 
+/// A row decoded from an OPERLOG/OPLOG upload, before any database work.
+///
+/// Parsing is split out from the insert path so the wire format can be tested
+/// without a database. Every bug fixed on this endpoint so far was a column
+/// index or a token split, and none of it had a test: the column layout is the
+/// contract with the device, so it needs one.
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum OperRow {
     /// An attendance punch from the OPLOG table.
     Punch {
         user_id: i32,
+        /// Mapped display type (1 Finger, 2 PIN, 3 Card, 5 unmapped).
         enroll_type: i32,
+        /// Raw wire code, kept so an unmapped code can be identified from data.
         op_code: i32,
+        /// Raw timestamp field exactly as the device sent it.
         raw_time: String,
     },
-
+    /// A user record from the USER table - carries no timestamp of its own.
     User {
         user_id: i32,
+        /// Name value, already stripped of its `Name=` label.
         name: String,
     },
-
+    /// A fingerprint template from the FP table.
     Finger {
         user_id: i32,
+        /// Finger index, already stripped of its `FID=` label.
         finger_id: String,
+        /// Template payload, already stripped of its `TMP=` label.
         template: String,
     },
 }
 
+/// Table token at the head of a row.
+///
+/// Devices send both spellings: `OPLOG 70` (space) and `USER=7` / `FP=7`
+/// (equals). Splitting on whitespace alone turned every `=`-form row into an
+/// unknown type, so device renames and fingerprint uploads were dropped.
 fn row_table(row: &str) -> &str {
     row.split(|c: char| c == '=' || c.is_whitespace())
         .next()
         .unwrap_or("")
 }
 
+/// Value after the first `=` in a labelled field.
+///
+/// The label is a single `=`: `Name=…` splits cleanly, but a base64 template
+/// may itself end in `=`, and taking the last segment truncates it.
 fn labelled(field: &str) -> &str {
     field.split_once('=').map_or(field, |(_, v)| v)
 }
 
+/// Parse one OPLOG attendance row.
+///
+/// Layout is `OPLOG<SP><OpType><HT><flag><HT><OpTime><HT><OpWho><HT>…`, so the
+/// timestamp is column 2 and the user id column 3. Reading them a column earlier
+/// parsed the flag (`0`) as the user id and rejected every punch on its
+/// `user_id <= 0` guard.
 pub(crate) fn parse_punch_row(log: &[&str]) -> Option<OperRow> {
     if log.len() < 4 {
         return None;
@@ -386,6 +497,10 @@ pub(crate) fn parse_punch_row(log: &[&str]) -> Option<OperRow> {
         .parse::<i32>()
         .unwrap_or(0);
 
+    // 6/7/8 are the documented biometric operation codes. The protocol defines
+    // others (the vendor's own server also accepts 9 and 13) whose meaning this
+    // table does not enumerate, so an unrecognised code keeps its raw value and
+    // reports the "other" type instead of being dropped.
     let enroll_type: i32 = match op_code {
         6 => 1, // Fingerprint
         7 => 2, // Password
@@ -429,6 +544,8 @@ pub(crate) fn parse_finger_row(log: &[&str]) -> Option<OperRow> {
         return None;
     }
 
+    // Split the label only, and require a non-empty payload: a short row must
+    // be skipped, never sliced blindly.
     let template = labelled(log[4]);
     if template.is_empty() {
         return None;
@@ -446,6 +563,13 @@ pub(crate) fn parse_finger_row(log: &[&str]) -> Option<OperRow> {
     })
 }
 
+/// Resolve a device timestamp field to a UTC epoch.
+///
+/// Devices send either device-local wall clock (`%Y-%m-%d %H:%M:%S`) or a Unix
+/// epoch. The wall-clock form needs the device offset applied once; an epoch is
+/// already UTC and must not be shifted. An unparseable value returns `None` so
+/// the row is dropped rather than stored with a guessed time - `unwrap_or_default`
+/// once wrote 1970-01-01 punches into the report as if they were real.
 pub(crate) fn resolve_op_time(raw: &str, device_timezone: i32) -> Option<i64> {
     match NaiveDateTime::parse_from_str(raw.trim(), "%Y-%m-%d %H:%M:%S") {
         Ok(naive) => Some(naive.and_utc().timestamp() - (3600 * device_timezone) as i64),
@@ -461,6 +585,8 @@ async fn data_operlog(
     let log_data = data_body.lines();
     let mut log_recorded: i32 = 0;
 
+    // The device offset is fixed for the whole upload, so read it once instead
+    // of per row.
     let device_timezone: i32 =
         sqlx::query_scalar::<_, i32>(r#"SELECT device_timezone FROM devices WHERE device_sn = $1"#)
             .bind(get.sn.as_deref().unwrap_or(""))
@@ -478,6 +604,10 @@ async fn data_operlog(
             continue;
         }
 
+        // A row's type token is either space-separated (`OPLOG 6 …`) or `=`-separated
+        // (`USER=7`, `FP=7`). Splitting on whitespace alone turned every `=`-form
+        // row into "Unknown data type", so device renames and fingerprint uploads
+        // were dropped silently.
         let data_type = row_table(log[0]);
 
         match data_type {
@@ -492,6 +622,11 @@ async fn data_operlog(
                     continue;
                 };
 
+                // `enroll_time` is a `bigint` epoch and `enroll_employee_id` an
+                // `integer`. The old code bound a `NaiveDateTime` and a `String`,
+                // which sqlx rejects at execution; the error was then dropped on
+                // the floor, so every OPERLOG row was reported as dropped with no
+                // trace.
                 let Some(dt) = resolve_op_time(&raw_time, device_timezone) else {
                     continue;
                 };
@@ -517,7 +652,8 @@ async fn data_operlog(
                 match row_result {
                     Ok(_) => log_recorded += 1,
                     Err(e) => {
-
+                        // A resend after a dropped connection is not a loss, so
+                        // the unique-constraint case still counts as recorded.
                         if e.to_string()
                             .contains("duplicate key value violates unique constraint")
                         {
@@ -538,6 +674,9 @@ async fn data_operlog(
                     continue;
                 };
 
+                // A USER row carries no timestamp of its own - column 2 is `Pri=`,
+                // not a date. Parsing it as one failed every time and dropped the
+                // rename silently; stamp the row with arrival time.
                 let dt: i64 = Utc::now().timestamp();
 
                 let check: bool = sqlx::query_scalar(
@@ -552,6 +691,7 @@ async fn data_operlog(
                     continue; // Skip if the user does not exist
                 }
 
+                // `update_at` is a `bigint` epoch and the name column is `employee_fname`.
                 let query = sqlx::query(
                     r#"UPDATE employee SET employee_fname=$1, update_at=$2 WHERE employee_id=$3"#,
                 )
@@ -632,11 +772,15 @@ async fn data_operlog(
         }
     }
 
+    // Contact proof, same as ATTLOG: any upload from this device proves it is
+    // alive, whether or not it also polls getrequest.
     let contact_sn = get.sn.as_deref().unwrap_or("");
     if log_recorded > 0 && touch_device(&pool, contact_sn).await {
         notify_device(&pool, "controller checked in");
     }
 
+    // OPERLOG carries user/fingerprint updates, not attendance punches, but the
+    // feed still benefits from knowing something landed.
     if log_recorded > 0
         && let Ok(newest) =
             sqlx::query_scalar::<_, i32>("SELECT COALESCE(MAX(enroll_id), 0) FROM enrolls")
@@ -654,10 +798,14 @@ async fn data_operlog(
 mod tests {
     use super::*;
 
+    /// Split a raw wire row the way the upload loop does.
     fn cols(row: &str) -> Vec<&str> {
         row.split('\t').collect()
     }
 
+    // The canonical seven-column OPLOG row from the ZKTeco PUSH SDK. Every
+    // earlier fix on this endpoint parsed a hand-written three-column row
+    // instead, so the real payload was rejected and the E2E still passed.
     const PUNCH: &str = "OPLOG 70\t0\t2024-08-05 16:08:50\t1157\t0\t0\t0";
 
     #[test]
@@ -674,6 +822,8 @@ mod tests {
         );
     }
 
+    /// The original off-by-one read the flag (`0`) as the user id and then
+    /// dropped the punch on `user_id <= 0`.
     #[test]
     fn punch_row_never_takes_the_flag_column_as_the_user() {
         let row = cols(PUNCH);
@@ -700,6 +850,8 @@ mod tests {
         }
     }
 
+    /// OPLOG 9 and 13 are accepted by the vendor's own server and have no
+    /// documented meaning here. The row must survive with its raw code.
     #[test]
     fn unknown_operation_code_is_kept_not_dropped() {
         for code in [9, 13, 77] {
@@ -769,6 +921,8 @@ mod tests {
         assert_eq!(parse_user_row(&cols("USER PIN=abc\tName=X\tPri=0")), None);
     }
 
+    /// Base64 padding means the payload often ends in `=`; `split("=").last()`
+    /// truncated exactly those templates, silently storing a broken template.
     #[test]
     fn finger_row_keeps_base64_padding_intact() {
         let tpl = "c3RhdGVsAAAAF1JJZDUwOQ==";
@@ -800,6 +954,8 @@ mod tests {
         );
     }
 
+    /// Both token spellings occur on the wire. Whitespace-only splitting
+    /// classified every `=`-form row as an unknown type and dropped it.
     #[test]
     fn row_table_accepts_both_token_spellings() {
         assert_eq!(row_table("OPLOG 70"), "OPLOG");
@@ -820,6 +976,9 @@ mod tests {
         assert_eq!(resolve_op_time(naive, -7).unwrap(), utc + 7 * 3600);
     }
 
+    /// An epoch is already UTC, so it must NOT be shifted by the device offset -
+    /// the two branches used to be easy to confuse and were the cause of
+    /// seven-hour-off punches.
     #[test]
     fn epoch_is_not_shifted_by_the_device_offset() {
         let epoch = 1_722_875_330;
@@ -828,6 +987,9 @@ mod tests {
         assert_eq!(resolve_op_time(&epoch.to_string(), -7), Some(epoch));
     }
 
+    /// The regression that mattered: `unwrap_or_default()` once turned an
+    /// unparseable timestamp into epoch 0, storing a 1970 punch as if it were
+    /// real. An unusable value must drop the row instead.
     #[test]
     fn unparseable_timestamp_yields_none_not_the_epoch() {
         for bad in ["notatimestamp", "", "2024-13-45 99:99:99", "2024/08/05"] {

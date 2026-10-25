@@ -6,6 +6,13 @@ use ring::digest::{Context, SHA256};
 use std::sync::LazyLock;
 
 /// The server secret, read once.
+///
+/// `std::env::var` + `.leak()` on every call copied the secret into a fresh
+/// allocation that was never freed, once per authenticated request, and the
+/// `.expect()` meant a missing `SECRET_KEY` panicked inside whichever actix
+/// worker happened to serve the first request. Resolution is cached now, and
+/// `SECRET_KEY` is validated at startup by `ensure_secret_configured`, so the
+/// panic path is unreachable in a running server.
 static SECRET: LazyLock<String> = LazyLock::new(|| {
     dotenvy::dotenv().ok();
     std::env::var("SECRET_KEY").expect("SECRET_KEY must be set; main.rs checks this at startup")
@@ -51,6 +58,9 @@ pub fn needs_rehash(stored: &str) -> bool {
     !stored.starts_with("$argon2")
 }
 
+/// Verify a candidate against either format: Argon2 PHC first, legacy
+/// secret-salted SHA-256 as fallback so pre-migration rows still log in
+/// and get re-hashed on success.
 pub async fn verify_password(stored: &str, candidate: &str) -> bool {
     if stored.starts_with("$argon2") {
         match PasswordHash::new(stored) {

@@ -1,0 +1,554 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#065f46" />
+<title>LuLu Field</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23065f46'/%3E%3Cpath d='M32 14c-7 0-12 5-12 12 0 9 12 24 12 24s12-15 12-24c0-7-5-12-12-12zm0 16a4 4 0 110-8 4 4 0 010 8z' fill='%23fff'/%3E%3C/svg%3E" />
+<style>
+  :root { --emerald: #059669; --dark: #064e3b; --line: #d1fae5; --bg: #f0fdf4; --muted: #047857; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--dark); }
+  main { max-width: 560px; margin: 0 auto; padding: 16px 16px 32px; }
+  h1 { font-size: 20px; margin: 0 0 2px; }
+  .sub { color: var(--muted); font-size: 13px; margin: 0 0 16px; }
+  .card { background: #fff; border: 2px solid var(--line); border-radius: 14px; padding: 14px; margin-bottom: 12px; }
+  label { display: block; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; margin: 10px 0 4px; color: var(--muted); }
+  input { width: 100%; padding: 12px; font-size: 16px; border: 2px solid var(--line); border-radius: 10px; background: #fff; }
+  input:focus { outline: none; border-color: var(--emerald); }
+  button { width: 100%; padding: 13px; font-size: 15px; font-weight: 700; border-radius: 10px; border: 0; background: var(--emerald); color: #fff; margin-top: 10px; }
+  button.secondary { background: #fff; color: var(--dark); border: 2px solid var(--line); }
+  button.danger { background: #fff; color: #be123c; border: 2px solid #fecdd3; }
+  button:disabled { opacity: .5; }
+  .row { display: flex; gap: 8px; }
+  .row > * { flex: 1; }
+  .badge { display: inline-block; font-size: 11px; font-weight: 700; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); background: #ecfdf5; }
+  .badge.pending { color: #92400e; background: #fffbeb; border-color: #fde68a; }
+  .badge.approved { color: #065f46; background: #d1fae5; border-color: #6ee7b7; }
+  .badge.rejected { color: #9f1239; background: #fff1f2; border-color: #fecdd3; }
+  .event { display: flex; gap: 10px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); }
+  .event:first-child { border-top: 0; }
+  .event img { width: 56px; height: 56px; object-fit: cover; border-radius: 8px; border: 1px solid var(--line); }
+  .event .meta { font-size: 12px; color: var(--muted); }
+  .muted { color: var(--muted); font-size: 12px; }
+  .error { color: #be123c; font-size: 13px; margin-top: 8px; }
+  .hidden { display: none !important; }
+  video { width: 100%; border-radius: 12px; background: #000; aspect-ratio: 3/4; object-fit: cover; }
+  .toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); background: var(--dark); color: #fff; padding: 10px 16px; border-radius: 999px; font-size: 13px; max-width: 90%; }
+  a { color: var(--emerald); }
+
+  /* Login: one column, thumb-sized controls, survives the phone keyboard. */
+  body.auth { background: radial-gradient(120% 80% at 50% 0%, #e7fbf0 0%, var(--bg) 60%); }
+  body.auth main { min-height: 100dvh; display: flex; flex-direction: column; justify-content: center; padding: 24px 20px calc(24px + env(safe-area-inset-bottom)); }
+  body.auth #title, body.auth #subtitle { display: none; }
+  .auth-brand { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-bottom: 22px; }
+  .auth-mark { width: 64px; height: 64px; border-radius: 18px; background: linear-gradient(160deg, #059669, #065f46); display: grid; place-items: center; box-shadow: 0 10px 24px -10px rgba(5,150,105,.6); }
+  .auth-brand h2 { margin: 0; font-size: 22px; letter-spacing: -.01em; }
+  .auth-brand p { margin: 0; color: var(--muted); font-size: 13px; }
+  .auth-card { padding: 18px; }
+  .auth-card label { margin-top: 0; }
+  .auth-card label:not(:first-child) { margin-top: 14px; }
+  .auth-card input { height: 52px; }
+  .input-row { position: relative; }
+  .input-row input { height: 52px; padding-right: 68px; }
+  .input-row .toggle { position: absolute; right: 5px; top: 5px; width: auto; height: 42px; margin: 0; padding: 0 10px; font-size: 13px; font-weight: 700; color: var(--muted); background: transparent; border: 0; }
+  .auth-submit { height: 52px; margin-top: 18px; font-size: 16px; }
+  .auth-error { margin-top: 12px; border: 1px solid #fecdd3; background: #fff1f2; color: #9f1239; border-radius: 10px; padding: 10px 12px; font-size: 13px; }
+</style>
+</head>
+<body>
+<main>
+  <h1 id="title">LuLu Field</h1>
+  <p class="sub" id="subtitle">Absensi lapangan</p>
+
+  <section id="loginView" class="hidden">
+    <div class="auth-brand">
+      <div class="auth-mark" aria-hidden="true">
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8"><path d="M12 21s7-6.2 7-11a7 7 0 10-14 0c0 4.8 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>
+      </div>
+      <h2>LuLu Field</h2>
+      <p>Absensi lapangan</p>
+    </div>
+    <form id="loginForm" class="card auth-card" novalidate>
+      <label for="nick">Nickname</label>
+      <input id="nick" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" enterkeyhint="next" />
+      <label for="pass">Password</label>
+      <div class="input-row">
+        <input id="pass" name="password" type="password" autocomplete="current-password" enterkeyhint="go" />
+        <button type="button" id="togglePass" class="toggle" aria-label="Tampilkan password">Lihat</button>
+      </div>
+      <button type="submit" id="loginBtn" class="auth-submit">Masuk</button>
+      <p id="loginError" class="auth-error hidden" role="alert"></p>
+    </form>
+  </section>
+
+  <section id="appView" class="hidden">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+        <div>
+          <div style="font-weight:700" id="employeeName">-</div>
+          <div class="muted" id="employeeDept"></div>
+        </div>
+        <button id="logoutBtn" class="secondary" style="width:auto;padding:8px 12px;margin:0;font-size:12px">Keluar</button>
+      </div>
+      <div style="margin-top:10px" id="dayStatus"></div>
+    </div>
+
+    <div class="card" id="captureCard">
+      <div style="font-weight:700;font-size:14px" id="captureTitle">Trip baru</div>
+      <p class="muted" id="captureHint">Foto diambil langsung dari kamera, lokasi otomatis.</p>
+      <button id="btnAdd" style="margin-top:10px">Tambah foto</button>
+      <input id="fileInput" type="file" accept="image/*" capture="user" class="hidden" />
+      <p class="muted" id="gpsInfo"></p>
+    </div>
+
+    <div class="card">
+      <div style="font-weight:700;font-size:14px">Hari ini</div>
+      <div id="events"><p class="muted">Belum ada kiriman.</p></div>
+    </div>
+
+    <div class="card hidden" id="pendingCard">
+      <div style="font-weight:700;font-size:14px">Menunggu dikirim</div>
+      <p class="muted" id="pendingText"></p>
+      <button id="retryBtn">Kirim ulang</button>
+    </div>
+  </section>
+</main>
+
+<script>
+(() => {
+  const API = '/api';
+  const TOKEN_KEY = 'lulu-field-token';
+  const DB_NAME = 'lulu-field';
+  const STORE = 'pending';
+
+  const $ = (id) => document.getElementById(id);
+  const state = { token: localStorage.getItem(TOKEN_KEY) || '', me: null, pending: null, placing: null, busy: false, opening: false };
+
+  function show(view) {
+    $('loginView').classList.toggle('hidden', view !== 'login');
+    $('appView').classList.toggle('hidden', view !== 'app');
+    document.body.classList.toggle('auth', view === 'login');
+  }
+  function toast(text, error) {
+    const el = document.createElement('div');
+    el.className = 'toast';
+    if (error) el.style.background = '#9f1239';
+    el.textContent = text;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 3200);
+  }
+  function fmt(iso, tz) {
+    if (!iso) return '-';
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '-';
+    const shifted = typeof tz === 'number' ? new Date(d.getTime() + tz * 60000) : d;
+    return shifted.toISOString().slice(11, 16);
+  }
+  function statusBadge(status) {
+    const map = { pending: 'Menunggu verifikasi', approved: 'Disetujui', rejected: 'Ditolak' };
+    return `<span class="badge ${status}">${map[status] || status}</span>`;
+  }
+
+  async function api(path, options = {}) {
+    const headers = Object.assign({}, options.headers || {});
+    if (state.token) headers.Authorization = `Bearer ${state.token}`;
+    const resp = await fetch(`${API}${path}`, { ...options, headers });
+    let body = null;
+    try { body = await resp.json(); } catch { body = null; }
+    if (resp.status === 401) {
+      logout();
+      throw new Error('Sesi berakhir, silakan masuk lagi');
+    }
+    if (!body || body.code !== 200) {
+      throw new Error((body && (body.message || body.error)) || `HTTP ${resp.status}`);
+    }
+    return body;
+  }
+
+  // --- pending uploads survive a reload: a photo must never be lost because
+  // the field has no signal. One record is enough (the UI uploads one at a time).
+  function withStore(mode, run) {
+    return new Promise((resolve, reject) => {
+      const open = indexedDB.open(DB_NAME, 1);
+      open.onupgradeneeded = () => open.result.createObjectStore(STORE);
+      open.onerror = () => reject(open.error);
+      open.onsuccess = () => {
+        const db = open.result;
+        const tx = db.transaction(STORE, mode);
+        const req = run(tx.objectStore(STORE));
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      };
+    });
+  }
+  const savePending = (record) => withStore('readwrite', (s) => s.put(record, 'current'));
+  const loadPending = () => withStore('readonly', (s) => s.get('current'));
+  const clearPending = () => withStore('readwrite', (s) => s.delete('current'));
+
+  function locationOnce() {
+    return new Promise((resolve) => {
+      if (!navigator.geolocation) return resolve({});
+      const timer = setTimeout(() => resolve({}), 8000);
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          clearTimeout(timer);
+          resolve({
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+            accuracy: pos.coords.accuracy,
+          });
+        },
+        () => { clearTimeout(timer); resolve({}); },
+        { enableHighAccuracy: true, timeout: 7000, maximumAge: 30000 }
+      );
+    });
+  }
+
+  // Camera capture at 1280px on the long side, JPEG 0.8: the server never needs
+  // the 5-12 MB the phone sensor produces.
+  async function compress(file) {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, 1280 / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(bitmap.width * scale);
+    canvas.height = Math.round(bitmap.height * scale);
+    canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    return await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.8));
+  }
+
+  async function upload(kind, blob, geo) {
+    const day = state.me.today?.id || (await api('/field/attendances', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}',
+    })).data[0].id;
+    const tz = -new Date().getTimezoneOffset();
+    const params = new URLSearchParams({ kind, tz: String(tz) });
+    for (const [key, value] of Object.entries(geo)) {
+      if (value != null) params.set(key, String(value));
+    }
+    params.set('device_at', String(Math.floor(Date.now() / 1000)));
+    await api(`/field/attendances/${day}/photo?${params}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'image/jpeg' },
+      body: blob,
+    });
+  }
+
+  async function send(kind, blob, geo) {
+    state.busy = true;
+    renderBusy();
+    try {
+      await upload(kind, blob, geo);
+    } catch (error) {
+      const record = { kind, blob, geo, at: Date.now() };
+      await savePending(record);
+      state.pending = record;
+      renderPending();
+      toast(error.message || 'Gagal mengirim, coba lagi', true);
+      state.busy = false;
+      renderBusy();
+      return;
+    }
+    // The photo is on the server now. A failed refresh must not queue it again.
+    await clearPending();
+    state.pending = null;
+    renderPending();
+    toast(kind === 'in' ? 'Foto datang terkirim' : 'Foto pulang terkirim');
+    try {
+      await refresh();
+    } catch (error) {
+      toast('Foto terkirim, gagal memuat ulang. Tarik untuk menyegarkan.', true);
+    } finally {
+      state.busy = false;
+      renderBusy();
+    }
+  }
+
+  // One tap must produce at most one upload: the button is disabled from the
+  // moment the photo is sent until the fresh day comes back from the server.
+  function renderBusy() {
+    const button = $('btnAdd');
+    if (!button) return;
+    if (state.busy) {
+      button.disabled = true;
+      button.textContent = 'Mengirim foto...';
+    } else if (state.me) {
+      const photos = state.me.today?.photos || [];
+      const kind = nextKind();
+      button.disabled = photos.length >= state.me.max_events;
+      button.textContent = photos.length >= state.me.max_events
+        ? 'Batas foto tercapai'
+        : `Tambah foto ${kind === 'in' ? 'datang' : 'pulang'}`;
+    }
+  }
+
+  function renderPending() {
+    const card = $('pendingCard');
+    if (!state.pending) { card.classList.add('hidden'); return; }
+    card.classList.remove('hidden');
+    $('pendingText').textContent = `${state.pending.kind === 'in' ? 'Foto datang' : 'Foto pulang'} belum terkirim. Jangan tutup aplikasi sebelum berhasil.`;
+  }
+
+  function renderMe() {
+    const me = state.me;
+    $('employeeName').textContent = me.name || 'Karyawan';
+    $('employeeDept').textContent = me.department || '';
+    const today = me.today;
+    const photos = today?.photos || [];
+    // Same rule as the event list: status is a CHECK-constrained enum.
+    $('dayStatus').innerHTML = today
+      ? `${statusBadge(today.status)} <span class="muted">${today.work_date}</span>`
+      : '<span class="muted">Belum mulai hari ini</span>';
+
+    const kind = nextKind();
+    renderBusy();
+    $('captureHint').textContent = photos.length >= me.max_events
+      ? 'Maksimal 10 foto per hari.'
+      : kind === 'in' ? 'Foto saat tiba di lapangan.' : 'Foto saat selesai di lapangan.';
+
+    // innerHTML only interpolates server values with fixed shapes: kind and
+    // status are CHECK-constrained, ids are UUIDs, times are formatted here.
+    // No employee free text (note, name) goes through this path.
+    const box = $('events');
+    if (!photos.length) { box.innerHTML = '<p class="muted">Belum ada kiriman.</p>'; return; }
+    box.innerHTML = photos.map((p) => `
+      <div class="event">
+        <img alt="" data-photo="${p.id}" />
+        <div style="flex:1">
+          <div style="font-weight:600;font-size:14px">${p.kind === 'in' ? 'Datang' : 'Pulang'}</div>
+          <div class="meta">${fmt(p.server_at, p.tz_offset_minutes)} · ${p.accuracy_m != null ? Math.round(p.accuracy_m) + ' m' : 'lokasi -'}</div>
+        </div>
+        ${canDelete(p)
+          ? `<button class="danger" style="width:auto;padding:8px 10px;margin:0;font-size:12px" data-del="${p.id}" data-kind="${p.kind}">Hapus</button>`
+          : '<span class="meta" style="white-space:nowrap">Terkunci</span>'}
+      </div>`).join('');
+    for (const img of box.querySelectorAll('img[data-photo]')) {
+      photoUrl(img.dataset.photo).then((url) => { if (url) img.src = url; });
+    }
+    for (const button of box.querySelectorAll('button[data-del]')) {
+      button.onclick = () => deletePhoto(button.dataset.del, button.dataset.kind);
+    }
+  }
+
+  // Same ten-minute window the server enforces: after that the button is gone,
+  // so evidence cannot be deleted once the moment has passed.
+  function canDelete(photo) {
+    const at = new Date(photo.server_at).getTime();
+    return Number.isFinite(at) && Date.now() - at < 10 * 60 * 1000;
+  }
+
+  // Retake flow: a blurry photo must be removable, but never by accident, and
+  // the day goes back to pending because the evidence changed.
+  async function deletePhoto(photoId, kind) {
+    const label = kind === 'in' ? 'datang' : 'pulang';
+    const ok = window.confirm(`Hapus foto ${label}? Foto akan hilang dan hari ini kembali menunggu verifikasi admin.`);
+    if (!ok) return;
+    try {
+      await api(`/field/photos/${photoId}`, { method: 'DELETE' });
+      const cached = photoUrls.get(photoId);
+      if (cached) { URL.revokeObjectURL(cached); photoUrls.delete(photoId); }
+      toast(`Foto ${label} dihapus`);
+      await refresh();
+    } catch (error) {
+      toast(error.message || 'Gagal menghapus foto', true);
+    }
+  }
+
+  const photoUrls = new Map();
+  async function photoUrl(id) {
+    if (photoUrls.has(id)) return photoUrls.get(id);
+    const resp = await fetch(`${API}/field/photos/${id}`, { headers: { Authorization: `Bearer ${state.token}` } });
+    if (!resp.ok) return '';
+    const url = URL.createObjectURL(await resp.blob());
+    photoUrls.set(id, url);
+    return url;
+  }
+
+  async function refresh() {
+    const me = await api('/field/me');
+    state.me = me.data[0];
+    renderMe();
+  }
+
+  async function choosePhoto(kind) {
+    if (state.opening) return;
+    state.opening = true;
+    state.placing = kind;
+    const input = $('fileInput');
+    input.value = '';
+    // getUserMedia is the in-app camera when the page is a secure context;
+    // the file input is the fallback and also works on plain HTTP.
+    if (navigator.mediaDevices?.getUserMedia && window.isSecureContext) {
+      try {
+        // Front camera: the photo is proof of the employee, not a landscape shot.
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+        state.opening = false;
+        showCamera(stream, kind);
+        return;
+      } catch { /* fall through to the file input */ }
+    }
+    state.opening = false;
+    input.click();
+  }
+
+  async function showCamera(stream, kind) {
+    // One capture surface at a time: the add card hides while the camera is
+    // open, so the screen never shows a second photo form behind it.
+    const card = $('captureCard');
+    card.classList.add('hidden');
+    const wrap = document.createElement('div');
+    wrap.className = 'card';
+    wrap.innerHTML = `<div style="font-weight:700;font-size:14px;margin-bottom:8px">Foto ${kind === 'in' ? 'datang' : 'pulang'}</div>
+      <video autoplay playsinline></video>
+      <div class="row"><button id="shot">Ambil foto</button><button id="cancel" class="secondary">Batal</button></div>`;
+    card.after(wrap);
+    wrap.querySelector('video').srcObject = stream;
+    const stop = () => {
+      stream.getTracks().forEach((t) => t.stop());
+      wrap.remove();
+      card.classList.remove('hidden');
+      state.placing = null;
+      state.opening = false;
+    };
+    wrap.querySelector('#cancel').onclick = stop;
+    wrap.querySelector('#shot').onclick = async (event) => {
+      const shutter = event.currentTarget;
+      if (shutter.disabled) return;
+      shutter.disabled = true;
+      const video = wrap.querySelector('video');
+      const canvas = document.createElement('canvas');
+      const scale = Math.min(1, 1280 / Math.max(video.videoWidth, video.videoHeight));
+      canvas.width = Math.round(video.videoWidth * scale);
+      canvas.height = Math.round(video.videoHeight * scale);
+      canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.8));
+      stop();
+      await captureAndSend(kind, blob);
+    };
+  }
+
+  async function captureAndSend(kind, blob) {
+    $('gpsInfo').textContent = 'Mengambil lokasi…';
+    const geo = await locationOnce();
+    $('gpsInfo').textContent = geo.lat != null
+      ? `Lokasi ${geo.lat.toFixed(5)}, ${geo.lng.toFixed(5)} (${Math.round(geo.accuracy)} m)`
+      : 'Lokasi tidak tersedia, kiriman tetap dikirim dan ditandai.';
+    await send(kind, blob, geo);
+  }
+
+  $('fileInput').addEventListener('change', async (event) => {
+    const file = event.target.files?.[0];
+    if (!file || !state.placing) return;
+    const blob = await compress(file);
+    const kind = state.placing;
+    state.placing = null;
+    await captureAndSend(kind, blob);
+  });
+
+  $('retryBtn').onclick = async () => {
+    if (!state.pending) return;
+    await send(state.pending.kind, state.pending.blob, state.pending.geo || {});
+  };
+
+  $('btnAdd').onclick = () => {
+    if (state.busy || state.opening || document.getElementById('shot')) return;
+    choosePhoto(nextKind());
+  };
+  function nextKind() {
+    const photos = state.me?.today?.photos || [];
+    const last = photos[photos.length - 1];
+    if (last) return last.kind === 'in' ? 'out' : 'in';
+    // No photo yet: the server decides from the device punch-in and the shift
+    // end, so after working hours the only missing side is the checkout.
+    return state.me?.suggested_kind === 'out' ? 'out' : 'in';
+  }
+
+  async function login() {
+    const button = $('loginBtn');
+    const error = $('loginError');
+    error.classList.add('hidden');
+    button.disabled = true;
+    button.textContent = 'Masuk...';
+    try {
+      const nickname = $('nick').value.trim();
+      if (!nickname || !$('pass').value) throw new Error('Nickname dan password wajib diisi');
+      const resp = await fetch(`${API}/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nickname, password: $('pass').value, field_app: true }),
+      });
+      const body = await resp.json().catch(() => null);
+      if (resp.status === 401 || resp.status === 403) {
+        throw new Error('Nickname atau password salah');
+      }
+      if (!resp.ok || !body || body.code !== 200) {
+        throw new Error((body && (body.message || body.error)) || 'Gagal masuk, coba lagi');
+      }
+      state.token = body.data[0].token;
+      localStorage.setItem(TOKEN_KEY, state.token);
+      localStorage.setItem('lulu-field-nick', nickname);
+      $('pass').value = '';
+      await boot();
+    } catch (err) {
+      error.textContent = err.message || 'Gagal masuk';
+      error.classList.remove('hidden');
+      $('pass').focus();
+    } finally {
+      button.disabled = false;
+      button.textContent = 'Masuk';
+    }
+  }
+
+  function logout() {
+    state.token = '';
+    localStorage.removeItem(TOKEN_KEY);
+    show('login');
+  }
+
+  $('loginForm').addEventListener('submit', (event) => { event.preventDefault(); login(); });
+  $('togglePass').onclick = () => {
+    const input = $('pass');
+    const visible = input.type === 'text';
+    input.type = visible ? 'password' : 'text';
+    $('togglePass').textContent = visible ? 'Lihat' : 'Sembunyi';
+    $('togglePass').setAttribute('aria-label', visible ? 'Tampilkan password' : 'Sembunyikan password');
+    input.focus();
+  };
+  $('logoutBtn').onclick = logout;
+
+  async function boot() {
+    if (!state.token) {
+      $('nick').value = localStorage.getItem('lulu-field-nick') || '';
+      show('login');
+      return;
+    }
+    try {
+      await refresh();
+      state.pending = await loadPending();
+      renderPending();
+      show('app');
+    } catch (error) {
+      if (state.token) toast(error.message, true);
+      logout();
+    }
+  }
+
+  // Installable without a separate manifest file or icon route.
+  const manifest = {
+    name: 'LuLu Field', short_name: 'LuLu Field', start_url: '/field-app', display: 'standalone',
+    background_color: '#f0fdf4', theme_color: '#065f46',
+    icons: [{ src: document.querySelector('link[rel=icon]').href, sizes: 'any', type: 'image/svg+xml' }],
+  };
+  const link = document.createElement('link');
+  link.rel = 'manifest';
+  link.href = URL.createObjectURL(new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' }));
+  document.head.appendChild(link);
+
+  boot();
+})();
+</script>
+</body>
+</html>

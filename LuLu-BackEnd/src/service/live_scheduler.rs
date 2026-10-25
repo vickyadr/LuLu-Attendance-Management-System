@@ -5,6 +5,7 @@ use actix_web::web;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex};
+use tokio::time::{interval, MissedTickBehavior};
 
 /// Live capture tasks, one per device. A live session owns the device socket for
 /// as long as it runs, so there is at most one per device and it is what owns the
@@ -130,6 +131,7 @@ pub async fn spawn_live_task(
             };
 
             let sn_for_log = sn.clone();
+            let tz_for_reader = tz;
 
             // The reader is blocking std::net, so it runs on a blocking thread and
             // hands rows back over a channel. The async side owns the database.
@@ -142,6 +144,13 @@ pub async fn spawn_live_task(
             let stop_reader = stop_task.clone();
             let reader = tokio::task::spawn_blocking(move || {
                 let mut zk = ZkPull::connect(&addr, LIVE_READ_TIMEOUT)?;
+                // Sync device RTC on every (re)connect so future punches land on
+                // the right wall-clock time. Best effort: a failed set_time must
+                // not kill the capture session.
+                let _ = zk.set_time(ZkPull::encode_device_time(
+                    &(chrono::Utc::now().naive_utc()
+                        + chrono::Duration::hours(tz_for_reader as i64)),
+                ));
                 // Both closures borrow `stop_reader`/`tx`; the reader thread owns
                 // them for the whole session and the channel closes when it returns.
                 let send = tx.clone();
@@ -154,12 +163,12 @@ pub async fn spawn_live_task(
             });
 
             // Drain punches while the reader runs. `false` means the reader ended
-            // and the session is gone. Once we start receiving, the device was reachable,
-            // so reset backoff: transient failures on an otherwise live device do not grow
-            // the wait time.
-            was_connected = true;
+            // and the session is gone. The connection verdict is unknown until the
+            // reader returns, so `was_connected` is set from the match below: doing
+            // it here would mark an unreachable device as reachable and pin the
+            // backoff at RECONNECT_GAP forever.
             
-            // The device just connected: refresh its last-contact timestamp so the
+            // The device is about to be contacted: refresh its last-contact timestamp so the
             // sweeper does not flip it to offline after 5 minutes of silence (even
             // though the socket is open). Every punch will refresh it again.
             let _ = sqlx::query(
@@ -170,61 +179,104 @@ pub async fn spawn_live_task(
             .await;
             
             let mut stored_total = 0u64;
-            while let Some(row) = rx.recv().await {
-                let (stored, _duplicate, failed) =
-                    store_attendance(&pool_clone, &sn, tz, std::slice::from_ref(&row)).await;
-                stored_total += stored as u64;
-                // A live ZKNet device never phones home, so nothing else refreshes
-                // its `device_online`. Without this the sweeper flipped it to
-                // offline after 5 minutes even though punches were streaming in,
-                // which is why the device page said "Offline" during live capture.
-                let _ = sqlx::query(
-                    "UPDATE devices SET device_online = EXTRACT(EPOCH FROM NOW())::BIGINT, device_state = 1 WHERE device_id = $1 AND device_state <> 3",
-                )
-                .bind(device_id)
-                .execute(&pool_clone.db)
-                .await;
-                // Tell the dashboard a punch landed. Without this the live table
-                // only ever changes on a manual reload: the pull path broadcasts
-                // and the live path did not, so every real-time punch was silent.
-                // Best effort - a failed broadcast must never fail the ingest.
-                if stored > 0 {
-                    // Info, not debug: a silent reader and a stopped reader look
-                    // identical from the outside, and every "my punch did not
-                    // arrive" question starts here. One line per punch is not
-                    // flood on a real attendance device.
-                    log::info!(
-                        "live device {device_id} ({sn}): punch from uid {}, stored",
-                        row.user_id
-                    );
-                    pool_clone.ws.broadcast(crate::utility::wshub::WsOut {
-                        event: "enroll",
-                        message: format!("punch from uid {}", row.user_id),
-                        enroll_id: 0,
-                    });
-                }
-                if failed > 0 {
-                    // `failed` counts punches store_attendance refused: a
-                    // non-numeric user id, or a device time outside 2000..2038.
-                    // It does NOT mean the employee is unregistered, which reads
-                    // as a much more alarming problem than it is.
-                    log::warn!(
-                        "live scheduler device {device_id} ({sn_for_log}): rejected punch from uid {} ({} unreadable)",
-                        row.user_id,
-                        failed
-                    );
+            let mut keepalive = interval(Duration::from_secs(60));
+            keepalive.set_missed_tick_behavior(MissedTickBehavior::Delay);
+            
+            loop {
+                tokio::select! {
+                    maybe = rx.recv() => {
+                        match maybe {
+                            Some(row) => {
+                                let (stored, _duplicate, failed) =
+                                    store_attendance(&pool_clone, &sn, tz, std::slice::from_ref(&row)).await;
+                                stored_total += stored as u64;
+                                // A live ZKNet device never phones home, so nothing else refreshes
+                                // its `device_online`. Without this the sweeper flipped it to
+                                // offline after 5 minutes even though punches were streaming in,
+                                // which is why the device page said "Offline" during live capture.
+                                let _ = sqlx::query(
+                                    "UPDATE devices SET device_online = EXTRACT(EPOCH FROM NOW())::BIGINT, device_state = 1 WHERE device_id = $1 AND device_state <> 3",
+                                )
+                                .bind(device_id)
+                                .execute(&pool_clone.db)
+                                .await;
+                                // Tell the dashboard a punch landed. Without this the live table
+                                // only ever changes on a manual reload: the pull path broadcasts
+                                // and the live path did not, so every real-time punch was silent.
+                                // Best effort - a failed broadcast must never fail the ingest.
+                                if stored > 0 {
+                                    // Info, not debug: a silent reader and a stopped reader look
+                                    // identical from the outside, and every "my punch did not
+                                    // arrive" question starts here. One line per punch is not
+                                    // flood on a real attendance device.
+                                    log::info!(
+                                        "live device {device_id} ({sn}): punch from uid {}, stored",
+                                        row.user_id
+                                    );
+                                    pool_clone.ws.broadcast(crate::utility::wshub::WsOut {
+                                        event: "enroll",
+                                        message: format!("punch from uid {}", row.user_id),
+                                        enroll_id: 0,
+                                    });
+                                }
+                                if failed > 0 {
+                                    // `failed` counts punches store_attendance refused: a
+                                    // non-numeric user id, or a device time outside 2000..2038.
+                                    // It does NOT mean the employee is unregistered, which reads
+                                    // as a much more alarming problem than it is.
+                                    log::warn!(
+                                        "live scheduler device {device_id} ({sn_for_log}): rejected punch from uid {} ({} unreadable)",
+                                        row.user_id,
+                                        failed
+                                    );
+                                }
+                            }
+                            None => {
+                                // Channel closed; reader ended the session.
+                                break;
+                            }
+                        }
+                    }
+                    _ = keepalive.tick() => {
+                        // Device is silent but socket is open. Refresh `device_online` so the
+                        // sweeper does not flip it to offline after 5 minutes of idle.
+                        let _ = sqlx::query(
+                            "UPDATE devices SET device_online = EXTRACT(EPOCH FROM NOW())::BIGINT, device_state = 1 WHERE device_id = $1 AND device_state <> 3",
+                        )
+                        .bind(device_id)
+                        .execute(&pool_clone.db)
+                        .await;
+                    }
                 }
             }
 
             match reader.await {
-                Ok(Ok(delivered)) => log::info!(
-                    "live scheduler device {device_id} ({sn_for_log}): session ended after {delivered} events, {stored_total} stored"
-                ),
-                Ok(Err(e)) => log::error!(
-                    "live scheduler device {device_id} ({sn_for_log}) at {addr} live session failed: {e}"
-                ),
+                Ok(Ok(delivered)) => {
+                    // The socket opened and the session ran: this device was
+                    // reachable, so a drop here is transient and the short gap
+                    // is the right wait. Reset the climb as well, otherwise a
+                    // device that was dark for an hour keeps waiting the maximum
+                    // even after it comes back.
+                    was_connected = true;
+                    backoff = RECONNECT_GAP;
+                    log::info!(
+                        "live scheduler device {device_id} ({sn_for_log}): session ended after {delivered} events, {stored_total} stored"
+                    );
+                }
+                Ok(Err(e)) => {
+                    // `connect` sits inside the reader closure, so this arm covers
+                    // both "could not reach the device" and "session failed".
+                    // Only a failure after the socket was open should keep the
+                    // short gap, and the closure cannot tell us which happened, so
+                    // treat it as unreachable and let the backoff climb.
+                    log::error!(
+                        "live scheduler device {device_id} ({sn_for_log}) at {addr} live session failed: {e}"
+                    );
+                }
                 Err(e) => {
-                    log::error!("live scheduler device {device_id} reader panicked: {e}");
+                    log::error!(
+                        "live scheduler device {device_id} ({sn_for_log}) reader panicked: {e}"
+                    );
                 }
             }
 

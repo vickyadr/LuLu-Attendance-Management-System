@@ -1,6 +1,8 @@
 <script setup>
 import { faExclamationTriangle, faExclamationCircle, faLock, faSearch, faClock, faServer, faWifi, faCreditCard, faTachometerAlt } from '@fortawesome/free-solid-svg-icons'
 
+const { t } = useI18n()
+
 const props = defineProps({
   code: { type: Number, required: true },
   title: { type: String, default: '' },
@@ -11,26 +13,26 @@ const props = defineProps({
 })
 
 const CODE_META = {
-  400: { icon: faExclamationTriangle, label: $t('error.badgeBadRequest'), title: $t('error.tBadRequest'), message: $t('error.mBadRequest') },
-  401: { icon: faLock, label: $t('error.badgeUnauthorized'), title: $t('error.tUnauthorized'), message: $t('error.mUnauthorized') },
-  402: { icon: faCreditCard, label: $t('error.badgePayment'), title: $t('error.tPayment'), message: $t('error.mPayment') },
-  403: { icon: faLock, label: $t('error.badgeForbidden'), title: $t('error.tForbidden'), message: $t('error.mForbidden') },
-  404: { icon: faSearch, label: $t('error.badgeNotFound'), title: $t('error.tNotFound'), message: $t('error.mNotFound') },
-  405: { icon: faExclamationCircle, label: $t('error.badgeMethod'), title: $t('error.tMethod'), message: $t('error.mMethod') },
-  408: { icon: faClock, label: $t('error.badgeTimeout'), title: $t('error.tTimeout'), message: $t('error.mTimeout') },
-  429: { icon: faExclamationCircle, label: $t('error.badgeTooMany'), title: $t('error.tTooMany'), message: $t('error.mTooMany') },
-  500: { icon: faServer, label: $t('error.badgeServer'), title: $t('error.tServer'), message: $t('error.mServer') },
-  502: { icon: faWifi, label: $t('error.badgeGateway'), title: $t('error.tGateway'), message: $t('error.mGateway') },
-  503: { icon: faTachometerAlt, label: $t('error.badgeUnavailable'), title: $t('error.tUnavailable'), message: $t('error.mUnavailable') },
-  504: { icon: faWifi, label: $t('error.badgeGatewayTimeout'), title: $t('error.tGatewayTimeout'), message: $t('error.mGatewayTimeout') },
+  400: { icon: faExclamationTriangle, label: 'error.badgeBadRequest', title: 'error.tBadRequest', message: 'error.mBadRequest' },
+  401: { icon: faLock, label: 'error.badgeUnauthorized', title: 'error.tUnauthorized', message: 'error.mUnauthorized' },
+  402: { icon: faCreditCard, label: 'error.badgePayment', title: 'error.tPayment', message: 'error.mPayment' },
+  403: { icon: faLock, label: 'error.badgeForbidden', title: 'error.tForbidden', message: 'error.mForbidden' },
+  404: { icon: faSearch, label: 'error.badgeNotFound', title: 'error.tNotFound', message: 'error.mNotFound' },
+  405: { icon: faExclamationCircle, label: 'error.badgeMethod', title: 'error.tMethod', message: 'error.mMethod' },
+  408: { icon: faClock, label: 'error.badgeTimeout', title: 'error.tTimeout', message: 'error.mTimeout' },
+  429: { icon: faExclamationCircle, label: 'error.badgeTooMany', title: 'error.tTooMany', message: 'error.mTooMany' },
+  500: { icon: faServer, label: 'error.badgeServer', title: 'error.tServer', message: 'error.mServer' },
+  502: { icon: faWifi, label: 'error.badgeGateway', title: 'error.tGateway', message: 'error.mGateway' },
+  503: { icon: faTachometerAlt, label: 'error.badgeUnavailable', title: 'error.tUnavailable', message: 'error.mUnavailable' },
+  504: { icon: faWifi, label: 'error.badgeGatewayTimeout', title: 'error.tGatewayTimeout', message: 'error.mGatewayTimeout' },
 }
 const RETRY_CODES = [408, 429, 500, 502, 503, 504]
-const fallback = { icon: faExclamationCircle, label: $t('error.badgeUnknown'), title: $t('error.tUnknown'), message: 'An unexpected error occurred.' }
+const fallback = { icon: faExclamationCircle, label: 'error.badgeUnknown', title: 'error.tUnknown', message: 'An unexpected error occurred.' }
 
 const meta = computed(() => CODE_META[props.code] || fallback)
-const resolvedTitle = computed(() => props.title || meta.value.title)
-const resolvedMessage = computed(() => props.message || meta.value.message)
-const resolvedAction = computed(() => props.actionLabel || (meta.value.action || $t('error.backToDashboard')))
+const resolvedTitle = computed(() => props.title || $t(meta.value.title))
+const resolvedMessage = computed(() => props.message || $t(meta.value.message))
+const resolvedAction = computed(() => props.actionLabel || t('error.backToDashboard'))
 const resolvedActionTo = computed(() => {
   if (props.actionTo !== '/') return props.actionTo
   return [401, 403].includes(props.code) ? '/login' : '/'
@@ -48,8 +50,8 @@ function retry() { window.location.reload() }
       <span class="hud-corner hud-corner-tl"></span>
       <span class="hud-corner hud-corner-br"></span>
 
-      <div class="mono text-[10px] tracking-widest text-emerald-700/40 mb-2">
-        ERR {{ code }} &bull; {{ meta.label }}
+      <div class="mono text-[10px] tracking-widest text-emerald-700 mb-2">
+        ERR {{ code }} &bull; {{ $t(meta.label) }}
       </div>
 
       <div
@@ -58,8 +60,8 @@ function retry() { window.location.reload() }
       </div>
 
       <h1 class="text-4xl font-extrabold text-green-900">{{ code }}</h1>
-      <p class="text-emerald-700/70 mt-2 font-medium">{{ resolvedTitle }}</p>
-      <p class="text-sm text-emerald-700/50 mt-1">{{ resolvedMessage }}</p>
+      <p class="text-emerald-700 mt-2 font-medium">{{ resolvedTitle }}</p>
+      <p class="text-sm text-emerald-700 mt-1">{{ resolvedMessage }}</p>
 
       <div class="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3">
         <button v-if="resolvedShowRetry" @click="retry" class="btn-emerald px-6 py-2.5 rounded-xl text-sm font-bold">

@@ -20,9 +20,13 @@ const canSave = computed(() => !saving.value && lateTolMin.value >= 0 && lateTol
 
 // Values come from the backend and are converted to minutes for the input; the DB stores seconds.
 onMounted(async () => {
-    const cur = await settings.fetchSettings()
-    lateTolMin.value = Math.round((cur.late_tolerance_sec || 0) / 60)
-    overtimeTolMin.value = Math.round((cur.overtime_tolerance_sec || 0) / 60)
+    try {
+        const cur = await settings.fetchSettings()
+        lateTolMin.value = Math.round((cur.late_tolerance_sec || 0) / 60)
+        overtimeTolMin.value = Math.round((cur.overtime_tolerance_sec || 0) / 60)
+    } catch (e) {
+        notify.error(t('common.saveFailed'), e?.message || t('common.networkError'))
+    }
 })
 
 async function save() {
@@ -46,81 +50,95 @@ async function save() {
 </script>
 
 <template>
-    <div class="space-y-4">
-        <!-- Header -->
-        <div
-            class="hud-frame glass rounded-2xl border border-emerald-100 px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-3 tech-grid-soft shrink-0">
-            <span class="hud-corner hud-corner-tl hidden sm:block"></span><span
-                class="hud-corner hud-corner-br hidden sm:block"></span>
-            <div class="flex items-start gap-3">
-                <div
-                    class="hidden sm:flex w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-600 to-emerald-700 text-white items-center justify-center shadow-sm">
-                    <font-awesome :icon="faSliders" class="w-[18px] h-[18px]" />
-                </div>
-                <div>
-                    <h1 class="display text-lg font-extrabold text-green-900 tracking-tight">{{
-                        $t('settings.attendance') }}</h1>
-                    <div class="mt-2 flex flex-wrap items-center gap-2 mono text-[10px]">
-                        <span class="chip chip-emerald">{{ $t('settings.thresholds') }}</span>
-                    </div>
+    <div class="flex flex-col gap-4">
+
+        <!-- ===== page head ===== -->
+        <div class="flex flex-col sm:flex-row sm:items-center gap-3">
+            <div class="min-w-0">
+                <h1 class="display text-[20px] text-text">{{ $t('settings.attendance') }}</h1>
+                <div class="mt-1.5 flex flex-wrap items-center gap-1.5">
+                    <span class="chip chip-quiet">{{ $t('settings.thresholds') }}</span>
                 </div>
             </div>
         </div>
 
-        <!-- Tolerance settings -->
-        <div class="hud-frame glass rounded-2xl border border-emerald-100 p-4 sm:p-5 relative overflow-hidden">
-            <span class="hud-corner hud-corner-tl hidden sm:block"></span><span
-                class="hud-corner hud-corner-br hidden sm:block"></span>
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
 
-            <div class="space-y-6">
-                <!-- Late tolerance -->
-                <div>
-                    <label for="late-tol"
-                        class="mono text-[11px] font-bold tracking-[0.12em] uppercase text-emerald-800">{{
-                            $t('settings.lateTolerance') }}</label>
-                    <div class="flex items-center gap-2 mt-2">
-                        <input id="late-tol" v-model.number="lateTolMin" type="number" min="0" max="60" step="1"
-                            class="w-24 h-11 rounded-xl border-2 border-emerald-100 bg-white px-4 text-[15px] font-medium text-green-900 focus:outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 transition">
-                        <span class="mono text-xs text-emerald-700/60">{{ $t('settings.minutes') }}</span>
+            <!-- ===== tolerances ===== -->
+            <div class="lg:col-span-7 panel overflow-hidden">
+                <div class="panel-head">
+                    <span class="inline-flex items-center gap-2 min-w-0">
+                        <span class="w-1.5 h-1.5 rounded-full bg-primary shrink-0"></span>
+                        <span class="truncate">{{ $t('settings.attendance') }}</span>
+                    </span>
+                    <font-awesome :icon="faSliders" class="w-3.5 h-3.5 shrink-0" />
+                </div>
+
+                <div class="panel-body space-y-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label for="late-tol" class="label">{{ $t('settings.lateTolerance') }}</label>
+                            <div class="flex items-center gap-2">
+                                <input id="late-tol" v-model.number="lateTolMin" type="number" min="0" max="60" step="1"
+                                    class="field !w-24 mono">
+                                <span class="text-[12px] text-text-muted">{{ $t('settings.minutes') }}</span>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label for="overtime-tol" class="label">{{ $t('settings.overtimeTolerance') }}</label>
+                            <div class="flex items-center gap-2">
+                                <input id="overtime-tol" v-model.number="overtimeTolMin" type="number" min="0" max="60"
+                                    step="1" class="field !w-24 mono">
+                                <span class="text-[12px] text-text-muted">{{ $t('settings.minutes') }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-3 border-t border-border pt-4">
+                        <button type="button" :disabled="!canSave" @click="save" class="btn btn-primary">
+                            <span v-if="saving"
+                                class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                            <span>{{ saving ? $t('common.saving') : $t('common.save') }}</span>
+                        </button>
                     </div>
                 </div>
+            </div>
 
-                <!-- Overtime tolerance -->
-                <div>
-                    <label for="overtime-tol"
-                        class="mono text-[11px] font-bold tracking-[0.12em] uppercase text-emerald-800">{{
-                            $t('settings.overtimeTolerance') }}</label>
-                    <div class="flex items-center gap-2 mt-2">
-                        <input id="overtime-tol" v-model.number="overtimeTolMin" type="number" min="0" max="60" step="1"
-                            class="w-24 h-11 rounded-xl border-2 border-emerald-100 bg-white px-4 text-[15px] font-medium text-green-900 focus:outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 transition">
-                        <span class="mono text-xs text-emerald-700/60">{{ $t('settings.minutes') }}</span>
-                    </div>
+            <!-- ===== preview ===== -->
+            <div class="lg:col-span-5 panel overflow-hidden">
+                <div class="panel-head">
+                    <span class="inline-flex items-center gap-2 min-w-0">
+                        <span class="w-1.5 h-1.5 rounded-full bg-primary shrink-0"></span>
+                        <span class="truncate">{{ $t('settings.preview') }}</span>
+                    </span>
+                    <span class="mono text-[10.5px] normal-case tracking-normal text-text-muted shrink-0">{{ lateTolMin
+                        }} / {{ overtimeTolMin }} {{ $t('settings.minutes') }}</span>
                 </div>
-
-                <!-- Actions -->
-                <div class="flex items-center gap-3 pt-2">
-                    <button type="button" :disabled="!canSave" @click="save"
-                        class="btn-emerald px-6 h-11 rounded-xl text-sm font-bold inline-flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed transition">
-                        <span v-if="saving"
-                            class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-                        <span>{{ saving ? $t('common.saving') : $t('common.save') }}</span>
-                    </button>
-
-                </div>
-
-                <!-- Preview -->
-                <div
-                    class="mt-2 rounded-xl bg-emerald-50/60 border border-emerald-100 px-4 py-3 mono text-[11px] leading-relaxed text-emerald-800">
-                    <span class="font-bold tracking-widest">{{ $t('settings.preview') }}</span>
-                    <p class="mt-1.5">IN at shift start +{{ lateTolMin }} min → on time</p>
-                    <p>IN at shift start +{{ lateTolMin + 1 }} min → late</p>
-                    <p>OUT at shift end +{{ overtimeTolMin }} min → on time</p>
-                    <p>OUT at shift end +{{ overtimeTolMin + 1 }} min → overtime</p>
+                <div class="panel-body">
+                    <ul class="space-y-2">
+                        <li class="flex items-start gap-2 text-[12.5px] leading-relaxed text-text">
+                            <span class="mt-1.5 w-1.5 h-1.5 rounded-full bg-primary shrink-0"></span>
+                            {{ $t('settings.previewInOnTime', { min: lateTolMin }) }}
+                        </li>
+                        <li class="flex items-start gap-2 text-[12.5px] leading-relaxed text-text">
+                            <span class="mt-1.5 w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0"></span>
+                            {{ $t('settings.previewInLate', { min: lateTolMin + 1 }) }}
+                        </li>
+                        <li class="flex items-start gap-2 text-[12.5px] leading-relaxed text-text">
+                            <span class="mt-1.5 w-1.5 h-1.5 rounded-full bg-primary shrink-0"></span>
+                            {{ $t('settings.previewOutOntime', { min1: overtimeTolMin }) }}
+                        </li>
+                        <li class="flex items-start gap-2 text-[12.5px] leading-relaxed text-text">
+                            <span class="mt-1.5 w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0"></span>
+                            {{ $t('settings.previewOutEarly', { min1: overtimeTolMin + 1 }) }}
+                        </li>
+                    </ul>
                 </div>
             </div>
         </div>
 
-        <!-- Holiday calendar -->
+        <!-- ===== holiday calendar ===== -->
         <PanelHoliday />
     </div>
 </template>

@@ -1,0 +1,167 @@
+{
+  "theme": {
+    "extend": {
+      "colors": {
+        "primary": "#059669",
+        "primary-deep": "#047857",
+        "primary-deeper": "#065f46",
+        "secondary": "#16a34a",
+        "accent-lime": "#a3e635",
+        "lime-raised": "#ecfccb",
+        "canvas": "#f6fdf7",
+        "surface": "#ffffff",
+        "surface-glass": "#ffffffdb",
+        "surface-raised": "#ecfdf5",
+        "surface-sunken": "#d1fae5",
+        "border": "#d1fae5",
+        "border-strong": "#a7f3d0",
+        "text": "#14532d",
+        "text-muted": "#047857",
+        "text-faint": "#10b981",
+        "on-primary": "#ffffff",
+        "sidebar-top": "#052e16",
+        "sidebar-bottom": "#14532d",
+        "cat-sky": "#0369a1",
+        "cat-amber": "#b45309",
+        "cat-rose": "#be123c",
+        "cat-violet": "#6d28d9",
+        "cat-indigo": "#4338ca",
+        "cat-lime": "#4d7c0f",
+        "danger": "#b91c1c",
+        "danger-bg": "#fef2f2",
+        "ok-bg": "#ecfdf5",
+        "warn-bg": "#fffbeb"
+      },
+      "fontFamily": {
+        "display-page": [
+          "Plus Jakarta Sans"
+        ],
+        "display-login": [
+          "Plus Jakarta Sans"
+        ],
+        "display-hero": [
+          "Plus Jakarta Sans"
+        ],
+        "display-card": [
+          "Plus Jakarta Sans"
+        ],
+        "figure": [
+          "JetBrains Mono"
+        ],
+        "mono-label": [
+          "JetBrains Mono"
+        ],
+        "mono-chip": [
+          "JetBrains Mono"
+        ],
+        "mono-data": [
+          "JetBrains Mono"
+        ],
+        "label-upper": [
+          "ui-sans-serif, system-ui, sans-serif"
+        ],
+        "body": [
+          "ui-sans-serif, system-ui, sans-serif"
+        ],
+        "body-sm": [
+          "ui-sans-serif, system-ui, sans-serif"
+        ]
+      },
+      "fontSize": {
+        "display-page": [
+          "1.125rem",
+          {
+            "letterSpacing": "-0.02em",
+            "fontWeight": "800"
+          }
+        ],
+        "display-login": [
+          "1.375rem",
+          {
+            "letterSpacing": "-0.02em",
+            "fontWeight": "800"
+          }
+        ],
+        "display-hero": [
+          "1.25rem",
+          {
+            "letterSpacing": "-0.02em",
+            "fontWeight": "800"
+          }
+        ],
+        "display-card": [
+          "1rem",
+          {
+            "letterSpacing": "0em",
+            "fontWeight": "800"
+          }
+        ],
+        "figure": [
+          "1.25rem",
+          {
+            "letterSpacing": "0em",
+            "fontWeight": "800"
+          }
+        ],
+        "mono-label": [
+          "0.625rem",
+          {
+            "letterSpacing": "0.14em",
+            "fontWeight": "700"
+          }
+        ],
+        "mono-chip": [
+          "0.625rem",
+          {
+            "letterSpacing": "0.08em",
+            "fontWeight": "700"
+          }
+        ],
+        "mono-data": [
+          "0.6875rem",
+          {
+            "letterSpacing": "0.02em",
+            "fontWeight": "500"
+          }
+        ],
+        "label-upper": [
+          "0.75rem",
+          {
+            "letterSpacing": "0.1em",
+            "fontWeight": "600"
+          }
+        ],
+        "body": [
+          "0.875rem",
+          {
+            "letterSpacing": "0em",
+            "fontWeight": "400"
+          }
+        ],
+        "body-sm": [
+          "0.8125rem",
+          {
+            "letterSpacing": "0em",
+            "fontWeight": "400"
+          }
+        ]
+      },
+      "borderRadius": {
+        "sm": "8px",
+        "md": "12px",
+        "lg": "16px",
+        "xl": "24px",
+        "pill": "999px"
+      },
+      "spacing": {
+        "xs": "4px",
+        "sm": "8px",
+        "md": "12px",
+        "lg": "16px",
+        "xl": "20px",
+        "xxl": "24px",
+        "page": "16px"
+      }
+    }
+  }
+}

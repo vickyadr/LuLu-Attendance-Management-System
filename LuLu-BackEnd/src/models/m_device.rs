@@ -20,7 +20,8 @@ pub struct Devices {
     pub device_state: i32,
     #[serde(rename = "last_sync")]
     pub device_online: i64,
-
+    /// LAN address of the device, empty when unset. Required by the pull
+    /// reader when the server dials the device; the push path never needed it.
     #[serde(rename = "ip")]
     pub device_ip: Option<String>,
 }

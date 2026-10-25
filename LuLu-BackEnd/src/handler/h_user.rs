@@ -13,6 +13,9 @@ use actix_web::{
 };
 use std::collections::HashMap;
 
+/// Gate the user-management area. Access is decided purely by the 'users' page
+/// permission: holding `can_view` there is what makes someone an administrator of
+/// accounts, so there is no separate admin flag or numeric level.
 macro_rules! require_users_action {
     ($pool:expr, $bearer:expr, $action:expr) => {
         if let Ok(resp) =
@@ -111,6 +114,9 @@ pub async fn user_add(
 
     let password_encode = hash_password(&body.password.clone().unwrap_or_default()).await;
 
+    // A new account gets no permission rows, which denies every page and every
+    // action. Access is granted afterwards, explicitly, through
+    // POST /user/permissions - creating a user must not silently hand over rights.
     match sqlx::query_scalar::<_, String>(
         r##"INSERT INTO users (user_nickname, user_password, user_fname, user_lname) VALUES ($1, $2, $3, $4) RETURNING user_nickname"##,
     )
@@ -149,6 +155,8 @@ pub async fn user_edit(
         }
     };
 
+    // Confirm the row exists before building the UPDATE, so a typo in the nickname
+    // reports "User not found" instead of silently affecting zero rows.
     let existing: Option<String> =
         sqlx::query_scalar(r##"SELECT user_nickname FROM users WHERE user_nickname = $1"##)
             .bind(&user_nickname)
@@ -161,6 +169,9 @@ pub async fn user_edit(
         return NoDataResponse::new("User not found".to_string(), 404).into_response();
     }
 
+    // Column names are hardcoded below; only values are bound. Every bound value
+    // is a String now that the numeric level column is gone, so a single bind list
+    // is enough and cannot drift into a Postgres type mismatch.
     let mut updates: Vec<String> = Vec::new();
     let mut binds: Vec<String> = Vec::new();
     let mut param_idx = 1;
@@ -175,6 +186,7 @@ pub async fn user_edit(
         }
     }
 
+    let mut password_changed = false;
     if let Some(password) = body.password.clone() {
         if password.len().lt(&8) {
             data.insert("password", "Too short".to_string());
@@ -183,6 +195,7 @@ pub async fn user_edit(
             updates.push(format!("user_password = ${}", param_idx));
             binds.push(encoded);
             param_idx += 1;
+            password_changed = true;
         }
     }
 
@@ -221,14 +234,64 @@ pub async fn user_edit(
         param_idx
     );
 
+    // user_nickname is the PK and the permission FK carries ON UPDATE CASCADE, so
+    // a rename moves the permission rows across with the user.
     let mut query = sqlx::query(sqlx::AssertSqlSafe(sql));
     for value in binds {
         query = query.bind(value);
     }
     query = query.bind(&user_nickname);
 
-    match query.execute(&pool.db).await {
-        Ok(_) => NoDataResponse::new("OK".to_string(), 200).into_response(),
+    // A reset is also the containment step for a stolen token: the old
+    // session must die in the same transaction, like the field reset does.
+    let final_nickname = body
+        .nickname
+        .clone()
+        .filter(|nickname| nickname.len() >= 3)
+        .unwrap_or(user_nickname);
+    let mut tx = match pool.db.begin().await {
+        Ok(tx) => tx,
+        Err(e) => {
+            log::error!("Error: {}", e);
+            return NoDataResponse::new("Internal server error".to_string(), 500).into_response();
+        }
+    };
+
+    match query.execute(&mut *tx).await {
+        Ok(_) => {
+            if password_changed {
+                let user_id = sqlx::query_scalar::<_, i32>(
+                    "SELECT user_id FROM users WHERE user_nickname = $1",
+                )
+                .bind(&final_nickname)
+                .fetch_one(&mut *tx)
+                .await;
+                let user_id = match user_id {
+                    Ok(user_id) => user_id,
+                    Err(e) => {
+                        log::error!("Error: {}", e);
+                        return NoDataResponse::new("Internal server error".to_string(), 500)
+                            .into_response();
+                    }
+                };
+                if let Err(e) = sqlx::query("DELETE FROM sessions WHERE session_user_id = $1")
+                    .bind(user_id)
+                    .execute(&mut *tx)
+                    .await
+                {
+                    log::error!("Error: {}", e);
+                    return NoDataResponse::new("Internal server error".to_string(), 500)
+                        .into_response();
+                }
+            }
+            match tx.commit().await {
+                Ok(_) => NoDataResponse::new("OK".to_string(), 200).into_response(),
+                Err(e) => {
+                    log::error!("Error: {}", e);
+                    NoDataResponse::new("Internal server error".to_string(), 500).into_response()
+                }
+            }
+        }
         Err(e) => {
             log::error!("Error: {}", e);
             NoDataResponse::new("Internal server error".to_string(), 500).into_response()
@@ -318,6 +381,16 @@ pub async fn user_permissions_update(
         return NoDataResponse::new("User not found".to_string(), 404).into_response();
     }
 
+    // Refuse to strip your own access to user management. With no admin level and
+    // no superuser escape hatch, revoking your own 'users' permission is a
+    // one-way door that can lock every account out of the app.
+    //
+    // Write access must be preserved too, not just view. THIS endpoint is gated on
+    // can_edit, so dropping your own can_edit makes the save succeed and then
+    // locks you out of every future permission change - including the one that
+    // would restore it. can_add and can_delete are safe to drop: /user/add and
+    // /user/delete check them independently, and view still lets you manage
+    // others, so no capability becomes unreachable.
     if current_user_nickname == user_nickname {
         let mut keeps_view = false;
         let mut keeps_edit = false;
@@ -343,6 +416,8 @@ pub async fn user_permissions_update(
         }
     }
 
+    // Four independent flags per page, written as one upsert so a page the admin
+    // left out of the payload keeps its previous value instead of resetting.
     for perm in &body.permissions {
         match sqlx::query(
             r##"INSERT INTO user_page_permissions
@@ -378,7 +453,10 @@ pub async fn user_permissions_list(
     pool: web::Data<AppState>,
     bearer: Option<ReqData<String>>,
 ) -> impl Responder {
-
+    // Deliberately not gated on the 'users' page: every signed-in user needs their
+    // OWN flags to render the sidebar and guard the routes they can reach.
+    // Reading someone else's permissions still goes through /user/list, which
+    // requires 'users' + can_view.
     match get_session_user(pool.db.clone(), bearer).await {
         Some(user_nickname) => {
             match sqlx::query_as::<_, UserPermission>(

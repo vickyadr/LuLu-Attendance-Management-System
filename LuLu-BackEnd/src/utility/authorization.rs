@@ -8,7 +8,7 @@ use std::collections::HashMap;
 
 /// Pages the frontend can gate on. Kept in one place so a new page cannot be
 /// added to the UI without the backend recognising its permission key.
-pub const PAGE_KEYS: [&str; 8] = [
+pub const PAGE_KEYS: [&str; 9] = [
     "dashboard",
     "employee",
     "shift",
@@ -17,6 +17,7 @@ pub const PAGE_KEYS: [&str; 8] = [
     "settings",
     "users",
     "leave",
+    "payroll",
 ];
 
 /// How long a session stays valid after it was last used, in seconds.
@@ -70,7 +71,17 @@ pub const SESSION_USER_LOOKUP: &str = concat!(
 pub const SESSION_USER_DETAIL_LOOKUP: &str = concat!(
     "SELECT users.user_nickname, users.user_fname, users.user_lname \
      FROM users INNER JOIN sessions ON sessions.session_user_id = users.user_id \
-     WHERE ",
+     WHERE users.user_field_only = FALSE AND ",
+    live_session_predicate!()
+);
+
+/// Session lookup for admin-only transports (the WebSocket feed). The regular
+/// `SESSION_USER_LOOKUP` must keep resolving field users so the HTTP gate can
+/// answer them with its own 403.
+pub const SESSION_ADMIN_LOOKUP: &str = concat!(
+    "SELECT users.user_nickname FROM users \
+     INNER JOIN sessions ON sessions.session_user_id = users.user_id \
+     WHERE users.user_field_only = FALSE AND ",
     live_session_predicate!()
 );
 
@@ -117,10 +128,19 @@ pub fn client_ip(addr: Option<std::net::SocketAddr>) -> String {
 /// The WebSocket upgrade arrives as `?token=` because the browser cannot attach
 /// an `Authorization` header there.
 pub async fn is_login_token(pool: PgPool, token: String) -> Option<String> {
+    session_token_user(pool, token, SESSION_USER_LOOKUP).await
+}
+
+/// Same checks as `is_login_token`, but a field-only account answers `None`.
+pub async fn is_admin_token(pool: PgPool, token: String) -> Option<String> {
+    session_token_user(pool, token, SESSION_ADMIN_LOOKUP).await
+}
+
+async fn session_token_user(pool: PgPool, token: String, lookup: &'static str) -> Option<String> {
     // A `&'static str` query, so sqlx needs no `AssertSqlSafe`: this is the
     // compile-time-checked path, and a future edit that introduces request data
     // here fails to build instead of shipping.
-    let nickname: Option<String> = sqlx::query_scalar::<_, String>(SESSION_USER_LOOKUP)
+    let nickname: Option<String> = sqlx::query_scalar::<_, String>(lookup)
         .bind(&token)
         .bind(SESSION_IDLE_SECS)
         .fetch_one(&pool)
@@ -203,6 +223,13 @@ impl Action {
 }
 
 /// Gate for one specific action on a page.
+///
+/// The row is read once and the enum picks the flag in Rust, so there is no
+/// string-built SQL anywhere near user input: page_key is always a bound
+/// parameter and only the match below touches the enum.
+/// `Err(())` means "allowed" and `Ok(response)` carries the denial - this reads
+/// backwards versus normal Result use, but it is the gate convention every handler
+/// in this repo shares (`if let Ok(resp) = ... { return resp; }`).
 #[allow(clippy::result_unit_err)]
 pub async fn check_action_access(
     pool: PgPool,
@@ -218,6 +245,25 @@ pub async fn check_action_access(
             );
         }
     };
+
+    // A field token exists only for the employee app. Even if one is presented
+    // here, it must not open an admin page.
+    let field_only = sqlx::query_scalar::<_, bool>(
+        "SELECT COALESCE(user_field_only, FALSE) FROM users WHERE user_nickname = $1",
+    )
+    .bind(&user_nickname)
+    .fetch_optional(&pool)
+    .await
+    .ok()
+    .flatten()
+    .unwrap_or(false);
+    if field_only && page_key != "field" {
+        return Ok(NoDataResponse::new(
+            "This account is for the employee app".to_string(),
+            403,
+        )
+        .into_response());
+    }
 
     let flags: Option<(bool, bool, bool, bool)> = sqlx::query_as(
         r#"SELECT can_view, can_add, can_edit, can_delete
