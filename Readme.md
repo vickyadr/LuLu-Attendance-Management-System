@@ -11,6 +11,40 @@ Demo: https://lulu-demo.16pxlabs.com
 User: demo
 Password: demo12345
 
+## Docker deployment (example at repo root)
+
+`docker-compose.example.yml` is a self-contained release stack. It expects:
+
+- `lulu-images.tar` loaded on the host (`docker load -i lulu-images.tar`)
+- a root `.env` copied from `deploy/.env.example`
+- Docker Engine + Compose v2
+
+```bash
+cp deploy/.env.example .env
+# edit .env: POSTGRES_PASSWORD, SECRET_KEY, SITE_ADDRESS
+# edit docker-compose.example.yml: BOOTSTRAP_ADMIN_NICKNAME / PASSWORD
+docker load -i lulu-images.tar
+docker compose -f docker-compose.example.yml up -d
+```
+
+The two admin lines are the first-run account:
+
+```yaml
+BOOTSTRAP_ADMIN_NICKNAME: admin
+BOOTSTRAP_ADMIN_PASSWORD: "ChangeMe123!"
+```
+
+The API creates or refreshes that account on every start and grants all pages.
+Data lives in the `pgdata` and `uploads` volumes.
+
+For HTTPS set `SITE_ADDRESS=lulu.example.com` in `.env` (DNS must point at this
+host) and run the same command; Caddy requests the certificate. For a clean DB
+on a reused volume, remove the `pgdata` volume before the first start:
+
+```bash
+docker compose -f docker-compose.example.yml down -v
+```
+
 ## Repository layout
 
     LuLu-BackEnd/     Rust API (Actix Web) + database migrations
