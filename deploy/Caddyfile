@@ -1,0 +1,14 @@
+{$SITE_ADDRESS} {
+	encode gzip
+
+	# API, the employee PWA and the device protocol all live on the backend.
+	@backend path /api/* /field-app* /iclock/*
+	handle @backend {
+		reverse_proxy api:4343
+	}
+
+	# Everything else is the Nuxt admin UI.
+	handle {
+		reverse_proxy web:3232
+	}
+}

@@ -1,0 +1,88 @@
+# LuLu release stack (prebuilt images). Steps:
+#   1. cp deploy/.env.example .env        # fill POSTGRES_PASSWORD, SECRET_KEY
+#   2. edit the two admin lines below
+#   3. docker load -i lulu-images.tar
+#   4. docker compose -f docker-compose.example.yml up -d
+#
+# Only the proxy publishes ports. web:3232 and api:4343 stay on the Docker
+# network. HTTPS is used when SITE_ADDRESS is a hostname (Caddy + Let's Encrypt).
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-lulu}
+      POSTGRES_USER: ${POSTGRES_USER:-lulu}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deploy/.env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  api:
+    image: deploy-api:latest
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-lulu}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-lulu}
+      SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY in deploy/.env}
+      # First-run admin. Change both lines before the first start.
+      BOOTSTRAP_ADMIN_NICKNAME: admin
+      BOOTSTRAP_ADMIN_PASSWORD: "ChangeMe123!"
+      FIELD_UPLOAD_DIR: /data/uploads
+      PORT: "4343"
+      RUST_LOG: info
+    volumes:
+      - uploads:/data/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:4343/field-app"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+
+  web:
+    image: deploy-web:latest
+    restart: unless-stopped
+    environment:
+      HOST: 0.0.0.0
+      PORT: "3232"
+      NUXT_PUBLIC_API_BASE: /api
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3232/login >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  proxy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-:80}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      web:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  uploads:
+  caddy_data:
+  caddy_config:

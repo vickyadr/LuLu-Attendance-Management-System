@@ -1,0 +1,16 @@
+# Build the SPA, then run only the Nitro server.
+FROM node:22-alpine AS build
+WORKDIR /app
+COPY LuLu-FrontEnd/package.json LuLu-FrontEnd/package-lock.json ./
+RUN npm ci
+COPY LuLu-FrontEnd ./
+RUN npm run build
+
+FROM node:22-alpine
+WORKDIR /app
+COPY --from=build /app/.output ./.output
+ENV HOST=0.0.0.0 \
+    PORT=3232 \
+    NUXT_PUBLIC_API_BASE=/api
+EXPOSE 3232
+CMD ["node", ".output/server/index.mjs"]

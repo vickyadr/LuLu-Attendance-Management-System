@@ -1,0 +1,25 @@
+# Build the API once, then ship only the binary and its CA roots.
+FROM rust:bookworm AS build
+# native-tls links OpenSSL; the Rust image ships the compiler, not the headers.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends pkg-config libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+WORKDIR /build
+COPY LuLu-BackEnd/Cargo.toml LuLu-BackEnd/Cargo.lock LuLu-BackEnd/build.rs ./
+COPY LuLu-BackEnd/src ./src
+COPY LuLu-BackEnd/migrations ./migrations
+RUN cargo build --release
+
+FROM debian:bookworm-slim
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates curl \
+    && rm -rf /var/lib/apt/lists/*
+COPY --from=build /build/target/release/lulu_attendance-server /usr/local/bin/lulu_attendance-server
+# /field-app is read as ../LuLu-Field/index.html from the API working dir.
+COPY LuLu-Field /LuLu-Field
+ENV PORT=4343 \
+    FIELD_UPLOAD_DIR=/data/uploads \
+    RUST_LOG=info
+RUN mkdir -p /data/uploads
+EXPOSE 4343
+CMD ["lulu_attendance-server"]
